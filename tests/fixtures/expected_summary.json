@@ -33,17 +33,23 @@
       "total_rotation_overlap_ms": 850,
       "total_rotation_segment_count": 4,
       "total_dispatchable_duration_ms": 2538,
+      "total_defer_overlap_ms": 830,
+      "total_defer_segment_count": 5,
+      "total_actionable_duration_ms": 2332,
       "longest_window_ms": 1200,
-      "queued_window_count": 2,
+      "queued_window_count": 1,
       "muted_excluded_count": 2,
       "max_stability_pressure_score": 5,
       "max_volatility_index": 7,
+      "max_defer_pressure_score": 1,
+      "max_stability_index": 8,
       "canonical_alert_checksum": "1254d33bb3d2e56f02c3d98867ddee1a83d7a816102ebf74490c4a6dba66b13c",
-      "queue_hash_checksum": "a05ebacb4dd985019cc3fcc13a090fc2e5deec4bf84aa407e8a796abec4301de",
+      "queue_hash_checksum": "abb33b17abc6851f5ec1573069537d9e44b376291228bf03457141cf1c581383",
       "freeze_compaction_checksum": "836e9fbfdec2fd6a9d6f850585ac90b4ff950ccc4d3086effe2e5dc86e629757",
       "reopen_compaction_checksum": "0e1c4e3b7a635d3b44655c43b667773d17644341f10f536a8a9b9e1619b36e92",
       "rotation_compaction_checksum": "4ddf2b923948d27b40fa0fb076c69a58061a514bc6b1b1f96c38463499ec21b1",
-      "window_digest_checksum": "d61d028975622f3bb6cbe5bfd6c0b8f70d2b0208aa3e4d5f788e895ebd7481c5"
+      "defer_compaction_checksum": "06ebfcdcd45dcb1cac9d21835e34a91d5a6ec300facb8ca25cd2d71057a1b648",
+      "window_digest_checksum": "feb94d4ab87879f7be0490081ac3e44beda2bd3a80722732a33553e5cfa6b6dd"
     },
     "windows": {
       "dmz": [
@@ -60,6 +66,9 @@
           "rotation_overlap_ms": 0,
           "rotation_segment_count": 0,
           "dispatchable_duration_ms": 500,
+          "defer_overlap_ms": 0,
+          "defer_segment_count": 0,
+          "actionable_duration_ms": 500,
           "alert_count": 1,
           "source_alert_ids": [
             "d05"
@@ -79,6 +88,9 @@
           "rotation_overlap_ms": 0,
           "rotation_segment_count": 0,
           "dispatchable_duration_ms": 0,
+          "defer_overlap_ms": 0,
+          "defer_segment_count": 0,
+          "actionable_duration_ms": 0,
           "alert_count": 1,
           "source_alert_ids": [
             "d07"
@@ -98,6 +110,9 @@
           "rotation_overlap_ms": 250,
           "rotation_segment_count": 1,
           "dispatchable_duration_ms": 242,
+          "defer_overlap_ms": 310,
+          "defer_segment_count": 1,
+          "actionable_duration_ms": 165,
           "alert_count": 1,
           "source_alert_ids": [
             "d09"
@@ -117,6 +132,9 @@
           "rotation_overlap_ms": 210,
           "rotation_segment_count": 1,
           "dispatchable_duration_ms": 290,
+          "defer_overlap_ms": 170,
+          "defer_segment_count": 1,
+          "actionable_duration_ms": 248,
           "alert_count": 2,
           "source_alert_ids": [
             "d13",
@@ -139,6 +157,9 @@
           "rotation_overlap_ms": 110,
           "rotation_segment_count": 1,
           "dispatchable_duration_ms": 149,
+          "defer_overlap_ms": 80,
+          "defer_segment_count": 2,
+          "actionable_duration_ms": 129,
           "alert_count": 1,
           "source_alert_ids": [
             "d02"
@@ -158,6 +179,9 @@
           "rotation_overlap_ms": 0,
           "rotation_segment_count": 0,
           "dispatchable_duration_ms": 300,
+          "defer_overlap_ms": 0,
+          "defer_segment_count": 0,
+          "actionable_duration_ms": 300,
           "alert_count": 1,
           "source_alert_ids": [
             "d04"
@@ -177,6 +201,9 @@
           "rotation_overlap_ms": 0,
           "rotation_segment_count": 0,
           "dispatchable_duration_ms": 150,
+          "defer_overlap_ms": 0,
+          "defer_segment_count": 0,
+          "actionable_duration_ms": 150,
           "alert_count": 1,
           "source_alert_ids": [
             "d08"
@@ -196,6 +223,9 @@
           "rotation_overlap_ms": 0,
           "rotation_segment_count": 0,
           "dispatchable_duration_ms": 200,
+          "defer_overlap_ms": 0,
+          "defer_segment_count": 0,
+          "actionable_duration_ms": 200,
           "alert_count": 1,
           "source_alert_ids": [
             "d14"
@@ -217,6 +247,9 @@
           "rotation_overlap_ms": 0,
           "rotation_segment_count": 0,
           "dispatchable_duration_ms": 150,
+          "defer_overlap_ms": 0,
+          "defer_segment_count": 0,
+          "actionable_duration_ms": 150,
           "alert_count": 1,
           "source_alert_ids": [
             "d01"
@@ -236,6 +269,9 @@
           "rotation_overlap_ms": 0,
           "rotation_segment_count": 0,
           "dispatchable_duration_ms": 200,
+          "defer_overlap_ms": 0,
+          "defer_segment_count": 0,
+          "actionable_duration_ms": 200,
           "alert_count": 1,
           "source_alert_ids": [
             "d03"
@@ -255,6 +291,9 @@
           "rotation_overlap_ms": 280,
           "rotation_segment_count": 1,
           "dispatchable_duration_ms": 207,
+          "defer_overlap_ms": 270,
+          "defer_segment_count": 1,
+          "actionable_duration_ms": 140,
           "alert_count": 1,
           "source_alert_ids": [
             "d06"
@@ -274,6 +313,9 @@
           "rotation_overlap_ms": 0,
           "rotation_segment_count": 0,
           "dispatchable_duration_ms": 0,
+          "defer_overlap_ms": 0,
+          "defer_segment_count": 0,
+          "actionable_duration_ms": 0,
           "alert_count": 1,
           "source_alert_ids": [
             "d10"
@@ -293,6 +335,9 @@
           "rotation_overlap_ms": 0,
           "rotation_segment_count": 0,
           "dispatchable_duration_ms": 50,
+          "defer_overlap_ms": 0,
+          "defer_segment_count": 0,
+          "actionable_duration_ms": 50,
           "alert_count": 1,
           "source_alert_ids": [
             "d11"
@@ -312,6 +357,9 @@
           "rotation_overlap_ms": 0,
           "rotation_segment_count": 0,
           "dispatchable_duration_ms": 100,
+          "defer_overlap_ms": 0,
+          "defer_segment_count": 0,
+          "actionable_duration_ms": 100,
           "alert_count": 1,
           "source_alert_ids": [
             "d17"
@@ -336,6 +384,9 @@
         "rotation_overlap_ms": 210,
         "rotation_segment_count": 1,
         "dispatchable_duration_ms": 290,
+        "defer_overlap_ms": 170,
+        "defer_segment_count": 1,
+        "actionable_duration_ms": 248,
         "alert_count": 2,
         "source_alert_ids": [
           "d13",
@@ -344,35 +395,11 @@
         "max_severity": "p1",
         "stability_pressure_score": 5,
         "volatility_index": 7,
+        "defer_pressure_score": 1,
+        "stability_index": 8,
         "priority": "critical",
-        "queue_hash": "317557b6242b",
-        "window_digest": "93db902918"
-      },
-      {
-        "ticket_id": "dmz:2010000006200-2010000006800",
-        "env": "dmz",
-        "start_ms": 2010000006200,
-        "end_ms": 2010000006800,
-        "duration_ms": 600,
-        "freeze_overlap_ms": 0,
-        "freeze_segment_count": 0,
-        "effective_duration_ms": 600,
-        "reopen_overlap_ms": 550,
-        "reopen_segment_count": 1,
-        "risk_adjusted_duration_ms": 325,
-        "rotation_overlap_ms": 250,
-        "rotation_segment_count": 1,
-        "dispatchable_duration_ms": 242,
-        "alert_count": 1,
-        "source_alert_ids": [
-          "d09"
-        ],
-        "max_severity": "p2",
-        "stability_pressure_score": 4,
-        "volatility_index": 6,
-        "priority": "medium",
-        "queue_hash": "a3b2d3acd12b",
-        "window_digest": "3a7066e4e7"
+        "queue_hash": "0f16b51f6bc1",
+        "window_digest": "81fcc36177"
       }
     ]
   },
@@ -399,17 +426,23 @@
       "total_rotation_overlap_ms": 0,
       "total_rotation_segment_count": 0,
       "total_dispatchable_duration_ms": 750,
+      "total_defer_overlap_ms": 0,
+      "total_defer_segment_count": 0,
+      "total_actionable_duration_ms": 750,
       "longest_window_ms": 370,
       "queued_window_count": 2,
       "muted_excluded_count": 0,
       "max_stability_pressure_score": 1,
       "max_volatility_index": 1,
+      "max_defer_pressure_score": 0,
+      "max_stability_index": 1,
       "canonical_alert_checksum": "ecd2ab7007a70a9fb020c106e5d1453a7a5db0ba00f7ecbbd804899bb37a4718",
-      "queue_hash_checksum": "408f6389729ac6479f35b853022324ce20ca71ddffffd1c700259bf507ad80e8",
+      "queue_hash_checksum": "135d98df6388d2120200f37ab064ddd849dab077eedd9b6fd65bb459ca56f814",
       "freeze_compaction_checksum": "836e9fbfdec2fd6a9d6f850585ac90b4ff950ccc4d3086effe2e5dc86e629757",
       "reopen_compaction_checksum": "0e1c4e3b7a635d3b44655c43b667773d17644341f10f536a8a9b9e1619b36e92",
       "rotation_compaction_checksum": "4ddf2b923948d27b40fa0fb076c69a58061a514bc6b1b1f96c38463499ec21b1",
-      "window_digest_checksum": "dc2fed9603932ddf23cfcd2e9e129d8c689467284de43161dc66f1fa80aac002"
+      "defer_compaction_checksum": "06ebfcdcd45dcb1cac9d21835e34a91d5a6ec300facb8ca25cd2d71057a1b648",
+      "window_digest_checksum": "e1a7593b5e236ad275085029c52951909ff63ccf2cef6b08c05ca16f55548d2d"
     },
     "windows": {
       "edge": [
@@ -426,6 +459,9 @@
           "rotation_overlap_ms": 0,
           "rotation_segment_count": 0,
           "dispatchable_duration_ms": 310,
+          "defer_overlap_ms": 0,
+          "defer_segment_count": 0,
+          "actionable_duration_ms": 310,
           "alert_count": 1,
           "source_alert_ids": [
             "x4"
@@ -447,6 +483,9 @@
           "rotation_overlap_ms": 0,
           "rotation_segment_count": 0,
           "dispatchable_duration_ms": 370,
+          "defer_overlap_ms": 0,
+          "defer_segment_count": 0,
+          "actionable_duration_ms": 370,
           "alert_count": 2,
           "source_alert_ids": [
             "x1",
@@ -467,6 +506,9 @@
           "rotation_overlap_ms": 0,
           "rotation_segment_count": 0,
           "dispatchable_duration_ms": 70,
+          "defer_overlap_ms": 0,
+          "defer_segment_count": 0,
+          "actionable_duration_ms": 70,
           "alert_count": 1,
           "source_alert_ids": [
             "x3"
@@ -491,6 +533,9 @@
         "rotation_overlap_ms": 0,
         "rotation_segment_count": 0,
         "dispatchable_duration_ms": 370,
+        "defer_overlap_ms": 0,
+        "defer_segment_count": 0,
+        "actionable_duration_ms": 370,
         "alert_count": 2,
         "source_alert_ids": [
           "x1",
@@ -499,9 +544,11 @@
         "max_severity": "p1",
         "stability_pressure_score": 1,
         "volatility_index": 1,
+        "defer_pressure_score": 0,
+        "stability_index": 1,
         "priority": "critical",
-        "queue_hash": "9e6cf23d2563",
-        "window_digest": "6f7948a41e"
+        "queue_hash": "83ceb48355bf",
+        "window_digest": "731f9d7d0c"
       },
       {
         "ticket_id": "edge:600-910",
@@ -518,6 +565,9 @@
         "rotation_overlap_ms": 0,
         "rotation_segment_count": 0,
         "dispatchable_duration_ms": 310,
+        "defer_overlap_ms": 0,
+        "defer_segment_count": 0,
+        "actionable_duration_ms": 310,
         "alert_count": 1,
         "source_alert_ids": [
           "x4"
@@ -525,9 +575,11 @@
         "max_severity": "p2",
         "stability_pressure_score": 0,
         "volatility_index": 0,
+        "defer_pressure_score": 0,
+        "stability_index": 0,
         "priority": "high",
-        "queue_hash": "c86d2d2979d4",
-        "window_digest": "8c926a62d8"
+        "queue_hash": "0a769be33321",
+        "window_digest": "982839e14c"
       }
     ]
   }

@@ -1,6 +1,6 @@
 {
   "title": "Firewall Drift Chain Compiler Spec",
-  "version": "1.3",
+  "version": "1.4",
   "workflow_repair": {
     "path": "/app/workflow/export_report.py",
     "cli_usage": "python3 /app/workflow/export_report.py --input PATH --output-dir PATH",
@@ -9,7 +9,8 @@
       "output_dir": "/app/output",
       "change_freezes": "/app/data/change_freezes.json",
       "reopen_windows": "/app/data/reopen_windows.json",
-      "rotation_windows": "/app/data/rotation_windows.json"
+      "rotation_windows": "/app/data/rotation_windows.json",
+      "defer_windows": "/app/data/defer_windows.json"
     },
     "forbidden_executable_tokens": [
       "event[\"seen_ms\"]",
@@ -23,10 +24,14 @@
       "\"yes\"",
       "REOPEN_PATH",
       "ROTATION_PATH",
+      "DEFER_PATH",
       "reopen_compaction_checksum",
       "rotation_compaction_checksum",
+      "defer_compaction_checksum",
       "stability_pressure_score",
       "volatility_index",
+      "defer_pressure_score",
+      "stability_index",
       "window_digest"
     ],
     "token_check_scope": "executable code only (exclude comments and docstrings)"
@@ -56,6 +61,9 @@
       "rotation_overlap_ms",
       "rotation_segment_count",
       "dispatchable_duration_ms",
+      "defer_overlap_ms",
+      "defer_segment_count",
+      "actionable_duration_ms",
       "alert_count",
       "source_alert_ids",
       "max_severity"
@@ -88,25 +96,39 @@
     "dispatchable_duration_ms": "max(risk_adjusted_duration_ms - (rotation_overlap_ms // 3), 0)",
     "volatility_index": "stability_pressure_score + (all_rotation_probe_ms//24) + (severity_rotation_probe_ms//16) + (rotation_segment_count*2) where probe is [end_ms-240,end_ms+1)"
   },
+  "defer_windows": {
+    "source_path": "/app/data/defer_windows.json",
+    "same_env_only": true,
+    "scope_values": ["all", "p1", "p2"],
+    "defer_canonicalization": "normalize env/scope/start/end, drop end<=start, compact overlap/touch intervals per (env,severity_scope)",
+    "matching_scopes": "{all,max_severity} for each window",
+    "defer_overlap_union": "collect overlap segments from matching scopes then compact/union those segments to compute defer_overlap_ms and defer_segment_count",
+    "actionable_duration_ms": "max(dispatchable_duration_ms - (defer_overlap_ms // 4), 0)",
+    "defer_pressure_score": "probe [end_ms-300,end_ms+1): (all_defer_probe_ms//40)+(severity_defer_probe_ms//28)+defer_segment_count",
+    "stability_index": "volatility_index + defer_pressure_score"
+  },
   "response_queue": {
     "output_path": "response_queue.jsonl",
-    "include_min_dispatchable_duration_ms": {
-      "p1": 190,
-      "p2": 240
+    "include_min_actionable_duration_ms": {
+      "p1": 180,
+      "p2": 225
     },
     "include_max_severities": ["p1", "p2"],
     "ticket_id_format": "{env}:{start_ms}-{end_ms}",
-    "queue_hash": "sha1('{env}|{start_ms}|{end_ms}|{csv_source_alert_ids}|{max_severity}|{freeze_segment_count}|{reopen_segment_count}|{rotation_segment_count}|{stability_pressure_score}|{volatility_index}') first 12 lowercase hex chars",
-    "window_digest": "sha1('{ticket_id}|{priority}|{dispatchable_duration_ms}|{volatility_index}|{stability_pressure_score}') first 10 lowercase hex chars",
+    "queue_hash": "sha1('{env}|{start_ms}|{end_ms}|{csv_source_alert_ids}|{max_severity}|{freeze_segment_count}|{reopen_segment_count}|{rotation_segment_count}|{defer_segment_count}|{stability_pressure_score}|{volatility_index}|{defer_pressure_score}') first 12 lowercase hex chars",
+    "window_digest": "sha1('{ticket_id}|{priority}|{actionable_duration_ms}|{stability_index}|{defer_pressure_score}|{volatility_index}') first 10 lowercase hex chars",
     "priority_rules": {
-      "critical": "max_severity == p1 and dispatchable_duration_ms >= 250, or dispatchable_duration_ms >= 520, or volatility_index >= 18",
-      "high": "dispatchable_duration_ms >= 280, or alert_count >= 3 with max_severity in {p1,p2}, or rotation_segment_count == 0 with risk_adjusted_duration_ms >= 340, or reopen_segment_count == 0 with duration_ms >= 420",
+      "critical": "max_severity == p1 and actionable_duration_ms >= 235, or actionable_duration_ms >= 500, or stability_index >= 20",
+      "high": "actionable_duration_ms >= 265, or alert_count >= 3 with max_severity in {p1,p2}, or rotation_segment_count == 0 with risk_adjusted_duration_ms >= 340, or defer_pressure_score > 0 with dispatchable_duration_ms >= 320, or reopen_segment_count == 0 with duration_ms >= 420",
       "medium": "otherwise"
     },
     "sort_order": [
       "priority rank critical>high>medium",
-      "dispatchable_duration_ms desc",
+      "actionable_duration_ms desc",
+      "stability_index desc",
+      "defer_pressure_score desc",
       "volatility_index desc",
+      "dispatchable_duration_ms desc",
       "risk_adjusted_duration_ms desc",
       "freeze_segment_count desc",
       "alert_count desc",
@@ -134,16 +156,22 @@
       "total_rotation_overlap_ms",
       "total_rotation_segment_count",
       "total_dispatchable_duration_ms",
+      "total_defer_overlap_ms",
+      "total_defer_segment_count",
+      "total_actionable_duration_ms",
       "longest_window_ms",
       "queued_window_count",
       "muted_excluded_count",
       "max_stability_pressure_score",
       "max_volatility_index",
+      "max_defer_pressure_score",
+      "max_stability_index",
       "canonical_alert_checksum",
       "queue_hash_checksum",
       "freeze_compaction_checksum",
       "reopen_compaction_checksum",
       "rotation_compaction_checksum",
+      "defer_compaction_checksum",
       "window_digest_checksum"
     ],
     "severity_counts_key_order": ["p1", "p2", "p3", "p4"],
@@ -152,6 +180,7 @@
     "freeze_compaction_checksum": "sha256 over compacted freeze rows env|start_ms|end_ms",
     "reopen_compaction_checksum": "sha256 over compacted reopen rows env|severity_scope|start_ms|end_ms",
     "rotation_compaction_checksum": "sha256 over compacted rotation rows env|severity_scope|start_ms|end_ms",
+    "defer_compaction_checksum": "sha256 over compacted defer rows env|severity_scope|start_ms|end_ms",
     "queue_hash_checksum": "sha256('|'.join(queue_hash values in final queue order)) lowercase 64 hex chars",
     "window_digest_checksum": "sha256('|'.join(window_digest values in final queue order)) lowercase 64 hex chars"
   },

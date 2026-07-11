@@ -12,12 +12,14 @@ SCHEMA_VERSION = "firewall-drift-v1"
 FREEZE_PATH = Path("/app/data/change_freezes.json")
 REOPEN_PATH = Path("/app/data/reopen_windows.json")
 ROTATION_PATH = Path("/app/data/rotation_windows.json")
+DEFER_PATH = Path("/app/data/defer_windows.json")
 SEVERITY_ORDER = ["p1", "p2", "p3", "p4"]
 SEVERITY_RANK = {name: len(SEVERITY_ORDER) - idx for idx, name in enumerate(SEVERITY_ORDER)}
 PRIORITY_ORDER = ["critical", "high", "medium"]
 PRIORITY_RANK = {name: len(PRIORITY_ORDER) - idx for idx, name in enumerate(PRIORITY_ORDER)}
 SUPPORTED_REOPEN_SCOPES = {"all", "p1", "p2"}
 SUPPORTED_ROTATION_SCOPES = {"all", "p1", "p2"}
+SUPPORTED_DEFER_SCOPES = {"all", "p1", "p2"}
 
 
 def _normalize_severity(value: object) -> str:
@@ -62,6 +64,11 @@ def _normalize_reopen_scope(value: object) -> str:
 def _normalize_rotation_scope(value: object) -> str:
     scope = str(value).strip().lower()
     return scope if scope in SUPPORTED_ROTATION_SCOPES else ""
+
+
+def _normalize_defer_scope(value: object) -> str:
+    scope = str(value).strip().lower()
+    return scope if scope in SUPPORTED_DEFER_SCOPES else ""
 
 
 def _load_json(path: Path) -> list[dict]:
@@ -184,14 +191,31 @@ def rotation_by_scope(rows: list[dict]) -> dict[tuple[str, str], list[tuple[int,
     return {key: _compact_intervals(intervals) for key, intervals in by_key.items()}
 
 
+def defer_by_scope(rows: list[dict]) -> dict[tuple[str, str], list[tuple[int, int]]]:
+    by_key: dict[tuple[str, str], list[tuple[int, int]]] = {}
+    for row in rows:
+        env = _normalize_env(row.get("env", ""))
+        scope = _normalize_defer_scope(row.get("severity_scope", ""))
+        if not scope:
+            continue
+        start = _normalize_ms(row.get("start_ms", 0))
+        end = _normalize_ms(row.get("end_ms", 0))
+        if end <= start:
+            continue
+        by_key.setdefault((env, scope), []).append((start, end))
+    return {key: _compact_intervals(intervals) for key, intervals in by_key.items()}
+
+
 def build_drift_windows(
     canonical: list[dict],
     freeze_rows: list[dict],
     reopen_rows: list[dict],
     rotation_rows: list[dict],
+    defer_rows: list[dict],
 ) -> tuple[
     dict[str, list[dict]],
     dict[str, list[tuple[int, int]]],
+    dict[tuple[str, str], list[tuple[int, int]]],
     dict[tuple[str, str], list[tuple[int, int]]],
     dict[tuple[str, str], list[tuple[int, int]]],
 ]:
@@ -204,6 +228,7 @@ def build_drift_windows(
     freeze_map = freezes_by_env(freeze_rows)
     reopen_map = reopen_by_scope(reopen_rows)
     rotation_map = rotation_by_scope(rotation_rows)
+    defer_map = defer_by_scope(defer_rows)
     result: dict[str, list[dict]] = {}
     for env, alerts in grouped.items():
         alerts.sort(key=lambda row: (row["start_ms"], row["end_ms"], row["alert_id"]))
@@ -270,6 +295,19 @@ def build_drift_windows(
             compacted_rotation_segments = _compact_intervals(rotation_segments)
             rotation_overlap = sum(end - start for start, end in compacted_rotation_segments)
             dispatchable_duration = max(risk_adjusted_duration - (rotation_overlap // 3), 0)
+            defer_segments = _window_overlaps(
+                window["start_ms"], window["end_ms"], defer_map.get((env, "all"), [])
+            )
+            defer_segments.extend(
+                _window_overlaps(
+                    window["start_ms"],
+                    window["end_ms"],
+                    defer_map.get((env, window["max_severity"]), []),
+                )
+            )
+            compacted_defer_segments = _compact_intervals(defer_segments)
+            defer_overlap = sum(end - start for start, end in compacted_defer_segments)
+            actionable_duration = max(dispatchable_duration - (defer_overlap // 4), 0)
             normalized_windows.append(
                 {
                     "start_ms": window["start_ms"],
@@ -284,6 +322,9 @@ def build_drift_windows(
                     "rotation_overlap_ms": rotation_overlap,
                     "rotation_segment_count": len(compacted_rotation_segments),
                     "dispatchable_duration_ms": dispatchable_duration,
+                    "defer_overlap_ms": defer_overlap,
+                    "defer_segment_count": len(compacted_defer_segments),
+                    "actionable_duration_ms": actionable_duration,
                     "alert_count": len(window["source_alert_ids"]),
                     "source_alert_ids": sorted(window["source_alert_ids"]),
                     "max_severity": window["max_severity"],
@@ -292,21 +333,22 @@ def build_drift_windows(
         normalized_windows.sort(key=lambda row: row["start_ms"])
         result[env] = normalized_windows
 
-    return {env: result[env] for env in sorted(result)}, freeze_map, reopen_map, rotation_map
+    return {env: result[env] for env in sorted(result)}, freeze_map, reopen_map, rotation_map, defer_map
 
 
 def build_response_queue(
     drift_windows: dict[str, list[dict]],
     reopen_map: dict[tuple[str, str], list[tuple[int, int]]],
     rotation_map: dict[tuple[str, str], list[tuple[int, int]]],
+    defer_map: dict[tuple[str, str], list[tuple[int, int]]],
 ) -> list[dict]:
     queue: list[dict] = []
     for env, windows in drift_windows.items():
         for window in windows:
             if window["max_severity"] not in {"p1", "p2"}:
                 continue
-            include_min_ms = 190 if window["max_severity"] == "p1" else 240
-            if window["dispatchable_duration_ms"] < include_min_ms:
+            include_min_ms = 180 if window["max_severity"] == "p1" else 225
+            if window["actionable_duration_ms"] < include_min_ms:
                 continue
 
             all_probe_ms = _probe_overlap_ms(window["end_ms"], reopen_map.get((env, "all"), []))
@@ -333,16 +375,32 @@ def build_response_queue(
                 + (severity_rotation_probe_ms // 16)
                 + (window["rotation_segment_count"] * 2)
             )
+            all_defer_probe_ms = _probe_overlap_ms(
+                window["end_ms"], defer_map.get((env, "all"), []), lookback_ms=300
+            )
+            severity_defer_probe_ms = _probe_overlap_ms(
+                window["end_ms"],
+                defer_map.get((env, window["max_severity"]), []),
+                lookback_ms=300,
+            )
+            defer_pressure_score = (
+                (all_defer_probe_ms // 40)
+                + (severity_defer_probe_ms // 28)
+                + window["defer_segment_count"]
+            )
+            stability_index = volatility_index + defer_pressure_score
             if (
                 window["max_severity"] == "p1"
-                and window["dispatchable_duration_ms"] >= 250
-            ) or window["dispatchable_duration_ms"] >= 520 or volatility_index >= 18:
+                and window["actionable_duration_ms"] >= 235
+            ) or window["actionable_duration_ms"] >= 500 or stability_index >= 20:
                 priority = "critical"
-            elif window["dispatchable_duration_ms"] >= 280 or (
+            elif window["actionable_duration_ms"] >= 265 or (
                 window["alert_count"] >= 3 and window["max_severity"] in {"p1", "p2"}
             ) or (
                 window["rotation_segment_count"] == 0
                 and window["risk_adjusted_duration_ms"] >= 340
+            ) or (
+                defer_pressure_score > 0 and window["dispatchable_duration_ms"] >= 320
             ) or (
                 window["reopen_segment_count"] == 0 and window["duration_ms"] >= 420
             ):
@@ -355,15 +413,15 @@ def build_response_queue(
                     f"{env}|{window['start_ms']}|{window['end_ms']}|"
                     f"{','.join(window['source_alert_ids'])}|{window['max_severity']}|"
                     f"{window['freeze_segment_count']}|{window['reopen_segment_count']}|"
-                    f"{window['rotation_segment_count']}|{stability_pressure_score}|"
-                    f"{volatility_index}"
+                    f"{window['rotation_segment_count']}|{window['defer_segment_count']}|"
+                    f"{stability_pressure_score}|{volatility_index}|{defer_pressure_score}"
                 ).encode("utf-8")
             ).hexdigest()[:12]
             ticket_id = f"{env}:{window['start_ms']}-{window['end_ms']}"
             window_digest = hashlib.sha1(
                 (
-                    f"{ticket_id}|{priority}|{window['dispatchable_duration_ms']}|"
-                    f"{volatility_index}|{stability_pressure_score}"
+                    f"{ticket_id}|{priority}|{window['actionable_duration_ms']}|"
+                    f"{stability_index}|{defer_pressure_score}|{volatility_index}"
                 ).encode("utf-8")
             ).hexdigest()[:10]
 
@@ -383,11 +441,16 @@ def build_response_queue(
                     "rotation_overlap_ms": window["rotation_overlap_ms"],
                     "rotation_segment_count": window["rotation_segment_count"],
                     "dispatchable_duration_ms": window["dispatchable_duration_ms"],
+                    "defer_overlap_ms": window["defer_overlap_ms"],
+                    "defer_segment_count": window["defer_segment_count"],
+                    "actionable_duration_ms": window["actionable_duration_ms"],
                     "alert_count": window["alert_count"],
                     "source_alert_ids": list(window["source_alert_ids"]),
                     "max_severity": window["max_severity"],
                     "stability_pressure_score": stability_pressure_score,
                     "volatility_index": volatility_index,
+                    "defer_pressure_score": defer_pressure_score,
+                    "stability_index": stability_index,
                     "priority": priority,
                     "queue_hash": queue_hash,
                     "window_digest": window_digest,
@@ -397,8 +460,11 @@ def build_response_queue(
     queue.sort(
         key=lambda row: (
             -PRIORITY_RANK[row["priority"]],
-            -row["dispatchable_duration_ms"],
+            -row["actionable_duration_ms"],
+            -row["stability_index"],
+            -row["defer_pressure_score"],
             -row["volatility_index"],
+            -row["dispatchable_duration_ms"],
             -row["risk_adjusted_duration_ms"],
             -row["freeze_segment_count"],
             -row["alert_count"],
@@ -415,6 +481,7 @@ def build_summary(
     freeze_map: dict[str, list[tuple[int, int]]],
     reopen_map: dict[tuple[str, str], list[tuple[int, int]]],
     rotation_map: dict[tuple[str, str], list[tuple[int, int]]],
+    defer_map: dict[tuple[str, str], list[tuple[int, int]]],
     drift_windows: dict[str, list[dict]],
     queue: list[dict],
 ) -> dict:
@@ -432,6 +499,9 @@ def build_summary(
     total_rotation_overlap = 0
     total_rotation_segments = 0
     total_dispatchable = 0
+    total_defer_overlap = 0
+    total_defer_segments = 0
+    total_actionable = 0
     longest_window = 0
     for windows in drift_windows.values():
         for window in windows:
@@ -445,6 +515,9 @@ def build_summary(
             total_rotation_overlap += window["rotation_overlap_ms"]
             total_rotation_segments += window["rotation_segment_count"]
             total_dispatchable += window["dispatchable_duration_ms"]
+            total_defer_overlap += window["defer_overlap_ms"]
+            total_defer_segments += window["defer_segment_count"]
+            total_actionable += window["actionable_duration_ms"]
             longest_window = max(longest_window, window["duration_ms"])
 
     muted_excluded_count = sum(1 for row in canonical if row["muted"])
@@ -478,6 +551,13 @@ def build_summary(
             for start, end in rotation_map[(env, scope)]
         ).encode("utf-8")
     ).hexdigest()
+    defer_compaction_checksum = hashlib.sha256(
+        "\n".join(
+            f"{env}|{scope}|{start}|{end}"
+            for env, scope in sorted(defer_map)
+            for start, end in defer_map[(env, scope)]
+        ).encode("utf-8")
+    ).hexdigest()
     queue_checksum = hashlib.sha256(
         "|".join(row["queue_hash"] for row in queue).encode("utf-8")
     ).hexdigest()
@@ -504,6 +584,9 @@ def build_summary(
         "total_rotation_overlap_ms": total_rotation_overlap,
         "total_rotation_segment_count": total_rotation_segments,
         "total_dispatchable_duration_ms": total_dispatchable,
+        "total_defer_overlap_ms": total_defer_overlap,
+        "total_defer_segment_count": total_defer_segments,
+        "total_actionable_duration_ms": total_actionable,
         "longest_window_ms": longest_window,
         "queued_window_count": len(queue),
         "muted_excluded_count": muted_excluded_count,
@@ -512,11 +595,14 @@ def build_summary(
             default=0,
         ),
         "max_volatility_index": max((row["volatility_index"] for row in queue), default=0),
+        "max_defer_pressure_score": max((row["defer_pressure_score"] for row in queue), default=0),
+        "max_stability_index": max((row["stability_index"] for row in queue), default=0),
         "canonical_alert_checksum": canonical_alert_checksum,
         "queue_hash_checksum": queue_checksum,
         "freeze_compaction_checksum": freeze_compaction_checksum,
         "reopen_compaction_checksum": reopen_compaction_checksum,
         "rotation_compaction_checksum": rotation_compaction_checksum,
+        "defer_compaction_checksum": defer_compaction_checksum,
         "window_digest_checksum": window_digest_checksum,
     }
 
@@ -527,15 +613,16 @@ def export_report(
     freeze_rows: list[dict],
     reopen_rows: list[dict],
     rotation_rows: list[dict],
+    defer_rows: list[dict],
 ) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     canonical = canonicalize_alerts(events)
-    drift_windows, freeze_map, reopen_map, rotation_map = build_drift_windows(
-        canonical, freeze_rows, reopen_rows, rotation_rows
+    drift_windows, freeze_map, reopen_map, rotation_map, defer_map = build_drift_windows(
+        canonical, freeze_rows, reopen_rows, rotation_rows, defer_rows
     )
-    queue = build_response_queue(drift_windows, reopen_map, rotation_map)
+    queue = build_response_queue(drift_windows, reopen_map, rotation_map, defer_map)
     summary = build_summary(
-        events, canonical, freeze_map, reopen_map, rotation_map, drift_windows, queue
+        events, canonical, freeze_map, reopen_map, rotation_map, defer_map, drift_windows, queue
     )
 
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
@@ -557,7 +644,8 @@ def main() -> None:
     freeze_rows = _load_json(FREEZE_PATH)
     reopen_rows = _load_json(REOPEN_PATH)
     rotation_rows = _load_json(ROTATION_PATH)
-    export_report(events, Path(args.output_dir), freeze_rows, reopen_rows, rotation_rows)
+    defer_rows = _load_json(DEFER_PATH)
+    export_report(events, Path(args.output_dir), freeze_rows, reopen_rows, rotation_rows, defer_rows)
     print(f"Wrote report to {args.output_dir}")
 
 

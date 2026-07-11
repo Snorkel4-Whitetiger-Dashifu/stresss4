@@ -1,0 +1,11 @@
+[
+  {"env": "dmz", "severity_scope": "all", "start_ms": 2010000006150, "end_ms": 2010000006420},
+  {"env": "dmz", "severity_scope": "all", "start_ms": 2010000006400, "end_ms": 2010000006510},
+  {"env": "dmz", "severity_scope": "p1", "start_ms": 2010000009070, "end_ms": 2010000009240},
+  {"env": "prod", "severity_scope": "p2", "start_ms": 2010000004520, "end_ms": 2010000004710},
+  {"env": "prod", "severity_scope": "p2", "start_ms": 2010000004690, "end_ms": 2010000004790},
+  {"env": "edge", "severity_scope": "all", "start_ms": 2010000001150, "end_ms": 2010000001210},
+  {"env": "edge", "severity_scope": "p2", "start_ms": 2010000002050, "end_ms": 2010000002120},
+  {"env": "edge", "severity_scope": "debug", "start_ms": 0, "end_ms": 1},
+  {"env": "prod", "severity_scope": "all", "start_ms": "oops", "end_ms": "oops2"}
+]
