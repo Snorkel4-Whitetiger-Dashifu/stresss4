@@ -20,7 +20,7 @@ Core processing requirements:
      - booleans unchanged
      - strings: only `"true"`, `"1"`, `"yes"` => `True`; all other strings => `False`
      - non-string/non-bool values use Python `bool(value)`
-   - dedupe by `alert_id`: keep largest `end_ms`; tie-break by severity rank `p1 > p2 > p3 > p4`, then longer normalized signature, then lexicographically larger normalized env
+   - dedupe by `alert_id`: keep largest `end_ms`; tie-break by severity rank `p1 > p2 > p3 > p4`, then longer normalized signature, then lexicographically larger normalized env; if still tied after all listed rules, keep the first seen row in input order
 2. Build merged windows from unmuted alerts only, grouped by normalized env.
    - merge condition: `next.start_ms <= current.end_ms + 45`
    - per window compute:

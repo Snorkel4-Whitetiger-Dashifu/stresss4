@@ -577,6 +577,57 @@ def test_dedupe_tie_break_uses_env_when_signature_lengths_equal(tmp_path: Path):
     assert canonical[0]["env"] == "zzz"
 
 
+def test_signature_whitespace_is_collapsed_before_dedupe_length_tie_break():
+    rows = [
+        {
+            "alert_id": "ws1",
+            "start_ms": 100,
+            "end_ms": 500,
+            "severity": "p2",
+            "env": "prod",
+            "signature": "a     b",
+            "muted": False,
+        },
+        {
+            "alert_id": "ws1",
+            "start_ms": 100,
+            "end_ms": 500,
+            "severity": "p2",
+            "env": "prod",
+            "signature": "abcd",
+            "muted": False,
+        },
+    ]
+    canonical = _canonicalize_alerts(rows)
+    assert canonical[0]["signature"] == "abcd"
+
+
+def test_dedupe_full_tie_keeps_first_seen_row():
+    rows = [
+        {
+            "alert_id": "tie1",
+            "start_ms": 100,
+            "end_ms": 500,
+            "severity": "p2",
+            "env": "prod",
+            "signature": "aa bb",
+            "muted": False,
+        },
+        {
+            "alert_id": "tie1",
+            "start_ms": 200,
+            "end_ms": 500,
+            "severity": "p2",
+            "env": "prod",
+            "signature": "cc dd",
+            "muted": True,
+        },
+    ]
+    canonical = _canonicalize_alerts(rows)
+    assert canonical[0]["start_ms"] == 100
+    assert canonical[0]["muted"] is False
+
+
 def test_merge_gap_45_and_freeze_overlap_math_on_custom_data(tmp_path: Path):
     rows = [
         {"alert_id": "g1", "start_ms": 1000, "end_ms": 1300, "severity": "p2", "env": "lab", "signature": "a", "muted": False},
@@ -598,6 +649,17 @@ def test_merge_gap_45_and_freeze_overlap_math_on_custom_data(tmp_path: Path):
     assert window["freeze_overlap_ms"] == 300
     assert window["effective_duration_ms"] == 300
     assert queue[0]["priority"] == "high"
+
+
+def test_response_queue_jsonl_is_compact(tmp_path: Path):
+    out_dir, _, _, _ = _run_pipeline(tmp_path)
+    raw_lines = (out_dir / "response_queue.jsonl").read_text(encoding="utf-8").splitlines()
+    for line in raw_lines:
+        if not line.strip():
+            continue
+        assert ": " not in line
+        parsed = json.loads(line)
+        assert json.dumps(parsed, separators=(",", ":")) == line
 
 
 def test_queue_hash_checksum_matches_queue_rows(tmp_path: Path):

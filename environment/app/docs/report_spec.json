@@ -28,7 +28,7 @@
     "signature_normalization": "collapse internal whitespace for signature",
     "end_ms_normalization": "coerce end_ms to int after trim; invalid -> 0",
     "muted_normalization": "booleans unchanged; strings true/1/yes => true, all other strings => false; non-string/non-bool use Python bool(value)",
-    "dedupe_by_alert_id": "keep highest end_ms; tie-break by severity rank p1>p2>p3>p4, then longer signature, then lexicographically larger env"
+    "dedupe_by_alert_id": "keep highest end_ms; tie-break by severity rank p1>p2>p3>p4, then longer normalized signature, then lexicographically larger normalized env; if still tied keep first seen row in input order"
   },
   "window_merging": {
     "group_by": "normalized env",
