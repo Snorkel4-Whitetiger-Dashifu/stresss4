@@ -1,7 +1,7 @@
 [
-  {"alert_id": "b1", "observed_ms": 50, "severity": "low", "asset_group": "sandbox", "signature": "ok", "muted": false},
-  {"alert_id": "b2", "observed_ms": 100, "severity": "high", "asset_group": "sandbox", "signature": "slow burst", "muted": false},
-  {"alert_id": "b2", "observed_ms": 120, "severity": "HIGH", "asset_group": "sandbox", "signature": "slow burst duplicate", "muted": false},
-  {"alert_id": "b3", "observed_ms": 200, "severity": "critical", "asset_group": "sandbox", "signature": "muted critical", "muted": true},
-  {"alert_id": "b4", "observed_ms": " 150 ", "severity": "Critical", "asset_group": "sandbox", "signature": "escalate", "muted": false}
+  {"alert_id": "x1", "start_ms": 100, "end_ms": "290", "severity": "P1", "env": "lab", "signature": "root role uplift", "muted": false},
+  {"alert_id": "x2", "start_ms": 260, "end_ms": 470, "severity": "p2", "env": "lab", "signature": "token replay", "muted": false},
+  {"alert_id": "x3", "start_ms": 520, "end_ms": 590, "severity": "p3", "env": "lab", "signature": "noise", "muted": false},
+  {"alert_id": "x4", "start_ms": 600, "end_ms": " 910 ", "severity": "p2", "env": "edge", "signature": "burst drift", "muted": "yes"},
+  {"alert_id": "x4", "start_ms": 600, "end_ms": " 910 ", "severity": "p2", "env": "edge", "signature": "burst drift z", "muted": false}
 ]

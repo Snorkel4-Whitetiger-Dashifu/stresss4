@@ -1,48 +1,33 @@
 #!/usr/bin/env python3
-"""Export corrected SOC summary and escalation rows."""
+"""Reference fix for firewall drift chain compiler."""
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
-SCHEMA_VERSION = "siem-rollup-v2"
-ESCALATION_SEVERITIES = {"high", "critical"}
-SEVERITY_ORDER = ("critical", "high", "medium", "low")
-SEVERITY_RANK = {"low": 1, "medium": 2, "high": 3, "critical": 4}
-
-
-def load_events(path: Path) -> list[dict]:
-    return json.loads(path.read_text())
+SCHEMA_VERSION = "firewall-drift-v1"
+FREEZE_PATH = Path("/app/data/change_freezes.json")
+SEVERITY_ORDER = ["p1", "p2", "p3", "p4"]
+SEVERITY_RANK = {name: len(SEVERITY_ORDER) - idx for idx, name in enumerate(SEVERITY_ORDER)}
+PRIORITY_ORDER = ["critical", "high", "medium"]
+PRIORITY_RANK = {name: len(PRIORITY_ORDER) - idx for idx, name in enumerate(PRIORITY_ORDER)}
 
 
 def _normalize_severity(value: object) -> str:
-    return str(value if value is not None else "").strip().lower()
+    value = str(value).strip().lower()
+    return value if value in SEVERITY_RANK else "p4"
 
 
-def _normalize_asset_group(value: object) -> str:
-    return str(value if value is not None else "").strip().lower()
-
-
-def _normalize_observed_ms(value: object) -> int:
-    if isinstance(value, bool):
-        return int(value)
-    if isinstance(value, int):
-        return value
-    if isinstance(value, float):
-        return int(value)
-    if isinstance(value, str):
-        text = value.strip()
-        try:
-            return int(text)
-        except ValueError:
-            return 0
-    return 0
+def _normalize_env(value: object) -> str:
+    value = str(value).strip().lower()
+    return value if value else "unknown"
 
 
 def _normalize_signature(value: object) -> str:
-    return " ".join(str(value if value is not None else "").split())
+    return " ".join(str(value).split())
 
 
 def _normalize_muted(value: object) -> bool:
@@ -53,122 +38,254 @@ def _normalize_muted(value: object) -> bool:
     return bool(value)
 
 
-def _severity_rank(severity: str) -> int:
-    return SEVERITY_RANK.get(severity, 0)
+def _normalize_ms(value: object) -> int:
+    text = str(value).strip()
+    try:
+        return int(text)
+    except (TypeError, ValueError):
+        return 0
 
 
-def canonicalize_events(events: list[dict]) -> list[dict]:
+def _severity_rank(value: str) -> int:
+    return SEVERITY_RANK.get(value, 0)
+
+
+def _load_json(path: Path) -> list[dict]:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def canonicalize_alerts(rows: list[dict]) -> list[dict]:
     deduped: dict[str, dict] = {}
-    for event in events:
-        normalized = dict(event)
-        normalized["observed_ms"] = _normalize_observed_ms(normalized.get("observed_ms", 0))
-        normalized["severity"] = _normalize_severity(normalized.get("severity", ""))
-        normalized["asset_group"] = _normalize_asset_group(normalized.get("asset_group", ""))
-        normalized["muted"] = _normalize_muted(normalized.get("muted", False))
-        normalized["signature"] = _normalize_signature(normalized.get("signature", ""))
-        alert_id = str(normalized["alert_id"])
-        current = deduped.get(alert_id)
-        if current is None:
-            deduped[alert_id] = normalized
+    for row in rows:
+        alert_id = str(row.get("alert_id", "")).strip()
+        if not alert_id:
             continue
-        replace = False
-        if normalized["observed_ms"] > current["observed_ms"]:
-            replace = True
-        elif normalized["observed_ms"] == current["observed_ms"]:
-            if _severity_rank(normalized["severity"]) > _severity_rank(current["severity"]):
-                replace = True
-            elif _severity_rank(normalized["severity"]) == _severity_rank(current["severity"]):
-                if int(_normalize_muted(normalized.get("muted", False))) < int(
-                    _normalize_muted(current.get("muted", False))
-                ):
-                    replace = True
-                elif int(_normalize_muted(normalized.get("muted", False))) == int(
-                    _normalize_muted(current.get("muted", False))
-                ):
-                    if _normalize_signature(normalized.get("signature", "")) > _normalize_signature(
-                        current.get("signature", "")
-                    ):
-                        replace = True
-                    elif _normalize_signature(normalized.get("signature", "")) == _normalize_signature(
-                        current.get("signature", "")
-                    ):
-                        if _normalize_asset_group(
-                            normalized.get("asset_group", "")
-                        ) > _normalize_asset_group(current.get("asset_group", "")):
-                            replace = True
-        if replace:
-            deduped[alert_id] = normalized
-    return sorted(deduped.values(), key=lambda row: row["observed_ms"])
-
-
-def is_escalation(event: dict) -> bool:
-    if _normalize_muted(event.get("muted", False)):
-        return False
-    return _normalize_severity(event.get("severity", "")) in ESCALATION_SEVERITIES
-
-
-def build_service_matrix(events: list[dict]) -> dict[str, dict[str, int]]:
-    matrix: dict[str, dict[str, int]] = {}
-    for event in events:
-        asset_group = _normalize_asset_group(event.get("asset_group", ""))
-        severity = _normalize_severity(event.get("severity", ""))
-        matrix.setdefault(asset_group, {name: 0 for name in SEVERITY_ORDER})
-        if severity in matrix[asset_group]:
-            matrix[asset_group][severity] += 1
-    return {asset_group: matrix[asset_group] for asset_group in sorted(matrix)}
-
-
-def export_report(events: list[dict], output_dir: Path) -> None:
-    output_dir.mkdir(parents=True, exist_ok=True)
-    canonical = canonicalize_events(events)
-
-    severity_counts = {severity: 0 for severity in SEVERITY_ORDER}
-    asset_groups: set[str] = set()
-    for event in canonical:
-        severity = _normalize_severity(event.get("severity", ""))
-        if severity in severity_counts:
-            severity_counts[severity] += 1
-        asset_groups.add(_normalize_asset_group(event.get("asset_group", "")))
-
-    escalations = []
-    for event in canonical:
-        if not is_escalation(event):
+        candidate = {
+            "alert_id": alert_id,
+            "start_ms": _normalize_ms(row.get("start_ms", 0)),
+            "end_ms": _normalize_ms(row.get("end_ms", 0)),
+            "severity": _normalize_severity(row.get("severity", "")),
+            "env": _normalize_env(row.get("env", "")),
+            "signature": _normalize_signature(row.get("signature", "")),
+            "muted": _normalize_muted(row.get("muted", False)),
+        }
+        existing = deduped.get(alert_id)
+        if existing is None:
+            deduped[alert_id] = candidate
             continue
-        escalations.append(
-            {
-                "alert_id": event["alert_id"],
-                "observed_ms": event["observed_ms"],
-                "severity": _normalize_severity(event["severity"]),
-                "asset_group": _normalize_asset_group(event["asset_group"]),
-                "signature": _normalize_signature(event["signature"]),
-            }
+        if candidate["end_ms"] > existing["end_ms"]:
+            deduped[alert_id] = candidate
+            continue
+        if candidate["end_ms"] < existing["end_ms"]:
+            continue
+        if _severity_rank(candidate["severity"]) > _severity_rank(existing["severity"]):
+            deduped[alert_id] = candidate
+            continue
+        if _severity_rank(candidate["severity"]) < _severity_rank(existing["severity"]):
+            continue
+        if len(candidate["signature"]) > len(existing["signature"]):
+            deduped[alert_id] = candidate
+            continue
+        if len(candidate["signature"]) < len(existing["signature"]):
+            continue
+        if candidate["env"] > existing["env"]:
+            deduped[alert_id] = candidate
+
+    canonical = list(deduped.values())
+    canonical.sort(key=lambda row: (row["env"], row["start_ms"], row["alert_id"]))
+    return canonical
+
+
+def overlap_ms(a_start: int, a_end: int, b_start: int, b_end: int) -> int:
+    return max(0, min(a_end, b_end) - max(a_start, b_start))
+
+
+def freezes_by_env(freezes: list[dict]) -> dict[str, list[tuple[int, int]]]:
+    by_env: dict[str, list[tuple[int, int]]] = {}
+    for row in freezes:
+        env = _normalize_env(row.get("env", ""))
+        start = _normalize_ms(row.get("start_ms", 0))
+        end = _normalize_ms(row.get("end_ms", 0))
+        if end <= start:
+            continue
+        by_env.setdefault(env, []).append((start, end))
+    for env in by_env:
+        by_env[env].sort()
+    return by_env
+
+
+def build_drift_windows(canonical: list[dict], freeze_rows: list[dict]) -> dict[str, list[dict]]:
+    grouped: dict[str, list[dict]] = {}
+    for row in canonical:
+        if row["muted"]:
+            continue
+        grouped.setdefault(row["env"], []).append(row)
+
+    freeze_map = freezes_by_env(freeze_rows)
+    result: dict[str, list[dict]] = {}
+    for env, alerts in grouped.items():
+        alerts.sort(key=lambda row: (row["start_ms"], row["end_ms"], row["alert_id"]))
+        windows: list[dict] = []
+        current: dict | None = None
+        for row in alerts:
+            if current is None:
+                current = {
+                    "start_ms": row["start_ms"],
+                    "end_ms": row["end_ms"],
+                    "source_alert_ids": [row["alert_id"]],
+                    "max_severity": row["severity"],
+                }
+                continue
+            if row["start_ms"] <= current["end_ms"] + 45:
+                current["end_ms"] = max(current["end_ms"], row["end_ms"])
+                current["source_alert_ids"].append(row["alert_id"])
+                if _severity_rank(row["severity"]) > _severity_rank(current["max_severity"]):
+                    current["max_severity"] = row["severity"]
+            else:
+                windows.append(current)
+                current = {
+                    "start_ms": row["start_ms"],
+                    "end_ms": row["end_ms"],
+                    "source_alert_ids": [row["alert_id"]],
+                    "max_severity": row["severity"],
+                }
+        if current is not None:
+            windows.append(current)
+
+        normalized_windows: list[dict] = []
+        for window in windows:
+            duration = max(window["end_ms"] - window["start_ms"], 0)
+            freeze_overlap = 0
+            for freeze_start, freeze_end in freeze_map.get(env, []):
+                freeze_overlap += overlap_ms(window["start_ms"], window["end_ms"], freeze_start, freeze_end)
+            normalized_windows.append(
+                {
+                    "start_ms": window["start_ms"],
+                    "end_ms": window["end_ms"],
+                    "duration_ms": duration,
+                    "freeze_overlap_ms": freeze_overlap,
+                    "effective_duration_ms": max(duration - freeze_overlap, 0),
+                    "alert_count": len(window["source_alert_ids"]),
+                    "source_alert_ids": sorted(window["source_alert_ids"]),
+                    "max_severity": window["max_severity"],
+                }
+            )
+        normalized_windows.sort(key=lambda row: row["start_ms"])
+        result[env] = normalized_windows
+
+    return {env: result[env] for env in sorted(result)}
+
+
+def build_response_queue(drift_windows: dict[str, list[dict]]) -> list[dict]:
+    queue: list[dict] = []
+    for env, windows in drift_windows.items():
+        for window in windows:
+            if window["effective_duration_ms"] < 180:
+                continue
+            if window["max_severity"] not in {"p1", "p2"}:
+                continue
+            if (
+                window["max_severity"] == "p1" and window["effective_duration_ms"] >= 280
+            ) or window["effective_duration_ms"] >= 600:
+                priority = "critical"
+            elif window["effective_duration_ms"] >= 300 or (
+                window["alert_count"] >= 3 and window["max_severity"] in {"p1", "p2"}
+            ):
+                priority = "high"
+            else:
+                priority = "medium"
+
+            queue_hash = hashlib.sha1(
+                (
+                    f"{env}|{window['start_ms']}|{window['end_ms']}|"
+                    f"{','.join(window['source_alert_ids'])}"
+                ).encode("utf-8")
+            ).hexdigest()[:12]
+
+            queue.append(
+                {
+                    "ticket_id": f"{env}:{window['start_ms']}-{window['end_ms']}",
+                    "env": env,
+                    "start_ms": window["start_ms"],
+                    "end_ms": window["end_ms"],
+                    "duration_ms": window["duration_ms"],
+                    "freeze_overlap_ms": window["freeze_overlap_ms"],
+                    "effective_duration_ms": window["effective_duration_ms"],
+                    "alert_count": window["alert_count"],
+                    "source_alert_ids": list(window["source_alert_ids"]),
+                    "max_severity": window["max_severity"],
+                    "priority": priority,
+                    "queue_hash": queue_hash,
+                }
+            )
+
+    queue.sort(
+        key=lambda row: (
+            -PRIORITY_RANK[row["priority"]],
+            -row["effective_duration_ms"],
+            -row["alert_count"],
+            row["env"],
+            row["start_ms"],
         )
-    escalations.sort(key=lambda row: str(row["alert_id"]))
-    escalations.sort(key=lambda row: _severity_rank(row["severity"]), reverse=True)
-    escalations.sort(key=lambda row: row["observed_ms"], reverse=True)
+    )
+    return queue
 
-    summary = {
+
+def build_summary(
+    raw_rows: list[dict], canonical: list[dict], drift_windows: dict[str, list[dict]], queue: list[dict]
+) -> dict:
+    severity_counts = {name: 0 for name in SEVERITY_ORDER}
+    for row in canonical:
+        severity_counts[_normalize_severity(row["severity"])] += 1
+
+    total_unmuted_duration = 0
+    total_overlap = 0
+    total_effective = 0
+    longest_window = 0
+    for windows in drift_windows.values():
+        for window in windows:
+            total_unmuted_duration += window["duration_ms"]
+            total_overlap += window["freeze_overlap_ms"]
+            total_effective += window["effective_duration_ms"]
+            longest_window = max(longest_window, window["duration_ms"])
+
+    muted_excluded_count = sum(1 for row in canonical if row["muted"])
+    queue_checksum = hashlib.sha256(
+        "|".join(row["queue_hash"] for row in queue).encode("utf-8")
+    ).hexdigest()
+
+    return {
         "schema_version": SCHEMA_VERSION,
-        "raw_alert_count": len(events),
-        "unique_alert_ids": len({str(event["alert_id"]) for event in events}),
-        "total_alerts": len(canonical),
-        "severity_counts": severity_counts,
-        "asset_groups": sorted(asset_groups),
-        "escalated_count": len(escalations),
-        "muted_excluded_count": sum(
-            1
-            for event in canonical
-            if _normalize_muted(event.get("muted", False))
-            and _normalize_severity(event.get("severity", "")) in ESCALATION_SEVERITIES
+        "raw_alert_count": len(raw_rows),
+        "unique_alert_ids": len(
+            {str(row.get("alert_id", "")).strip() for row in raw_rows if str(row.get("alert_id", "")).strip()}
         ),
+        "canonical_alert_count": len(canonical),
+        "env_count": len(drift_windows),
+        "severity_counts": severity_counts,
+        "total_unmuted_duration_ms": total_unmuted_duration,
+        "total_freeze_overlap_ms": total_overlap,
+        "total_effective_duration_ms": total_effective,
+        "longest_window_ms": longest_window,
+        "queued_window_count": len(queue),
+        "muted_excluded_count": muted_excluded_count,
+        "queue_hash_checksum": queue_checksum,
     }
 
-    (output_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
-    (output_dir / "service_matrix.json").write_text(
-        json.dumps(build_service_matrix(canonical), indent=2) + "\n"
+
+def export_report(events: list[dict], output_dir: Path, freeze_rows: list[dict]) -> None:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    canonical = canonicalize_alerts(events)
+    drift_windows = build_drift_windows(canonical, freeze_rows)
+    queue = build_response_queue(drift_windows)
+    summary = build_summary(events, canonical, drift_windows, queue)
+
+    (output_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+    (output_dir / "drift_windows.json").write_text(
+        json.dumps(drift_windows, indent=2) + "\n", encoding="utf-8"
     )
-    with (output_dir / "flagged.jsonl").open("w", encoding="utf-8") as handle:
-        for row in escalations:
+    with (output_dir / "response_queue.jsonl").open("w", encoding="utf-8") as handle:
+        for row in queue:
             handle.write(json.dumps(row, separators=(",", ":")) + "\n")
 
 
@@ -178,8 +295,9 @@ def main() -> None:
     parser.add_argument("--output-dir", default="/app/output")
     args = parser.parse_args()
 
-    events = load_events(Path(args.input))
-    export_report(events, Path(args.output_dir))
+    events = _load_json(Path(args.input))
+    freeze_rows = _load_json(FREEZE_PATH)
+    export_report(events, Path(args.output_dir), freeze_rows)
     print(f"Wrote report to {args.output_dir}")
 
 
