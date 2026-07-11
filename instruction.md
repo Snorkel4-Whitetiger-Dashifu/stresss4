@@ -29,8 +29,14 @@ Core processing requirements:
      - `source_alert_ids` sorted ascending
      - `max_severity`
 3. Apply same-env freeze overlap using `/app/data/change_freezes.json`:
+   - canonicalize freeze rows before overlap:
+     - normalize freeze `env` with the same env normalization as alerts
+     - normalize freeze `start_ms` / `end_ms` with the same int coercion
+     - ignore freeze rows where `end_ms <= start_ms`
+     - compact freezes per env by merging overlapping or touching intervals (`next.start_ms <= current.end_ms`)
    - overlap formula: `max(0, min(end_a, end_b) - max(start_a, start_b))`
    - `freeze_overlap_ms` is summed overlap against all matching freeze windows
+   - `freeze_segment_count` is the number of distinct overlap segments contributing to `freeze_overlap_ms`
    - `effective_duration_ms = max(duration_ms - freeze_overlap_ms, 0)`
 
 Queue rules (`response_queue.jsonl`):
@@ -38,29 +44,32 @@ Queue rules (`response_queue.jsonl`):
   - `effective_duration_ms >= 180`
   - `max_severity` is `p1` or `p2`
 - `ticket_id` format: `"{env}:{start_ms}-{end_ms}"`
-- `queue_hash`: first 12 lowercase hex chars of SHA1 over `"{env}|{start_ms}|{end_ms}|{','.join(source_alert_ids)}"`
+- `queue_hash`: first 12 lowercase hex chars of SHA1 over `"{env}|{start_ms}|{end_ms}|{','.join(source_alert_ids)}|{max_severity}|{freeze_segment_count}"`
 - priority:
   - `critical` if (`max_severity == "p1"` and `effective_duration_ms >= 280`) or `effective_duration_ms >= 600`
-  - `high` if `effective_duration_ms >= 300` or (`alert_count >= 3` and `max_severity` in `{"p1", "p2"}`)
+  - `high` if `effective_duration_ms >= 300` or (`alert_count >= 3` and `max_severity` in `{"p1", "p2"}`) or (`freeze_segment_count == 0` and `duration_ms >= 420`)
   - else `medium`
 - final sort order:
   1. priority rank (`critical > high > medium`)
   2. `effective_duration_ms` descending
-  3. `alert_count` descending
-  4. `env` ascending
-  5. `start_ms` ascending
+  3. `freeze_segment_count` descending
+  4. `alert_count` descending
+  5. `env` ascending
+  6. `start_ms` ascending
 - JSONL rows must be compact (`json.dumps(row, separators=(",", ":"))`)
 
 Output schema requirements:
 - `drift_windows.json`: flat map `{env: [window, ...]}`, env keys sorted ascending, windows sorted by `start_ms`; each window has exactly:
-  `start_ms`, `end_ms`, `duration_ms`, `freeze_overlap_ms`, `effective_duration_ms`, `alert_count`, `source_alert_ids`, `max_severity`
+  `start_ms`, `end_ms`, `duration_ms`, `freeze_overlap_ms`, `freeze_segment_count`, `effective_duration_ms`, `alert_count`, `source_alert_ids`, `max_severity`
 - `response_queue.jsonl` rows must have exactly:
-  `ticket_id`, `env`, `start_ms`, `end_ms`, `duration_ms`, `freeze_overlap_ms`, `effective_duration_ms`, `alert_count`, `source_alert_ids`, `max_severity`, `priority`, `queue_hash`
+  `ticket_id`, `env`, `start_ms`, `end_ms`, `duration_ms`, `freeze_overlap_ms`, `freeze_segment_count`, `effective_duration_ms`, `alert_count`, `source_alert_ids`, `max_severity`, `priority`, `queue_hash`
 - `summary.json` must have exactly:
-  `schema_version`, `raw_alert_count`, `unique_alert_ids`, `canonical_alert_count`, `env_count`, `severity_counts`, `total_unmuted_duration_ms`, `total_freeze_overlap_ms`, `total_effective_duration_ms`, `longest_window_ms`, `queued_window_count`, `muted_excluded_count`, `queue_hash_checksum`
+  `schema_version`, `raw_alert_count`, `unique_alert_ids`, `canonical_alert_count`, `env_count`, `severity_counts`, `total_unmuted_duration_ms`, `total_freeze_overlap_ms`, `total_freeze_segment_count`, `total_effective_duration_ms`, `longest_window_ms`, `queued_window_count`, `muted_excluded_count`, `canonical_alert_checksum`, `queue_hash_checksum`, `freeze_compaction_checksum`
 - summary specifics:
   - `schema_version` must be `"firewall-drift-v1"`
   - `severity_counts` key order: `p1`, `p2`, `p3`, `p4`
+- `canonical_alert_checksum`: SHA256 over canonical alert rows in canonical order (`env`, `start_ms`, `alert_id`) with line format `alert_id|env|start_ms|end_ms|severity|muted_int|signature`, where `muted_int` is `1` or `0`
   - `queue_hash_checksum` is SHA256 of `"|".join(queue_hash values in final queue order)` and must be 64 lowercase hex chars
+- `freeze_compaction_checksum`: SHA256 over compacted freeze rows in canonical order (`env`, `start_ms`, `end_ms`) with line format `env|start_ms|end_ms`
 
 Keep `/app/workflow/.export_report.original` unchanged. Do not read/import verifier artifacts from `/tests`.

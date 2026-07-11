@@ -1,15 +1,352 @@
 {
-  "broken_pipeline_sha256": "434e589e714939685674b7baad3717ba8dfa6066bb58ebadd7f11396c03c4780",
+  "broken_pipeline_sha256": "48553e2f32edf6722cfd63b9bc9b55fb0a70fd41ad444dcb4ba7ae59001c5310",
+  "broken_summary_sha256": "434e589e714939685674b7baad3717ba8dfa6066bb58ebadd7f11396c03c4780",
   "broken_queue_count": 5,
   "broken_queue_ticket_ids": ["d01", "d10", "d10", "d12", "d15"],
   "alternate_input": "/tests/fixtures/alt_events.json",
-  "alternate_expected": {
-    "raw_alert_count": 5,
-    "unique_alert_ids": 4,
-    "canonical_alert_count": 4,
-    "env_count": 2,
-    "queued_window_count": 2,
-    "muted_excluded_count": 0,
-    "priority_sequence": ["critical", "high"]
+  "primary": {
+    "summary": {
+      "schema_version": "firewall-drift-v1",
+      "raw_alert_count": 22,
+      "unique_alert_ids": 17,
+      "canonical_alert_count": 17,
+      "env_count": 3,
+      "severity_counts": {
+        "p1": 5,
+        "p2": 7,
+        "p3": 3,
+        "p4": 2
+      },
+      "total_unmuted_duration_ms": 6050,
+      "total_freeze_overlap_ms": 2500,
+      "total_freeze_segment_count": 6,
+      "total_effective_duration_ms": 3550,
+      "longest_window_ms": 1200,
+      "queued_window_count": 4,
+      "muted_excluded_count": 2,
+      "canonical_alert_checksum": "1254d33bb3d2e56f02c3d98867ddee1a83d7a816102ebf74490c4a6dba66b13c",
+      "queue_hash_checksum": "eb4f27e35aeebac4a19140bb5bf21d4f023e30abf03305a7c73369aca0be916e",
+      "freeze_compaction_checksum": "836e9fbfdec2fd6a9d6f850585ac90b4ff950ccc4d3086effe2e5dc86e629757"
+    },
+    "windows": {
+      "dmz": [
+        {
+          "start_ms": 2010000003400,
+          "end_ms": 2010000003900,
+          "duration_ms": 500,
+          "freeze_overlap_ms": 0,
+          "freeze_segment_count": 0,
+          "effective_duration_ms": 500,
+          "alert_count": 1,
+          "source_alert_ids": ["d05"],
+          "max_severity": "p3"
+        },
+        {
+          "start_ms": 2010000005000,
+          "end_ms": 2010000005600,
+          "duration_ms": 600,
+          "freeze_overlap_ms": 600,
+          "freeze_segment_count": 1,
+          "effective_duration_ms": 0,
+          "alert_count": 1,
+          "source_alert_ids": ["d07"],
+          "max_severity": "p1"
+        },
+        {
+          "start_ms": 2010000006200,
+          "end_ms": 2010000006800,
+          "duration_ms": 600,
+          "freeze_overlap_ms": 0,
+          "freeze_segment_count": 0,
+          "effective_duration_ms": 600,
+          "alert_count": 1,
+          "source_alert_ids": ["d09"],
+          "max_severity": "p2"
+        },
+        {
+          "start_ms": 2010000008600,
+          "end_ms": 2010000009800,
+          "duration_ms": 1200,
+          "freeze_overlap_ms": 600,
+          "freeze_segment_count": 1,
+          "effective_duration_ms": 600,
+          "alert_count": 2,
+          "source_alert_ids": ["d13", "d15"],
+          "max_severity": "p1"
+        }
+      ],
+      "edge": [
+        {
+          "start_ms": 2010000001200,
+          "end_ms": 2010000002200,
+          "duration_ms": 1000,
+          "freeze_overlap_ms": 700,
+          "freeze_segment_count": 1,
+          "effective_duration_ms": 300,
+          "alert_count": 1,
+          "source_alert_ids": ["d02"],
+          "max_severity": "p2"
+        },
+        {
+          "start_ms": 2010000003000,
+          "end_ms": 2010000003300,
+          "duration_ms": 300,
+          "freeze_overlap_ms": 0,
+          "freeze_segment_count": 0,
+          "effective_duration_ms": 300,
+          "alert_count": 1,
+          "source_alert_ids": ["d04"],
+          "max_severity": "p3"
+        },
+        {
+          "start_ms": 2010000005400,
+          "end_ms": 2010000005800,
+          "duration_ms": 400,
+          "freeze_overlap_ms": 250,
+          "freeze_segment_count": 1,
+          "effective_duration_ms": 150,
+          "alert_count": 1,
+          "source_alert_ids": ["d08"],
+          "max_severity": "p2"
+        },
+        {
+          "start_ms": 2010000008800,
+          "end_ms": 2010000009000,
+          "duration_ms": 200,
+          "freeze_overlap_ms": 0,
+          "freeze_segment_count": 0,
+          "effective_duration_ms": 200,
+          "alert_count": 1,
+          "source_alert_ids": ["d14"],
+          "max_severity": "p3"
+        }
+      ],
+      "prod": [
+        {
+          "start_ms": 2010000001000,
+          "end_ms": 2010000001300,
+          "duration_ms": 300,
+          "freeze_overlap_ms": 150,
+          "freeze_segment_count": 1,
+          "effective_duration_ms": 150,
+          "alert_count": 1,
+          "source_alert_ids": ["d01"],
+          "max_severity": "p1"
+        },
+        {
+          "start_ms": 2010000002400,
+          "end_ms": 2010000002600,
+          "duration_ms": 200,
+          "freeze_overlap_ms": 0,
+          "freeze_segment_count": 0,
+          "effective_duration_ms": 200,
+          "alert_count": 1,
+          "source_alert_ids": ["d03"],
+          "max_severity": "p4"
+        },
+        {
+          "start_ms": 2010000004500,
+          "end_ms": 2010000004900,
+          "duration_ms": 400,
+          "freeze_overlap_ms": 0,
+          "freeze_segment_count": 0,
+          "effective_duration_ms": 400,
+          "alert_count": 1,
+          "source_alert_ids": ["d06"],
+          "max_severity": "p2"
+        },
+        {
+          "start_ms": 2010000006800,
+          "end_ms": 2010000007000,
+          "duration_ms": 200,
+          "freeze_overlap_ms": 200,
+          "freeze_segment_count": 1,
+          "effective_duration_ms": 0,
+          "alert_count": 1,
+          "source_alert_ids": ["d10"],
+          "max_severity": "p1"
+        },
+        {
+          "start_ms": 2010000007300,
+          "end_ms": 2010000007350,
+          "duration_ms": 50,
+          "freeze_overlap_ms": 0,
+          "freeze_segment_count": 0,
+          "effective_duration_ms": 50,
+          "alert_count": 1,
+          "source_alert_ids": ["d11"],
+          "max_severity": "p4"
+        },
+        {
+          "start_ms": 2010000009200,
+          "end_ms": 2010000009300,
+          "duration_ms": 100,
+          "freeze_overlap_ms": 0,
+          "freeze_segment_count": 0,
+          "effective_duration_ms": 100,
+          "alert_count": 1,
+          "source_alert_ids": ["d17"],
+          "max_severity": "p2"
+        }
+      ]
+    },
+    "queue_rows": [
+      {
+        "ticket_id": "dmz:2010000008600-2010000009800",
+        "env": "dmz",
+        "start_ms": 2010000008600,
+        "end_ms": 2010000009800,
+        "duration_ms": 1200,
+        "freeze_overlap_ms": 600,
+        "freeze_segment_count": 1,
+        "effective_duration_ms": 600,
+        "alert_count": 2,
+        "source_alert_ids": ["d13", "d15"],
+        "max_severity": "p1",
+        "priority": "critical",
+        "queue_hash": "f3b93cceb9a7"
+      },
+      {
+        "ticket_id": "dmz:2010000006200-2010000006800",
+        "env": "dmz",
+        "start_ms": 2010000006200,
+        "end_ms": 2010000006800,
+        "duration_ms": 600,
+        "freeze_overlap_ms": 0,
+        "freeze_segment_count": 0,
+        "effective_duration_ms": 600,
+        "alert_count": 1,
+        "source_alert_ids": ["d09"],
+        "max_severity": "p2",
+        "priority": "critical",
+        "queue_hash": "c6b59701749e"
+      },
+      {
+        "ticket_id": "prod:2010000004500-2010000004900",
+        "env": "prod",
+        "start_ms": 2010000004500,
+        "end_ms": 2010000004900,
+        "duration_ms": 400,
+        "freeze_overlap_ms": 0,
+        "freeze_segment_count": 0,
+        "effective_duration_ms": 400,
+        "alert_count": 1,
+        "source_alert_ids": ["d06"],
+        "max_severity": "p2",
+        "priority": "high",
+        "queue_hash": "215b52de2299"
+      },
+      {
+        "ticket_id": "edge:2010000001200-2010000002200",
+        "env": "edge",
+        "start_ms": 2010000001200,
+        "end_ms": 2010000002200,
+        "duration_ms": 1000,
+        "freeze_overlap_ms": 700,
+        "freeze_segment_count": 1,
+        "effective_duration_ms": 300,
+        "alert_count": 1,
+        "source_alert_ids": ["d02"],
+        "max_severity": "p2",
+        "priority": "high",
+        "queue_hash": "3ca02b3d226d"
+      }
+    ]
+  },
+  "alternate": {
+    "summary": {
+      "schema_version": "firewall-drift-v1",
+      "raw_alert_count": 5,
+      "unique_alert_ids": 4,
+      "canonical_alert_count": 4,
+      "env_count": 2,
+      "severity_counts": {
+        "p1": 1,
+        "p2": 2,
+        "p3": 1,
+        "p4": 0
+      },
+      "total_unmuted_duration_ms": 750,
+      "total_freeze_overlap_ms": 0,
+      "total_freeze_segment_count": 0,
+      "total_effective_duration_ms": 750,
+      "longest_window_ms": 370,
+      "queued_window_count": 2,
+      "muted_excluded_count": 0,
+      "canonical_alert_checksum": "ecd2ab7007a70a9fb020c106e5d1453a7a5db0ba00f7ecbbd804899bb37a4718",
+      "queue_hash_checksum": "d2bb97f79dd702af78184eb4eebd87e88614e0574f6dd1dc81af2371d8a8a820",
+      "freeze_compaction_checksum": "836e9fbfdec2fd6a9d6f850585ac90b4ff950ccc4d3086effe2e5dc86e629757"
+    },
+    "windows": {
+      "edge": [
+        {
+          "start_ms": 600,
+          "end_ms": 910,
+          "duration_ms": 310,
+          "freeze_overlap_ms": 0,
+          "freeze_segment_count": 0,
+          "effective_duration_ms": 310,
+          "alert_count": 1,
+          "source_alert_ids": ["x4"],
+          "max_severity": "p2"
+        }
+      ],
+      "lab": [
+        {
+          "start_ms": 100,
+          "end_ms": 470,
+          "duration_ms": 370,
+          "freeze_overlap_ms": 0,
+          "freeze_segment_count": 0,
+          "effective_duration_ms": 370,
+          "alert_count": 2,
+          "source_alert_ids": ["x1", "x2"],
+          "max_severity": "p1"
+        },
+        {
+          "start_ms": 520,
+          "end_ms": 590,
+          "duration_ms": 70,
+          "freeze_overlap_ms": 0,
+          "freeze_segment_count": 0,
+          "effective_duration_ms": 70,
+          "alert_count": 1,
+          "source_alert_ids": ["x3"],
+          "max_severity": "p3"
+        }
+      ]
+    },
+    "queue_rows": [
+      {
+        "ticket_id": "lab:100-470",
+        "env": "lab",
+        "start_ms": 100,
+        "end_ms": 470,
+        "duration_ms": 370,
+        "freeze_overlap_ms": 0,
+        "freeze_segment_count": 0,
+        "effective_duration_ms": 370,
+        "alert_count": 2,
+        "source_alert_ids": ["x1", "x2"],
+        "max_severity": "p1",
+        "priority": "critical",
+        "queue_hash": "ecc785f51bb8"
+      },
+      {
+        "ticket_id": "edge:600-910",
+        "env": "edge",
+        "start_ms": 600,
+        "end_ms": 910,
+        "duration_ms": 310,
+        "freeze_overlap_ms": 0,
+        "freeze_segment_count": 0,
+        "effective_duration_ms": 310,
+        "alert_count": 1,
+        "source_alert_ids": ["x4"],
+        "max_severity": "p2",
+        "priority": "high",
+        "queue_hash": "1792b2a32d97"
+      }
+    ]
   }
 }
