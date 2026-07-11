@@ -1,6 +1,6 @@
 {
   "title": "Firewall Drift Chain Compiler Spec",
-  "version": "1.2",
+  "version": "1.3",
   "workflow_repair": {
     "path": "/app/workflow/export_report.py",
     "cli_usage": "python3 /app/workflow/export_report.py --input PATH --output-dir PATH",
@@ -8,7 +8,8 @@
       "input": "/app/data/events.json",
       "output_dir": "/app/output",
       "change_freezes": "/app/data/change_freezes.json",
-      "reopen_windows": "/app/data/reopen_windows.json"
+      "reopen_windows": "/app/data/reopen_windows.json",
+      "rotation_windows": "/app/data/rotation_windows.json"
     },
     "forbidden_executable_tokens": [
       "event[\"seen_ms\"]",
@@ -21,8 +22,11 @@
       "reverse=True",
       "\"yes\"",
       "REOPEN_PATH",
+      "ROTATION_PATH",
       "reopen_compaction_checksum",
+      "rotation_compaction_checksum",
       "stability_pressure_score",
+      "volatility_index",
       "window_digest"
     ],
     "token_check_scope": "executable code only (exclude comments and docstrings)"
@@ -49,6 +53,9 @@
       "reopen_overlap_ms",
       "reopen_segment_count",
       "risk_adjusted_duration_ms",
+      "rotation_overlap_ms",
+      "rotation_segment_count",
+      "dispatchable_duration_ms",
       "alert_count",
       "source_alert_ids",
       "max_severity"
@@ -71,25 +78,36 @@
     "risk_adjusted_duration_ms": "max(effective_duration_ms - (reopen_overlap_ms // 2), 0)",
     "stability_pressure_score": "probe window [end_ms-180, end_ms+1) using reopen all + severity scopes; score=(all_probe_ms//30)+(severity_probe_ms//20)+max(alert_count-1,0)"
   },
+  "rotation_windows": {
+    "source_path": "/app/data/rotation_windows.json",
+    "same_env_only": true,
+    "scope_values": ["all", "p1", "p2"],
+    "rotation_canonicalization": "normalize env/scope/start/end, drop end<=start, compact overlap/touch intervals per (env,severity_scope)",
+    "matching_scopes": "{all,max_severity} for each window",
+    "rotation_overlap_union": "collect overlap segments from matching scopes then compact/union those segments to compute rotation_overlap_ms and rotation_segment_count",
+    "dispatchable_duration_ms": "max(risk_adjusted_duration_ms - (rotation_overlap_ms // 3), 0)",
+    "volatility_index": "stability_pressure_score + (all_rotation_probe_ms//24) + (severity_rotation_probe_ms//16) + (rotation_segment_count*2) where probe is [end_ms-240,end_ms+1)"
+  },
   "response_queue": {
     "output_path": "response_queue.jsonl",
-    "include_min_risk_adjusted_duration_ms": {
-      "p1": 200,
-      "p2": 260
+    "include_min_dispatchable_duration_ms": {
+      "p1": 190,
+      "p2": 240
     },
     "include_max_severities": ["p1", "p2"],
     "ticket_id_format": "{env}:{start_ms}-{end_ms}",
-    "queue_hash": "sha1('{env}|{start_ms}|{end_ms}|{csv_source_alert_ids}|{max_severity}|{freeze_segment_count}|{reopen_segment_count}|{stability_pressure_score}') first 12 lowercase hex chars",
-    "window_digest": "sha1('{ticket_id}|{priority}|{risk_adjusted_duration_ms}|{stability_pressure_score}') first 10 lowercase hex chars",
+    "queue_hash": "sha1('{env}|{start_ms}|{end_ms}|{csv_source_alert_ids}|{max_severity}|{freeze_segment_count}|{reopen_segment_count}|{rotation_segment_count}|{stability_pressure_score}|{volatility_index}') first 12 lowercase hex chars",
+    "window_digest": "sha1('{ticket_id}|{priority}|{dispatchable_duration_ms}|{volatility_index}|{stability_pressure_score}') first 10 lowercase hex chars",
     "priority_rules": {
-      "critical": "max_severity == p1 and risk_adjusted_duration_ms >= 260, or risk_adjusted_duration_ms >= 560, or stability_pressure_score >= 14",
-      "high": "risk_adjusted_duration_ms >= 300, or alert_count >= 3 with max_severity in {p1,p2}, or reopen_segment_count == 0 with duration_ms >= 420",
+      "critical": "max_severity == p1 and dispatchable_duration_ms >= 250, or dispatchable_duration_ms >= 520, or volatility_index >= 18",
+      "high": "dispatchable_duration_ms >= 280, or alert_count >= 3 with max_severity in {p1,p2}, or rotation_segment_count == 0 with risk_adjusted_duration_ms >= 340, or reopen_segment_count == 0 with duration_ms >= 420",
       "medium": "otherwise"
     },
     "sort_order": [
       "priority rank critical>high>medium",
+      "dispatchable_duration_ms desc",
+      "volatility_index desc",
       "risk_adjusted_duration_ms desc",
-      "stability_pressure_score desc",
       "freeze_segment_count desc",
       "alert_count desc",
       "env asc",
@@ -113,20 +131,27 @@
       "total_reopen_overlap_ms",
       "total_reopen_segment_count",
       "total_risk_adjusted_duration_ms",
+      "total_rotation_overlap_ms",
+      "total_rotation_segment_count",
+      "total_dispatchable_duration_ms",
       "longest_window_ms",
       "queued_window_count",
       "muted_excluded_count",
       "max_stability_pressure_score",
+      "max_volatility_index",
       "canonical_alert_checksum",
       "queue_hash_checksum",
       "freeze_compaction_checksum",
       "reopen_compaction_checksum",
+      "rotation_compaction_checksum",
       "window_digest_checksum"
     ],
     "severity_counts_key_order": ["p1", "p2", "p3", "p4"],
+    "total_unmuted_duration_ms_contract": "sum of merged window duration_ms values from drift_windows.json (not raw alert durations)",
     "canonical_alert_checksum": "sha256 over canonical alerts rows alert_id|env|start_ms|end_ms|severity|muted_int|signature",
     "freeze_compaction_checksum": "sha256 over compacted freeze rows env|start_ms|end_ms",
     "reopen_compaction_checksum": "sha256 over compacted reopen rows env|severity_scope|start_ms|end_ms",
+    "rotation_compaction_checksum": "sha256 over compacted rotation rows env|severity_scope|start_ms|end_ms",
     "queue_hash_checksum": "sha256('|'.join(queue_hash values in final queue order)) lowercase 64 hex chars",
     "window_digest_checksum": "sha256('|'.join(window_digest values in final queue order)) lowercase 64 hex chars"
   },

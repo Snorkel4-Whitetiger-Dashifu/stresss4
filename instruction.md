@@ -6,6 +6,7 @@ Keep CLI behavior:
 - default output dir: `/app/output`
 - freeze windows are always loaded from `/app/data/change_freezes.json`
 - reopen windows are always loaded from `/app/data/reopen_windows.json`
+- rotation windows are always loaded from `/app/data/rotation_windows.json`
 
 The repaired workflow must write exactly three files:
 - `summary.json`
@@ -51,48 +52,67 @@ Core processing requirements:
      - `reopen_overlap_ms`: total union overlap against the window
      - `reopen_segment_count`: compacted overlap segment count
    - `risk_adjusted_duration_ms = max(effective_duration_ms - (reopen_overlap_ms // 2), 0)`
+5. Apply same-env rotation attenuation using `/app/data/rotation_windows.json`:
+   - canonicalize rotation rows:
+     - normalize rotation `env` with the same env normalization
+     - normalize `severity_scope` via `str(...).strip().lower()` with supported values: `all`, `p1`, `p2`
+     - normalize rotation `start_ms` / `end_ms` with the same int coercion
+     - ignore rotation rows where `end_ms <= start_ms`
+     - compact rotation intervals per `(env, severity_scope)` by merging overlapping or touching intervals
+   - for each merged window, consider matching rotation scopes `{all, max_severity}` for the same env
+   - compute overlap segments from both scopes, compact those overlap segments (union), then:
+     - `rotation_overlap_ms`: total union overlap against the window
+     - `rotation_segment_count`: compacted overlap segment count
+   - `dispatchable_duration_ms = max(risk_adjusted_duration_ms - (rotation_overlap_ms // 3), 0)`
 
 Queue rules (`response_queue.jsonl`):
 - include only windows where:
   - `max_severity` is `p1` or `p2`
-  - severity-specific risk-adjusted minimum passes:
-    - `p1`: `risk_adjusted_duration_ms >= 200`
-    - `p2`: `risk_adjusted_duration_ms >= 260`
+  - severity-specific dispatchable minimum passes:
+    - `p1`: `dispatchable_duration_ms >= 190`
+    - `p2`: `dispatchable_duration_ms >= 240`
 - `ticket_id` format: `"{env}:{start_ms}-{end_ms}"`
 - compute `stability_pressure_score` per queued row from probe window `[end_ms-180, end_ms+1)`:
   - `all_probe_ms`: overlap against compacted reopen windows `(env, all)`
   - `severity_probe_ms`: overlap against compacted reopen windows `(env, max_severity)`
   - `stability_pressure_score = (all_probe_ms // 30) + (severity_probe_ms // 20) + max(alert_count - 1, 0)`
-- `queue_hash`: first 12 lowercase hex chars of SHA1 over `"{env}|{start_ms}|{end_ms}|{','.join(source_alert_ids)}|{max_severity}|{freeze_segment_count}|{reopen_segment_count}|{stability_pressure_score}"`
-- `window_digest`: first 10 lowercase hex chars of SHA1 over `"{ticket_id}|{priority}|{risk_adjusted_duration_ms}|{stability_pressure_score}"`
+- compute `volatility_index` per queued row:
+  - `all_rotation_probe_ms`: overlap of probe window `[end_ms-240, end_ms+1)` against compacted rotation windows `(env, all)`
+  - `severity_rotation_probe_ms`: overlap of probe window `[end_ms-240, end_ms+1)` against compacted rotation windows `(env, max_severity)`
+  - `volatility_index = stability_pressure_score + (all_rotation_probe_ms // 24) + (severity_rotation_probe_ms // 16) + (rotation_segment_count * 2)`
+- `queue_hash`: first 12 lowercase hex chars of SHA1 over `"{env}|{start_ms}|{end_ms}|{','.join(source_alert_ids)}|{max_severity}|{freeze_segment_count}|{reopen_segment_count}|{rotation_segment_count}|{stability_pressure_score}|{volatility_index}"`
+- `window_digest`: first 10 lowercase hex chars of SHA1 over `"{ticket_id}|{priority}|{dispatchable_duration_ms}|{volatility_index}|{stability_pressure_score}"`
 - priority:
-  - `critical` if (`max_severity == "p1"` and `risk_adjusted_duration_ms >= 260`) or `risk_adjusted_duration_ms >= 560` or `stability_pressure_score >= 14`
-  - `high` if `risk_adjusted_duration_ms >= 300` or (`alert_count >= 3` and `max_severity` in `{"p1", "p2"}`) or (`reopen_segment_count == 0` and `duration_ms >= 420`)
+  - `critical` if (`max_severity == "p1"` and `dispatchable_duration_ms >= 250`) or `dispatchable_duration_ms >= 520` or `volatility_index >= 18`
+  - `high` if `dispatchable_duration_ms >= 280` or (`alert_count >= 3` and `max_severity` in `{"p1", "p2"}`) or (`rotation_segment_count == 0` and `risk_adjusted_duration_ms >= 340`) or (`reopen_segment_count == 0` and `duration_ms >= 420`)
   - else `medium`
 - final sort order:
   1. priority rank (`critical > high > medium`)
-  2. `risk_adjusted_duration_ms` descending
-  3. `stability_pressure_score` descending
-  4. `freeze_segment_count` descending
-  5. `alert_count` descending
-  6. `env` ascending
-  7. `start_ms` ascending
+  2. `dispatchable_duration_ms` descending
+  3. `volatility_index` descending
+  4. `risk_adjusted_duration_ms` descending
+  5. `freeze_segment_count` descending
+  6. `alert_count` descending
+  7. `env` ascending
+  8. `start_ms` ascending
 - JSONL rows must be compact (`json.dumps(row, separators=(",", ":"))`)
 
 Output schema requirements:
 - `drift_windows.json`: flat map `{env: [window, ...]}`, env keys sorted ascending, windows sorted by `start_ms`; each window has exactly:
-  `start_ms`, `end_ms`, `duration_ms`, `freeze_overlap_ms`, `freeze_segment_count`, `effective_duration_ms`, `reopen_overlap_ms`, `reopen_segment_count`, `risk_adjusted_duration_ms`, `alert_count`, `source_alert_ids`, `max_severity`
+  `start_ms`, `end_ms`, `duration_ms`, `freeze_overlap_ms`, `freeze_segment_count`, `effective_duration_ms`, `reopen_overlap_ms`, `reopen_segment_count`, `risk_adjusted_duration_ms`, `rotation_overlap_ms`, `rotation_segment_count`, `dispatchable_duration_ms`, `alert_count`, `source_alert_ids`, `max_severity`
 - `response_queue.jsonl` rows must have exactly:
-  `ticket_id`, `env`, `start_ms`, `end_ms`, `duration_ms`, `freeze_overlap_ms`, `freeze_segment_count`, `effective_duration_ms`, `reopen_overlap_ms`, `reopen_segment_count`, `risk_adjusted_duration_ms`, `alert_count`, `source_alert_ids`, `max_severity`, `stability_pressure_score`, `priority`, `queue_hash`, `window_digest`
+  `ticket_id`, `env`, `start_ms`, `end_ms`, `duration_ms`, `freeze_overlap_ms`, `freeze_segment_count`, `effective_duration_ms`, `reopen_overlap_ms`, `reopen_segment_count`, `risk_adjusted_duration_ms`, `rotation_overlap_ms`, `rotation_segment_count`, `dispatchable_duration_ms`, `alert_count`, `source_alert_ids`, `max_severity`, `stability_pressure_score`, `volatility_index`, `priority`, `queue_hash`, `window_digest`
 - `summary.json` must have exactly:
-  `schema_version`, `raw_alert_count`, `unique_alert_ids`, `canonical_alert_count`, `env_count`, `severity_counts`, `total_unmuted_duration_ms`, `total_freeze_overlap_ms`, `total_freeze_segment_count`, `total_effective_duration_ms`, `total_reopen_overlap_ms`, `total_reopen_segment_count`, `total_risk_adjusted_duration_ms`, `longest_window_ms`, `queued_window_count`, `muted_excluded_count`, `max_stability_pressure_score`, `canonical_alert_checksum`, `queue_hash_checksum`, `freeze_compaction_checksum`, `reopen_compaction_checksum`, `window_digest_checksum`
+  `schema_version`, `raw_alert_count`, `unique_alert_ids`, `canonical_alert_count`, `env_count`, `severity_counts`, `total_unmuted_duration_ms`, `total_freeze_overlap_ms`, `total_freeze_segment_count`, `total_effective_duration_ms`, `total_reopen_overlap_ms`, `total_reopen_segment_count`, `total_risk_adjusted_duration_ms`, `total_rotation_overlap_ms`, `total_rotation_segment_count`, `total_dispatchable_duration_ms`, `longest_window_ms`, `queued_window_count`, `muted_excluded_count`, `max_stability_pressure_score`, `max_volatility_index`, `canonical_alert_checksum`, `queue_hash_checksum`, `freeze_compaction_checksum`, `reopen_compaction_checksum`, `rotation_compaction_checksum`, `window_digest_checksum`
 - summary specifics:
   - `schema_version` must be `"firewall-drift-v1"`
   - `severity_counts` key order: `p1`, `p2`, `p3`, `p4`
+  - `total_unmuted_duration_ms` is the sum of merged window `duration_ms` values from `drift_windows.json` (not raw alert durations)
 - `canonical_alert_checksum`: SHA256 over canonical alert rows in canonical order (`env`, `start_ms`, `alert_id`) with line format `alert_id|env|start_ms|end_ms|severity|muted_int|signature`, where `muted_int` is `1` or `0`
 - `queue_hash_checksum`: SHA256 of `"|".join(queue_hash values in final queue order)` and must be 64 lowercase hex chars
 - `freeze_compaction_checksum`: SHA256 over compacted freeze rows in canonical order (`env`, `start_ms`, `end_ms`) with line format `env|start_ms|end_ms`
 - `reopen_compaction_checksum`: SHA256 over compacted reopen rows in canonical order (`env`, `severity_scope`, `start_ms`, `end_ms`) with line format `env|severity_scope|start_ms|end_ms`
+- `rotation_compaction_checksum`: SHA256 over compacted rotation rows in canonical order (`env`, `severity_scope`, `start_ms`, `end_ms`) with line format `env|severity_scope|start_ms|end_ms`
 - `window_digest_checksum`: SHA256 of `"|".join(window_digest values in final queue order)` and must be 64 lowercase hex chars
 
 Keep `/app/workflow/.export_report.original` unchanged. Do not read/import verifier artifacts from `/tests`.

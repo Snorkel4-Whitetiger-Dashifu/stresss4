@@ -2,7 +2,13 @@
   "broken_pipeline_sha256": "48553e2f32edf6722cfd63b9bc9b55fb0a70fd41ad444dcb4ba7ae59001c5310",
   "broken_summary_sha256": "434e589e714939685674b7baad3717ba8dfa6066bb58ebadd7f11396c03c4780",
   "broken_queue_count": 5,
-  "broken_queue_ticket_ids": ["d01", "d10", "d10", "d12", "d15"],
+  "broken_queue_ticket_ids": [
+    "d01",
+    "d10",
+    "d10",
+    "d12",
+    "d15"
+  ],
   "alternate_input": "/tests/fixtures/alt_events.json",
   "primary": {
     "summary": {
@@ -24,15 +30,20 @@
       "total_reopen_overlap_ms": 1460,
       "total_reopen_segment_count": 6,
       "total_risk_adjusted_duration_ms": 2820,
+      "total_rotation_overlap_ms": 850,
+      "total_rotation_segment_count": 4,
+      "total_dispatchable_duration_ms": 2538,
       "longest_window_ms": 1200,
-      "queued_window_count": 3,
+      "queued_window_count": 2,
       "muted_excluded_count": 2,
       "max_stability_pressure_score": 5,
+      "max_volatility_index": 7,
       "canonical_alert_checksum": "1254d33bb3d2e56f02c3d98867ddee1a83d7a816102ebf74490c4a6dba66b13c",
-      "queue_hash_checksum": "ffa2ab9f3576e46d4d57eeed65dfd3bed27436b1986c004a713d09986b53bce3",
+      "queue_hash_checksum": "a05ebacb4dd985019cc3fcc13a090fc2e5deec4bf84aa407e8a796abec4301de",
       "freeze_compaction_checksum": "836e9fbfdec2fd6a9d6f850585ac90b4ff950ccc4d3086effe2e5dc86e629757",
       "reopen_compaction_checksum": "0e1c4e3b7a635d3b44655c43b667773d17644341f10f536a8a9b9e1619b36e92",
-      "window_digest_checksum": "b50df9c0d4c4a9ae0278fcd0893847312bd2a0242b0325a06587a951eec9314a"
+      "rotation_compaction_checksum": "4ddf2b923948d27b40fa0fb076c69a58061a514bc6b1b1f96c38463499ec21b1",
+      "window_digest_checksum": "d61d028975622f3bb6cbe5bfd6c0b8f70d2b0208aa3e4d5f788e895ebd7481c5"
     },
     "windows": {
       "dmz": [
@@ -46,8 +57,13 @@
           "reopen_overlap_ms": 0,
           "reopen_segment_count": 0,
           "risk_adjusted_duration_ms": 500,
+          "rotation_overlap_ms": 0,
+          "rotation_segment_count": 0,
+          "dispatchable_duration_ms": 500,
           "alert_count": 1,
-          "source_alert_ids": ["d05"],
+          "source_alert_ids": [
+            "d05"
+          ],
           "max_severity": "p3"
         },
         {
@@ -60,8 +76,13 @@
           "reopen_overlap_ms": 0,
           "reopen_segment_count": 0,
           "risk_adjusted_duration_ms": 0,
+          "rotation_overlap_ms": 0,
+          "rotation_segment_count": 0,
+          "dispatchable_duration_ms": 0,
           "alert_count": 1,
-          "source_alert_ids": ["d07"],
+          "source_alert_ids": [
+            "d07"
+          ],
           "max_severity": "p1"
         },
         {
@@ -74,8 +95,13 @@
           "reopen_overlap_ms": 550,
           "reopen_segment_count": 1,
           "risk_adjusted_duration_ms": 325,
+          "rotation_overlap_ms": 250,
+          "rotation_segment_count": 1,
+          "dispatchable_duration_ms": 242,
           "alert_count": 1,
-          "source_alert_ids": ["d09"],
+          "source_alert_ids": [
+            "d09"
+          ],
           "max_severity": "p2"
         },
         {
@@ -88,8 +114,14 @@
           "reopen_overlap_ms": 480,
           "reopen_segment_count": 2,
           "risk_adjusted_duration_ms": 360,
+          "rotation_overlap_ms": 210,
+          "rotation_segment_count": 1,
+          "dispatchable_duration_ms": 290,
           "alert_count": 2,
-          "source_alert_ids": ["d13", "d15"],
+          "source_alert_ids": [
+            "d13",
+            "d15"
+          ],
           "max_severity": "p1"
         }
       ],
@@ -104,8 +136,13 @@
           "reopen_overlap_ms": 230,
           "reopen_segment_count": 2,
           "risk_adjusted_duration_ms": 185,
+          "rotation_overlap_ms": 110,
+          "rotation_segment_count": 1,
+          "dispatchable_duration_ms": 149,
           "alert_count": 1,
-          "source_alert_ids": ["d02"],
+          "source_alert_ids": [
+            "d02"
+          ],
           "max_severity": "p2"
         },
         {
@@ -118,8 +155,13 @@
           "reopen_overlap_ms": 0,
           "reopen_segment_count": 0,
           "risk_adjusted_duration_ms": 300,
+          "rotation_overlap_ms": 0,
+          "rotation_segment_count": 0,
+          "dispatchable_duration_ms": 300,
           "alert_count": 1,
-          "source_alert_ids": ["d04"],
+          "source_alert_ids": [
+            "d04"
+          ],
           "max_severity": "p3"
         },
         {
@@ -132,8 +174,13 @@
           "reopen_overlap_ms": 0,
           "reopen_segment_count": 0,
           "risk_adjusted_duration_ms": 150,
+          "rotation_overlap_ms": 0,
+          "rotation_segment_count": 0,
+          "dispatchable_duration_ms": 150,
           "alert_count": 1,
-          "source_alert_ids": ["d08"],
+          "source_alert_ids": [
+            "d08"
+          ],
           "max_severity": "p2"
         },
         {
@@ -146,8 +193,13 @@
           "reopen_overlap_ms": 0,
           "reopen_segment_count": 0,
           "risk_adjusted_duration_ms": 200,
+          "rotation_overlap_ms": 0,
+          "rotation_segment_count": 0,
+          "dispatchable_duration_ms": 200,
           "alert_count": 1,
-          "source_alert_ids": ["d14"],
+          "source_alert_ids": [
+            "d14"
+          ],
           "max_severity": "p3"
         }
       ],
@@ -162,8 +214,13 @@
           "reopen_overlap_ms": 0,
           "reopen_segment_count": 0,
           "risk_adjusted_duration_ms": 150,
+          "rotation_overlap_ms": 0,
+          "rotation_segment_count": 0,
+          "dispatchable_duration_ms": 150,
           "alert_count": 1,
-          "source_alert_ids": ["d01"],
+          "source_alert_ids": [
+            "d01"
+          ],
           "max_severity": "p1"
         },
         {
@@ -176,8 +233,13 @@
           "reopen_overlap_ms": 0,
           "reopen_segment_count": 0,
           "risk_adjusted_duration_ms": 200,
+          "rotation_overlap_ms": 0,
+          "rotation_segment_count": 0,
+          "dispatchable_duration_ms": 200,
           "alert_count": 1,
-          "source_alert_ids": ["d03"],
+          "source_alert_ids": [
+            "d03"
+          ],
           "max_severity": "p4"
         },
         {
@@ -190,8 +252,13 @@
           "reopen_overlap_ms": 200,
           "reopen_segment_count": 1,
           "risk_adjusted_duration_ms": 300,
+          "rotation_overlap_ms": 280,
+          "rotation_segment_count": 1,
+          "dispatchable_duration_ms": 207,
           "alert_count": 1,
-          "source_alert_ids": ["d06"],
+          "source_alert_ids": [
+            "d06"
+          ],
           "max_severity": "p2"
         },
         {
@@ -204,8 +271,13 @@
           "reopen_overlap_ms": 0,
           "reopen_segment_count": 0,
           "risk_adjusted_duration_ms": 0,
+          "rotation_overlap_ms": 0,
+          "rotation_segment_count": 0,
+          "dispatchable_duration_ms": 0,
           "alert_count": 1,
-          "source_alert_ids": ["d10"],
+          "source_alert_ids": [
+            "d10"
+          ],
           "max_severity": "p1"
         },
         {
@@ -218,8 +290,13 @@
           "reopen_overlap_ms": 0,
           "reopen_segment_count": 0,
           "risk_adjusted_duration_ms": 50,
+          "rotation_overlap_ms": 0,
+          "rotation_segment_count": 0,
+          "dispatchable_duration_ms": 50,
           "alert_count": 1,
-          "source_alert_ids": ["d11"],
+          "source_alert_ids": [
+            "d11"
+          ],
           "max_severity": "p4"
         },
         {
@@ -232,8 +309,13 @@
           "reopen_overlap_ms": 0,
           "reopen_segment_count": 0,
           "risk_adjusted_duration_ms": 100,
+          "rotation_overlap_ms": 0,
+          "rotation_segment_count": 0,
+          "dispatchable_duration_ms": 100,
           "alert_count": 1,
-          "source_alert_ids": ["d17"],
+          "source_alert_ids": [
+            "d17"
+          ],
           "max_severity": "p2"
         }
       ]
@@ -251,13 +333,20 @@
         "reopen_overlap_ms": 480,
         "reopen_segment_count": 2,
         "risk_adjusted_duration_ms": 360,
+        "rotation_overlap_ms": 210,
+        "rotation_segment_count": 1,
+        "dispatchable_duration_ms": 290,
         "alert_count": 2,
-        "source_alert_ids": ["d13", "d15"],
+        "source_alert_ids": [
+          "d13",
+          "d15"
+        ],
         "max_severity": "p1",
         "stability_pressure_score": 5,
+        "volatility_index": 7,
         "priority": "critical",
-        "queue_hash": "a6a24822770b",
-        "window_digest": "b692e69968"
+        "queue_hash": "317557b6242b",
+        "window_digest": "93db902918"
       },
       {
         "ticket_id": "dmz:2010000006200-2010000006800",
@@ -271,33 +360,19 @@
         "reopen_overlap_ms": 550,
         "reopen_segment_count": 1,
         "risk_adjusted_duration_ms": 325,
+        "rotation_overlap_ms": 250,
+        "rotation_segment_count": 1,
+        "dispatchable_duration_ms": 242,
         "alert_count": 1,
-        "source_alert_ids": ["d09"],
+        "source_alert_ids": [
+          "d09"
+        ],
         "max_severity": "p2",
         "stability_pressure_score": 4,
-        "priority": "high",
-        "queue_hash": "e9fa426e0599",
-        "window_digest": "9d4c4b5937"
-      },
-      {
-        "ticket_id": "prod:2010000004500-2010000004900",
-        "env": "prod",
-        "start_ms": 2010000004500,
-        "end_ms": 2010000004900,
-        "duration_ms": 400,
-        "freeze_overlap_ms": 0,
-        "freeze_segment_count": 0,
-        "effective_duration_ms": 400,
-        "reopen_overlap_ms": 200,
-        "reopen_segment_count": 1,
-        "risk_adjusted_duration_ms": 300,
-        "alert_count": 1,
-        "source_alert_ids": ["d06"],
-        "max_severity": "p2",
-        "stability_pressure_score": 4,
-        "priority": "high",
-        "queue_hash": "9d78e6f9fee8",
-        "window_digest": "3fb248437f"
+        "volatility_index": 6,
+        "priority": "medium",
+        "queue_hash": "a3b2d3acd12b",
+        "window_digest": "3a7066e4e7"
       }
     ]
   },
@@ -321,15 +396,20 @@
       "total_reopen_overlap_ms": 0,
       "total_reopen_segment_count": 0,
       "total_risk_adjusted_duration_ms": 750,
+      "total_rotation_overlap_ms": 0,
+      "total_rotation_segment_count": 0,
+      "total_dispatchable_duration_ms": 750,
       "longest_window_ms": 370,
       "queued_window_count": 2,
       "muted_excluded_count": 0,
       "max_stability_pressure_score": 1,
+      "max_volatility_index": 1,
       "canonical_alert_checksum": "ecd2ab7007a70a9fb020c106e5d1453a7a5db0ba00f7ecbbd804899bb37a4718",
-      "queue_hash_checksum": "d481ac841939548a9a8902134355e702933c5a87721f79b63371cd0582f43239",
+      "queue_hash_checksum": "408f6389729ac6479f35b853022324ce20ca71ddffffd1c700259bf507ad80e8",
       "freeze_compaction_checksum": "836e9fbfdec2fd6a9d6f850585ac90b4ff950ccc4d3086effe2e5dc86e629757",
       "reopen_compaction_checksum": "0e1c4e3b7a635d3b44655c43b667773d17644341f10f536a8a9b9e1619b36e92",
-      "window_digest_checksum": "2796f2acc9056c8634ab33baba508c1b87c7557a3a154fc8af189bb105cd7ab3"
+      "rotation_compaction_checksum": "4ddf2b923948d27b40fa0fb076c69a58061a514bc6b1b1f96c38463499ec21b1",
+      "window_digest_checksum": "dc2fed9603932ddf23cfcd2e9e129d8c689467284de43161dc66f1fa80aac002"
     },
     "windows": {
       "edge": [
@@ -343,8 +423,13 @@
           "reopen_overlap_ms": 0,
           "reopen_segment_count": 0,
           "risk_adjusted_duration_ms": 310,
+          "rotation_overlap_ms": 0,
+          "rotation_segment_count": 0,
+          "dispatchable_duration_ms": 310,
           "alert_count": 1,
-          "source_alert_ids": ["x4"],
+          "source_alert_ids": [
+            "x4"
+          ],
           "max_severity": "p2"
         }
       ],
@@ -359,8 +444,14 @@
           "reopen_overlap_ms": 0,
           "reopen_segment_count": 0,
           "risk_adjusted_duration_ms": 370,
+          "rotation_overlap_ms": 0,
+          "rotation_segment_count": 0,
+          "dispatchable_duration_ms": 370,
           "alert_count": 2,
-          "source_alert_ids": ["x1", "x2"],
+          "source_alert_ids": [
+            "x1",
+            "x2"
+          ],
           "max_severity": "p1"
         },
         {
@@ -373,8 +464,13 @@
           "reopen_overlap_ms": 0,
           "reopen_segment_count": 0,
           "risk_adjusted_duration_ms": 70,
+          "rotation_overlap_ms": 0,
+          "rotation_segment_count": 0,
+          "dispatchable_duration_ms": 70,
           "alert_count": 1,
-          "source_alert_ids": ["x3"],
+          "source_alert_ids": [
+            "x3"
+          ],
           "max_severity": "p3"
         }
       ]
@@ -392,13 +488,20 @@
         "reopen_overlap_ms": 0,
         "reopen_segment_count": 0,
         "risk_adjusted_duration_ms": 370,
+        "rotation_overlap_ms": 0,
+        "rotation_segment_count": 0,
+        "dispatchable_duration_ms": 370,
         "alert_count": 2,
-        "source_alert_ids": ["x1", "x2"],
+        "source_alert_ids": [
+          "x1",
+          "x2"
+        ],
         "max_severity": "p1",
         "stability_pressure_score": 1,
+        "volatility_index": 1,
         "priority": "critical",
-        "queue_hash": "21b3e6434383",
-        "window_digest": "ce19518a02"
+        "queue_hash": "9e6cf23d2563",
+        "window_digest": "6f7948a41e"
       },
       {
         "ticket_id": "edge:600-910",
@@ -412,13 +515,19 @@
         "reopen_overlap_ms": 0,
         "reopen_segment_count": 0,
         "risk_adjusted_duration_ms": 310,
+        "rotation_overlap_ms": 0,
+        "rotation_segment_count": 0,
+        "dispatchable_duration_ms": 310,
         "alert_count": 1,
-        "source_alert_ids": ["x4"],
+        "source_alert_ids": [
+          "x4"
+        ],
         "max_severity": "p2",
         "stability_pressure_score": 0,
+        "volatility_index": 0,
         "priority": "high",
-        "queue_hash": "a7b1169fa516",
-        "window_digest": "9f822b412f"
+        "queue_hash": "c86d2d2979d4",
+        "window_digest": "8c926a62d8"
       }
     ]
   }
