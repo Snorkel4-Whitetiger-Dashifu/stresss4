@@ -14,6 +14,7 @@ WORKFLOW_PATH = Path("/app/workflow/export_report.py")
 ORIGINAL_WORKFLOW_PATH = Path("/app/workflow/.export_report.original")
 DEFAULT_INPUT = Path("/app/data/events.json")
 FREEZE_PATH = Path("/app/data/change_freezes.json")
+REOPEN_PATH = Path("/app/data/reopen_windows.json")
 EXPECTED_FIXTURE = Path("/tests/fixtures/expected_summary.json")
 ALT_INPUT = Path("/tests/fixtures/alt_events.json")
 
@@ -101,18 +102,26 @@ def test_summary_schema(primary_outputs):
         "total_freeze_overlap_ms",
         "total_freeze_segment_count",
         "total_effective_duration_ms",
+        "total_reopen_overlap_ms",
+        "total_reopen_segment_count",
+        "total_risk_adjusted_duration_ms",
         "longest_window_ms",
         "queued_window_count",
         "muted_excluded_count",
+        "max_stability_pressure_score",
         "canonical_alert_checksum",
         "queue_hash_checksum",
         "freeze_compaction_checksum",
+        "reopen_compaction_checksum",
+        "window_digest_checksum",
     }
     assert summary["schema_version"] == "firewall-drift-v1"
     assert list(summary["severity_counts"]) == SEVERITY_ORDER
     assert len(summary["canonical_alert_checksum"]) == 64
     assert len(summary["queue_hash_checksum"]) == 64
     assert len(summary["freeze_compaction_checksum"]) == 64
+    assert len(summary["reopen_compaction_checksum"]) == 64
+    assert len(summary["window_digest_checksum"]) == 64
 
 
 def test_windows_schema_and_sorting(primary_outputs):
@@ -124,6 +133,9 @@ def test_windows_schema_and_sorting(primary_outputs):
         "freeze_overlap_ms",
         "freeze_segment_count",
         "effective_duration_ms",
+        "reopen_overlap_ms",
+        "reopen_segment_count",
+        "risk_adjusted_duration_ms",
         "alert_count",
         "source_alert_ids",
         "max_severity",
@@ -137,6 +149,9 @@ def test_windows_schema_and_sorting(primary_outputs):
             assert row["duration_ms"] == max(row["end_ms"] - row["start_ms"], 0)
             assert row["effective_duration_ms"] == max(
                 row["duration_ms"] - row["freeze_overlap_ms"], 0
+            )
+            assert row["risk_adjusted_duration_ms"] == max(
+                row["effective_duration_ms"] - (row["reopen_overlap_ms"] // 2), 0
             )
             assert row["source_alert_ids"] == sorted(row["source_alert_ids"])
 
@@ -152,28 +167,34 @@ def test_queue_required_fields(primary_outputs):
         "freeze_overlap_ms",
         "freeze_segment_count",
         "effective_duration_ms",
+        "reopen_overlap_ms",
+        "reopen_segment_count",
+        "risk_adjusted_duration_ms",
         "alert_count",
         "source_alert_ids",
         "max_severity",
+        "stability_pressure_score",
         "priority",
         "queue_hash",
+        "window_digest",
     }
     for row in queue:
         assert set(row) == expected_keys
         assert row["priority"] in PRIORITY_RANK
         assert len(row["queue_hash"]) == 12
+        assert len(row["window_digest"]) == 10
 
 
 def test_priority_rules(primary_outputs):
     _, _, _, queue = primary_outputs
     for row in queue:
-        if (row["max_severity"] == "p1" and row["effective_duration_ms"] >= 280) or row[
-            "effective_duration_ms"
-        ] >= 600:
+        if (
+            row["max_severity"] == "p1" and row["risk_adjusted_duration_ms"] >= 260
+        ) or row["risk_adjusted_duration_ms"] >= 560 or row["stability_pressure_score"] >= 14:
             assert row["priority"] == "critical"
-        elif row["effective_duration_ms"] >= 300 or (
+        elif row["risk_adjusted_duration_ms"] >= 300 or (
             row["alert_count"] >= 3 and row["max_severity"] in {"p1", "p2"}
-        ) or (row["freeze_segment_count"] == 0 and row["duration_ms"] >= 420):
+        ) or (row["reopen_segment_count"] == 0 and row["duration_ms"] >= 420):
             assert row["priority"] == "high"
         else:
             assert row["priority"] == "medium"
@@ -185,7 +206,8 @@ def test_queue_sorted(primary_outputs):
         queue,
         key=lambda row: (
             -PRIORITY_RANK[row["priority"]],
-            -row["effective_duration_ms"],
+            -row["risk_adjusted_duration_ms"],
+            -row["stability_pressure_score"],
             -row["freeze_segment_count"],
             -row["alert_count"],
             row["env"],
@@ -210,6 +232,9 @@ def test_summary_math_consistency(primary_outputs):
     overlap_total = 0
     segment_total = 0
     effective_total = 0
+    reopen_overlap_total = 0
+    reopen_segment_total = 0
+    risk_adjusted_total = 0
     longest = 0
     for env_windows in windows.values():
         for row in env_windows:
@@ -217,11 +242,17 @@ def test_summary_math_consistency(primary_outputs):
             overlap_total += row["freeze_overlap_ms"]
             segment_total += row["freeze_segment_count"]
             effective_total += row["effective_duration_ms"]
+            reopen_overlap_total += row["reopen_overlap_ms"]
+            reopen_segment_total += row["reopen_segment_count"]
+            risk_adjusted_total += row["risk_adjusted_duration_ms"]
             longest = max(longest, row["duration_ms"])
     assert summary["total_unmuted_duration_ms"] == duration_total
     assert summary["total_freeze_overlap_ms"] == overlap_total
     assert summary["total_freeze_segment_count"] == segment_total
     assert summary["total_effective_duration_ms"] == effective_total
+    assert summary["total_reopen_overlap_ms"] == reopen_overlap_total
+    assert summary["total_reopen_segment_count"] == reopen_segment_total
+    assert summary["total_risk_adjusted_duration_ms"] == risk_adjusted_total
     assert summary["longest_window_ms"] == longest
 
 
@@ -294,8 +325,27 @@ def test_freeze_source_path_affects_output(tmp_path: Path):
         _, summary_b, _, _ = _run_pipeline(tmp_path / "b")
         assert summary_a["total_freeze_overlap_ms"] != summary_b["total_freeze_overlap_ms"]
         assert summary_a["freeze_compaction_checksum"] != summary_b["freeze_compaction_checksum"]
+        assert (
+            summary_a["total_risk_adjusted_duration_ms"]
+            != summary_b["total_risk_adjusted_duration_ms"]
+        )
     finally:
         FREEZE_PATH.write_text(original, encoding="utf-8")
+
+
+def test_reopen_source_path_affects_output(tmp_path: Path):
+    original = REOPEN_PATH.read_text(encoding="utf-8")
+    try:
+        _, summary_a, _, queue_a = _run_pipeline(tmp_path / "a")
+        REOPEN_PATH.write_text("[]\n", encoding="utf-8")
+        _, summary_b, _, queue_b = _run_pipeline(tmp_path / "b")
+        assert summary_a["total_reopen_overlap_ms"] > 0
+        assert summary_b["total_reopen_overlap_ms"] == 0
+        assert summary_a["reopen_compaction_checksum"] != summary_b["reopen_compaction_checksum"]
+        assert summary_a["window_digest_checksum"] != summary_b["window_digest_checksum"]
+        assert queue_a != queue_b
+    finally:
+        REOPEN_PATH.write_text(original, encoding="utf-8")
 
 
 def test_compacted_freeze_segments_are_used(tmp_path: Path):
@@ -328,6 +378,52 @@ def test_compacted_freeze_segments_are_used(tmp_path: Path):
         assert queue[0]["freeze_segment_count"] == 2
     finally:
         FREEZE_PATH.write_text(original, encoding="utf-8")
+
+
+def test_reopen_compaction_and_scope_are_used(tmp_path: Path):
+    original_reopen = REOPEN_PATH.read_text(encoding="utf-8")
+    try:
+        reopen_rows = [
+            {"env": "lab", "severity_scope": "all", "start_ms": 150, "end_ms": 200},
+            {"env": "lab", "severity_scope": "all", "start_ms": 200, "end_ms": 240},
+            {"env": "lab", "severity_scope": "p1", "start_ms": 260, "end_ms": 320},
+            {"env": "lab", "severity_scope": "debug", "start_ms": 0, "end_ms": 1},
+        ]
+        REOPEN_PATH.write_text(json.dumps(reopen_rows) + "\n", encoding="utf-8")
+        rows = [
+            {
+                "alert_id": "r1",
+                "start_ms": 100,
+                "end_ms": 400,
+                "severity": "p1",
+                "env": "lab",
+                "signature": "alpha",
+                "muted": False,
+            },
+            {
+                "alert_id": "r2",
+                "start_ms": 500,
+                "end_ms": 800,
+                "severity": "p2",
+                "env": "lab",
+                "signature": "beta",
+                "muted": False,
+            },
+        ]
+        input_path = tmp_path / "reopen_scope.json"
+        _write_json(input_path, rows)
+        _, summary, windows, queue = _run_pipeline(tmp_path / "run", input_path=input_path)
+        first = windows["lab"][0]
+        second = windows["lab"][1]
+        assert first["reopen_overlap_ms"] == 150
+        assert first["reopen_segment_count"] == 2
+        assert first["risk_adjusted_duration_ms"] == 225
+        assert second["reopen_overlap_ms"] == 0
+        assert summary["total_reopen_overlap_ms"] == 150
+        assert summary["total_reopen_segment_count"] == 2
+        assert [row["ticket_id"] for row in queue] == ["lab:500-800", "lab:100-400"]
+    finally:
+        REOPEN_PATH.write_text(original_reopen, encoding="utf-8")
 
 
 def test_tie_break_full_tie_keeps_first_seen(tmp_path: Path):

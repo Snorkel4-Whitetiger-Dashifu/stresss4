@@ -1,13 +1,14 @@
 {
   "title": "Firewall Drift Chain Compiler Spec",
-  "version": "1.1",
+  "version": "1.2",
   "workflow_repair": {
     "path": "/app/workflow/export_report.py",
     "cli_usage": "python3 /app/workflow/export_report.py --input PATH --output-dir PATH",
     "defaults": {
       "input": "/app/data/events.json",
       "output_dir": "/app/output",
-      "change_freezes": "/app/data/change_freezes.json"
+      "change_freezes": "/app/data/change_freezes.json",
+      "reopen_windows": "/app/data/reopen_windows.json"
     },
     "forbidden_executable_tokens": [
       "event[\"seen_ms\"]",
@@ -18,7 +19,11 @@
       ".lower(",
       ".strip(",
       "reverse=True",
-      "\"yes\""
+      "\"yes\"",
+      "REOPEN_PATH",
+      "reopen_compaction_checksum",
+      "stability_pressure_score",
+      "window_digest"
     ],
     "token_check_scope": "executable code only (exclude comments and docstrings)"
   },
@@ -41,6 +46,9 @@
       "freeze_overlap_ms",
       "freeze_segment_count",
       "effective_duration_ms",
+      "reopen_overlap_ms",
+      "reopen_segment_count",
+      "risk_adjusted_duration_ms",
       "alert_count",
       "source_alert_ids",
       "max_severity"
@@ -53,20 +61,35 @@
     "overlap_formula": "max(0, min(end_a, end_b) - max(start_a, start_b))",
     "effective_duration_ms": "max(duration_ms - freeze_overlap_ms, 0)"
   },
+  "reopen_windows": {
+    "source_path": "/app/data/reopen_windows.json",
+    "same_env_only": true,
+    "scope_values": ["all", "p1", "p2"],
+    "reopen_canonicalization": "normalize env/scope/start/end, drop end<=start, compact overlap/touch intervals per (env,severity_scope)",
+    "matching_scopes": "{all,max_severity} for each window",
+    "reopen_overlap_union": "collect overlap segments from matching scopes then compact/union those segments to compute reopen_overlap_ms and reopen_segment_count",
+    "risk_adjusted_duration_ms": "max(effective_duration_ms - (reopen_overlap_ms // 2), 0)",
+    "stability_pressure_score": "probe window [end_ms-180, end_ms+1) using reopen all + severity scopes; score=(all_probe_ms//30)+(severity_probe_ms//20)+max(alert_count-1,0)"
+  },
   "response_queue": {
     "output_path": "response_queue.jsonl",
-    "include_min_effective_duration_ms": 180,
+    "include_min_risk_adjusted_duration_ms": {
+      "p1": 200,
+      "p2": 260
+    },
     "include_max_severities": ["p1", "p2"],
     "ticket_id_format": "{env}:{start_ms}-{end_ms}",
-    "queue_hash": "sha1('{env}|{start_ms}|{end_ms}|{csv_source_alert_ids}|{max_severity}|{freeze_segment_count}') first 12 lowercase hex chars",
+    "queue_hash": "sha1('{env}|{start_ms}|{end_ms}|{csv_source_alert_ids}|{max_severity}|{freeze_segment_count}|{reopen_segment_count}|{stability_pressure_score}') first 12 lowercase hex chars",
+    "window_digest": "sha1('{ticket_id}|{priority}|{risk_adjusted_duration_ms}|{stability_pressure_score}') first 10 lowercase hex chars",
     "priority_rules": {
-      "critical": "max_severity == p1 and effective_duration_ms >= 280, or effective_duration_ms >= 600",
-      "high": "effective_duration_ms >= 300, or alert_count >= 3 with max_severity in {p1,p2}, or freeze_segment_count == 0 with duration_ms >= 420",
+      "critical": "max_severity == p1 and risk_adjusted_duration_ms >= 260, or risk_adjusted_duration_ms >= 560, or stability_pressure_score >= 14",
+      "high": "risk_adjusted_duration_ms >= 300, or alert_count >= 3 with max_severity in {p1,p2}, or reopen_segment_count == 0 with duration_ms >= 420",
       "medium": "otherwise"
     },
     "sort_order": [
       "priority rank critical>high>medium",
-      "effective_duration_ms desc",
+      "risk_adjusted_duration_ms desc",
+      "stability_pressure_score desc",
       "freeze_segment_count desc",
       "alert_count desc",
       "env asc",
@@ -87,17 +110,25 @@
       "total_freeze_overlap_ms",
       "total_freeze_segment_count",
       "total_effective_duration_ms",
+      "total_reopen_overlap_ms",
+      "total_reopen_segment_count",
+      "total_risk_adjusted_duration_ms",
       "longest_window_ms",
       "queued_window_count",
       "muted_excluded_count",
+      "max_stability_pressure_score",
       "canonical_alert_checksum",
       "queue_hash_checksum",
-      "freeze_compaction_checksum"
+      "freeze_compaction_checksum",
+      "reopen_compaction_checksum",
+      "window_digest_checksum"
     ],
     "severity_counts_key_order": ["p1", "p2", "p3", "p4"],
     "canonical_alert_checksum": "sha256 over canonical alerts rows alert_id|env|start_ms|end_ms|severity|muted_int|signature",
     "freeze_compaction_checksum": "sha256 over compacted freeze rows env|start_ms|end_ms",
-    "queue_hash_checksum": "sha256('|'.join(queue_hash values in final queue order)) lowercase 64 hex chars"
+    "reopen_compaction_checksum": "sha256 over compacted reopen rows env|severity_scope|start_ms|end_ms",
+    "queue_hash_checksum": "sha256('|'.join(queue_hash values in final queue order)) lowercase 64 hex chars",
+    "window_digest_checksum": "sha256('|'.join(window_digest values in final queue order)) lowercase 64 hex chars"
   },
   "drift_windows_json": {
     "shape": "flat map {env: [window, ...]}",

@@ -10,10 +10,12 @@ from pathlib import Path
 
 SCHEMA_VERSION = "firewall-drift-v1"
 FREEZE_PATH = Path("/app/data/change_freezes.json")
+REOPEN_PATH = Path("/app/data/reopen_windows.json")
 SEVERITY_ORDER = ["p1", "p2", "p3", "p4"]
 SEVERITY_RANK = {name: len(SEVERITY_ORDER) - idx for idx, name in enumerate(SEVERITY_ORDER)}
 PRIORITY_ORDER = ["critical", "high", "medium"]
 PRIORITY_RANK = {name: len(PRIORITY_ORDER) - idx for idx, name in enumerate(PRIORITY_ORDER)}
+SUPPORTED_REOPEN_SCOPES = {"all", "p1", "p2"}
 
 
 def _normalize_severity(value: object) -> str:
@@ -50,8 +52,41 @@ def _severity_rank(value: str) -> int:
     return SEVERITY_RANK.get(value, 0)
 
 
+def _normalize_reopen_scope(value: object) -> str:
+    scope = str(value).strip().lower()
+    return scope if scope in SUPPORTED_REOPEN_SCOPES else ""
+
+
 def _load_json(path: Path) -> list[dict]:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _compact_intervals(intervals: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    merged: list[list[int]] = []
+    for start, end in sorted(intervals):
+        if not merged or start > merged[-1][1]:
+            merged.append([start, end])
+        else:
+            merged[-1][1] = max(merged[-1][1], end)
+    return [(start, end) for start, end in merged]
+
+
+def _window_overlaps(
+    window_start: int, window_end: int, intervals: list[tuple[int, int]]
+) -> list[tuple[int, int]]:
+    segments: list[tuple[int, int]] = []
+    for interval_start, interval_end in intervals:
+        start = max(window_start, interval_start)
+        end = min(window_end, interval_end)
+        if end > start:
+            segments.append((start, end))
+    return segments
+
+
+def _probe_overlap_ms(anchor_ms: int, intervals: list[tuple[int, int]], lookback_ms: int = 180) -> int:
+    probe_start = anchor_ms - lookback_ms
+    probe_end = anchor_ms + 1
+    return sum(overlap_ms(probe_start, probe_end, start, end) for start, end in intervals)
 
 
 def canonicalize_alerts(rows: list[dict]) -> list[dict]:
@@ -109,20 +144,31 @@ def freezes_by_env(freezes: list[dict]) -> dict[str, list[tuple[int, int]]]:
         if end <= start:
             continue
         by_env.setdefault(env, []).append((start, end))
-    compacted: dict[str, list[tuple[int, int]]] = {}
-    for env in by_env:
-        intervals = sorted(by_env[env])
-        merged: list[list[int]] = []
-        for start, end in intervals:
-            if not merged or start > merged[-1][1]:
-                merged.append([start, end])
-            else:
-                merged[-1][1] = max(merged[-1][1], end)
-        compacted[env] = [(start, end) for start, end in merged]
-    return compacted
+    return {env: _compact_intervals(by_env[env]) for env in by_env}
 
 
-def build_drift_windows(canonical: list[dict], freeze_rows: list[dict]) -> tuple[dict[str, list[dict]], dict[str, list[tuple[int, int]]]]:
+def reopen_by_scope(rows: list[dict]) -> dict[tuple[str, str], list[tuple[int, int]]]:
+    by_key: dict[tuple[str, str], list[tuple[int, int]]] = {}
+    for row in rows:
+        env = _normalize_env(row.get("env", ""))
+        scope = _normalize_reopen_scope(row.get("severity_scope", ""))
+        if not scope:
+            continue
+        start = _normalize_ms(row.get("start_ms", 0))
+        end = _normalize_ms(row.get("end_ms", 0))
+        if end <= start:
+            continue
+        by_key.setdefault((env, scope), []).append((start, end))
+    return {key: _compact_intervals(intervals) for key, intervals in by_key.items()}
+
+
+def build_drift_windows(
+    canonical: list[dict], freeze_rows: list[dict], reopen_rows: list[dict]
+) -> tuple[
+    dict[str, list[dict]],
+    dict[str, list[tuple[int, int]]],
+    dict[tuple[str, str], list[tuple[int, int]]],
+]:
     grouped: dict[str, list[dict]] = {}
     for row in canonical:
         if row["muted"]:
@@ -130,6 +176,7 @@ def build_drift_windows(canonical: list[dict], freeze_rows: list[dict]) -> tuple
         grouped.setdefault(row["env"], []).append(row)
 
     freeze_map = freezes_by_env(freeze_rows)
+    reopen_map = reopen_by_scope(reopen_rows)
     result: dict[str, list[dict]] = {}
     for env, alerts in grouped.items():
         alerts.sort(key=lambda row: (row["start_ms"], row["end_ms"], row["alert_id"]))
@@ -163,21 +210,36 @@ def build_drift_windows(canonical: list[dict], freeze_rows: list[dict]) -> tuple
         normalized_windows: list[dict] = []
         for window in windows:
             duration = max(window["end_ms"] - window["start_ms"], 0)
-            overlap_segments: list[tuple[int, int]] = []
-            for freeze_start, freeze_end in freeze_map.get(env, []):
-                overlap_start = max(window["start_ms"], freeze_start)
-                overlap_end = min(window["end_ms"], freeze_end)
-                if overlap_end > overlap_start:
-                    overlap_segments.append((overlap_start, overlap_end))
-            freeze_overlap = sum(end - start for start, end in overlap_segments)
+            freeze_segments = _window_overlaps(
+                window["start_ms"], window["end_ms"], freeze_map.get(env, [])
+            )
+            freeze_overlap = sum(end - start for start, end in freeze_segments)
+            effective_duration = max(duration - freeze_overlap, 0)
+
+            reopen_segments = _window_overlaps(
+                window["start_ms"], window["end_ms"], reopen_map.get((env, "all"), [])
+            )
+            reopen_segments.extend(
+                _window_overlaps(
+                    window["start_ms"],
+                    window["end_ms"],
+                    reopen_map.get((env, window["max_severity"]), []),
+                )
+            )
+            compacted_reopen_segments = _compact_intervals(reopen_segments)
+            reopen_overlap = sum(end - start for start, end in compacted_reopen_segments)
+            risk_adjusted_duration = max(effective_duration - (reopen_overlap // 2), 0)
             normalized_windows.append(
                 {
                     "start_ms": window["start_ms"],
                     "end_ms": window["end_ms"],
                     "duration_ms": duration,
                     "freeze_overlap_ms": freeze_overlap,
-                    "freeze_segment_count": len(overlap_segments),
-                    "effective_duration_ms": max(duration - freeze_overlap, 0),
+                    "freeze_segment_count": len(freeze_segments),
+                    "effective_duration_ms": effective_duration,
+                    "reopen_overlap_ms": reopen_overlap,
+                    "reopen_segment_count": len(compacted_reopen_segments),
+                    "risk_adjusted_duration_ms": risk_adjusted_duration,
                     "alert_count": len(window["source_alert_ids"]),
                     "source_alert_ids": sorted(window["source_alert_ids"]),
                     "max_severity": window["max_severity"],
@@ -186,25 +248,41 @@ def build_drift_windows(canonical: list[dict], freeze_rows: list[dict]) -> tuple
         normalized_windows.sort(key=lambda row: row["start_ms"])
         result[env] = normalized_windows
 
-    return {env: result[env] for env in sorted(result)}, freeze_map
+    return {env: result[env] for env in sorted(result)}, freeze_map, reopen_map
 
 
-def build_response_queue(drift_windows: dict[str, list[dict]]) -> list[dict]:
+def build_response_queue(
+    drift_windows: dict[str, list[dict]],
+    reopen_map: dict[tuple[str, str], list[tuple[int, int]]],
+) -> list[dict]:
     queue: list[dict] = []
     for env, windows in drift_windows.items():
         for window in windows:
-            if window["effective_duration_ms"] < 180:
-                continue
             if window["max_severity"] not in {"p1", "p2"}:
                 continue
+            include_min_ms = 200 if window["max_severity"] == "p1" else 260
+            if window["risk_adjusted_duration_ms"] < include_min_ms:
+                continue
+
+            all_probe_ms = _probe_overlap_ms(window["end_ms"], reopen_map.get((env, "all"), []))
+            severity_probe_ms = _probe_overlap_ms(
+                window["end_ms"],
+                reopen_map.get((env, window["max_severity"]), []),
+            )
+            stability_pressure_score = (
+                (all_probe_ms // 30)
+                + (severity_probe_ms // 20)
+                + max(window["alert_count"] - 1, 0)
+            )
             if (
-                window["max_severity"] == "p1" and window["effective_duration_ms"] >= 280
-            ) or window["effective_duration_ms"] >= 600:
+                window["max_severity"] == "p1"
+                and window["risk_adjusted_duration_ms"] >= 260
+            ) or window["risk_adjusted_duration_ms"] >= 560 or stability_pressure_score >= 14:
                 priority = "critical"
-            elif window["effective_duration_ms"] >= 300 or (
+            elif window["risk_adjusted_duration_ms"] >= 300 or (
                 window["alert_count"] >= 3 and window["max_severity"] in {"p1", "p2"}
             ) or (
-                window["freeze_segment_count"] == 0 and window["duration_ms"] >= 420
+                window["reopen_segment_count"] == 0 and window["duration_ms"] >= 420
             ):
                 priority = "high"
             else:
@@ -213,13 +291,22 @@ def build_response_queue(drift_windows: dict[str, list[dict]]) -> list[dict]:
             queue_hash = hashlib.sha1(
                 (
                     f"{env}|{window['start_ms']}|{window['end_ms']}|"
-                    f"{','.join(window['source_alert_ids'])}|{window['max_severity']}|{window['freeze_segment_count']}"
+                    f"{','.join(window['source_alert_ids'])}|{window['max_severity']}|"
+                    f"{window['freeze_segment_count']}|{window['reopen_segment_count']}|"
+                    f"{stability_pressure_score}"
                 ).encode("utf-8")
             ).hexdigest()[:12]
+            ticket_id = f"{env}:{window['start_ms']}-{window['end_ms']}"
+            window_digest = hashlib.sha1(
+                (
+                    f"{ticket_id}|{priority}|{window['risk_adjusted_duration_ms']}|"
+                    f"{stability_pressure_score}"
+                ).encode("utf-8")
+            ).hexdigest()[:10]
 
             queue.append(
                 {
-                    "ticket_id": f"{env}:{window['start_ms']}-{window['end_ms']}",
+                    "ticket_id": ticket_id,
                     "env": env,
                     "start_ms": window["start_ms"],
                     "end_ms": window["end_ms"],
@@ -227,18 +314,24 @@ def build_response_queue(drift_windows: dict[str, list[dict]]) -> list[dict]:
                     "freeze_overlap_ms": window["freeze_overlap_ms"],
                     "freeze_segment_count": window["freeze_segment_count"],
                     "effective_duration_ms": window["effective_duration_ms"],
+                    "reopen_overlap_ms": window["reopen_overlap_ms"],
+                    "reopen_segment_count": window["reopen_segment_count"],
+                    "risk_adjusted_duration_ms": window["risk_adjusted_duration_ms"],
                     "alert_count": window["alert_count"],
                     "source_alert_ids": list(window["source_alert_ids"]),
                     "max_severity": window["max_severity"],
+                    "stability_pressure_score": stability_pressure_score,
                     "priority": priority,
                     "queue_hash": queue_hash,
+                    "window_digest": window_digest,
                 }
             )
 
     queue.sort(
         key=lambda row: (
             -PRIORITY_RANK[row["priority"]],
-            -row["effective_duration_ms"],
+            -row["risk_adjusted_duration_ms"],
+            -row["stability_pressure_score"],
             -row["freeze_segment_count"],
             -row["alert_count"],
             row["env"],
@@ -252,6 +345,7 @@ def build_summary(
     raw_rows: list[dict],
     canonical: list[dict],
     freeze_map: dict[str, list[tuple[int, int]]],
+    reopen_map: dict[tuple[str, str], list[tuple[int, int]]],
     drift_windows: dict[str, list[dict]],
     queue: list[dict],
 ) -> dict:
@@ -263,6 +357,9 @@ def build_summary(
     total_overlap = 0
     total_segments = 0
     total_effective = 0
+    total_reopen_overlap = 0
+    total_reopen_segments = 0
+    total_risk_adjusted = 0
     longest_window = 0
     for windows in drift_windows.values():
         for window in windows:
@@ -270,6 +367,9 @@ def build_summary(
             total_overlap += window["freeze_overlap_ms"]
             total_segments += window["freeze_segment_count"]
             total_effective += window["effective_duration_ms"]
+            total_reopen_overlap += window["reopen_overlap_ms"]
+            total_reopen_segments += window["reopen_segment_count"]
+            total_risk_adjusted += window["risk_adjusted_duration_ms"]
             longest_window = max(longest_window, window["duration_ms"])
 
     muted_excluded_count = sum(1 for row in canonical if row["muted"])
@@ -289,8 +389,18 @@ def build_summary(
             for start, end in freeze_map[env]
         ).encode("utf-8")
     ).hexdigest()
+    reopen_compaction_checksum = hashlib.sha256(
+        "\n".join(
+            f"{env}|{scope}|{start}|{end}"
+            for env, scope in sorted(reopen_map)
+            for start, end in reopen_map[(env, scope)]
+        ).encode("utf-8")
+    ).hexdigest()
     queue_checksum = hashlib.sha256(
         "|".join(row["queue_hash"] for row in queue).encode("utf-8")
+    ).hexdigest()
+    window_digest_checksum = hashlib.sha256(
+        "|".join(row["window_digest"] for row in queue).encode("utf-8")
     ).hexdigest()
 
     return {
@@ -306,21 +416,35 @@ def build_summary(
         "total_freeze_overlap_ms": total_overlap,
         "total_freeze_segment_count": total_segments,
         "total_effective_duration_ms": total_effective,
+        "total_reopen_overlap_ms": total_reopen_overlap,
+        "total_reopen_segment_count": total_reopen_segments,
+        "total_risk_adjusted_duration_ms": total_risk_adjusted,
         "longest_window_ms": longest_window,
         "queued_window_count": len(queue),
         "muted_excluded_count": muted_excluded_count,
+        "max_stability_pressure_score": max(
+            (row["stability_pressure_score"] for row in queue),
+            default=0,
+        ),
         "canonical_alert_checksum": canonical_alert_checksum,
         "queue_hash_checksum": queue_checksum,
         "freeze_compaction_checksum": freeze_compaction_checksum,
+        "reopen_compaction_checksum": reopen_compaction_checksum,
+        "window_digest_checksum": window_digest_checksum,
     }
 
 
-def export_report(events: list[dict], output_dir: Path, freeze_rows: list[dict]) -> None:
+def export_report(
+    events: list[dict],
+    output_dir: Path,
+    freeze_rows: list[dict],
+    reopen_rows: list[dict],
+) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     canonical = canonicalize_alerts(events)
-    drift_windows, freeze_map = build_drift_windows(canonical, freeze_rows)
-    queue = build_response_queue(drift_windows)
-    summary = build_summary(events, canonical, freeze_map, drift_windows, queue)
+    drift_windows, freeze_map, reopen_map = build_drift_windows(canonical, freeze_rows, reopen_rows)
+    queue = build_response_queue(drift_windows, reopen_map)
+    summary = build_summary(events, canonical, freeze_map, reopen_map, drift_windows, queue)
 
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     (output_dir / "drift_windows.json").write_text(
@@ -339,7 +463,8 @@ def main() -> None:
 
     events = _load_json(Path(args.input))
     freeze_rows = _load_json(FREEZE_PATH)
-    export_report(events, Path(args.output_dir), freeze_rows)
+    reopen_rows = _load_json(REOPEN_PATH)
+    export_report(events, Path(args.output_dir), freeze_rows, reopen_rows)
     print(f"Wrote report to {args.output_dir}")
 
 
