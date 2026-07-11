@@ -534,6 +534,39 @@ def test_muted_string_coercion_variants_are_exercised(tmp_path: Path):
     assert sum(window["alert_count"] for env_windows in windows.values() for window in env_windows) == 1
 
 
+def test_muted_non_string_non_bool_uses_python_truthiness(tmp_path: Path):
+    rows = [
+        {
+            "alert_id": "mb1",
+            "start_ms": 10,
+            "end_ms": 300,
+            "severity": "p1",
+            "env": "prod",
+            "signature": "one",
+            "muted": 0,
+        },
+        {
+            "alert_id": "mb2",
+            "start_ms": 20,
+            "end_ms": 320,
+            "severity": "p1",
+            "env": "prod",
+            "signature": "two",
+            "muted": 2,
+        },
+    ]
+    canonical = _canonicalize_alerts(rows)
+    by_id = {row["alert_id"]: row["muted"] for row in canonical}
+    assert by_id["mb1"] is False
+    assert by_id["mb2"] is True
+
+    input_path = tmp_path / "muted_non_string.json"
+    input_path.write_text(json.dumps(rows), encoding="utf-8")
+    _, summary, windows, _ = _run_pipeline(tmp_path, input_path=input_path)
+    assert summary["muted_excluded_count"] == 1
+    assert sum(window["alert_count"] for env_windows in windows.values() for window in env_windows) == 1
+
+
 def test_end_ms_coercion_invalid_to_zero(tmp_path: Path):
     rows = [
         {"alert_id": "e1", "start_ms": 100, "end_ms": "invalid", "severity": "p1", "env": "prod", "signature": "a", "muted": False},
@@ -566,6 +599,32 @@ def test_dedupe_tie_break_prefers_longer_signature_same_end(tmp_path: Path):
     ]
     canonical = _canonicalize_alerts(rows)
     assert canonical[0]["signature"] == "longer signature"
+
+
+def test_dedupe_tie_break_prefers_higher_severity_same_end(tmp_path: Path):
+    rows = [
+        {
+            "alert_id": "dsev",
+            "start_ms": 100,
+            "end_ms": 500,
+            "severity": "p3",
+            "env": "prod",
+            "signature": "very long signature wins only on length",
+            "muted": False,
+        },
+        {
+            "alert_id": "dsev",
+            "start_ms": 100,
+            "end_ms": 500,
+            "severity": "p1",
+            "env": "prod",
+            "signature": "x",
+            "muted": False,
+        },
+    ]
+    canonical = _canonicalize_alerts(rows)
+    assert canonical[0]["severity"] == "p1"
+    assert canonical[0]["signature"] == "x"
 
 
 def test_dedupe_tie_break_uses_env_when_signature_lengths_equal(tmp_path: Path):
