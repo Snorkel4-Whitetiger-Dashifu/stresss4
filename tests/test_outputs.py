@@ -17,6 +17,7 @@ FREEZE_PATH = Path("/app/data/change_freezes.json")
 REOPEN_PATH = Path("/app/data/reopen_windows.json")
 ROTATION_PATH = Path("/app/data/rotation_windows.json")
 DEFER_PATH = Path("/app/data/defer_windows.json")
+SPEC_PATH = Path("/app/docs/report_spec.json")
 EXPECTED_FIXTURE = Path("/tests/fixtures/expected_summary.json")
 ALT_INPUT = Path("/tests/fixtures/alt_events.json")
 
@@ -25,6 +26,7 @@ PRIORITY_ORDER = ["critical", "high", "medium"]
 PRIORITY_RANK = {name: len(PRIORITY_ORDER) - idx for idx, name in enumerate(PRIORITY_ORDER)}
 
 FIXTURE = json.loads(EXPECTED_FIXTURE.read_text())
+SPEC = json.loads(SPEC_PATH.read_text())
 
 
 def _load_json(path: Path):
@@ -42,6 +44,13 @@ def _load_jsonl(path: Path):
 
 def _write_json(path: Path, value: object) -> None:
     path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+
+
+def test_checksum_serialization_contract_vectors():
+    vectors = SPEC["summary_json"]["checksum_test_vectors"]
+    for prefix in ("canonical_alert", "freeze", "scoped", "ledger"):
+        payload = vectors[f"{prefix}_payload"].encode("utf-8")
+        assert hashlib.sha256(payload).hexdigest() == vectors[f"{prefix}_sha256"]
 
 
 def _run_pipeline(tmp_path: Path, script_path: Path = WORKFLOW_PATH, input_path: Path = DEFAULT_INPUT):

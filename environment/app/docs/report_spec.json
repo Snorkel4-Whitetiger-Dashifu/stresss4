@@ -1,6 +1,6 @@
 {
   "title": "Firewall Drift Chain Compiler Spec",
-  "version": "1.5",
+  "version": "1.6",
   "workflow_repair": {
     "path": "/app/workflow/export_report.py",
     "cli_usage": "python3 /app/workflow/export_report.py --input PATH --output-dir PATH",
@@ -113,6 +113,13 @@
     "actionable_duration_ms": "max(dispatchable_duration_ms - (defer_overlap_ms // 4), 0)",
     "defer_pressure_score": "probe [end_ms-300,end_ms+1): (all_defer_probe_ms//40)+(severity_defer_probe_ms//28)+defer_segment_count"
   },
+  "probe_scoring_contract": {
+    "interval_semantics": "all source intervals and probes are half-open; overlap is max(0,min(probe_end,interval_end)-max(probe_start,interval_start))",
+    "scope_accounting": "all_probe_ms uses only the already-compacted (env,all) intervals and severity_probe_ms uses only the already-compacted (env,max_severity) intervals",
+    "cross_scope_rule": "do not union or deduplicate all-scope probe overlap against severity-scope probe overlap; an instant covered by both scopes contributes independently to both integer-division terms",
+    "within_scope_rule": "source intervals are compacted within each (env,severity_scope) before probing, so overlap is not duplicated within one scope",
+    "probe_end_rule": "the +1 endpoint is literal: an anchor E with lookback L probes [E-L,E+1), whose duration is L+1 milliseconds before clipping"
+  },
   "risk_ledger": {
     "evaluation_scope": "state is independent per normalized env",
     "evaluation_order": "process each env's merged windows in start_ms ascending order after all four attenuation layers are complete",
@@ -123,7 +130,12 @@
     "carry_out_ms": "min(carry_in_ms+actionable_duration_ms+(rotation_segment_count*15)+(defer_segment_count*10),2000)",
     "state_update": "finalize carry_out_ms for one window before evaluating the next window in the same env",
     "ledger_pressure_score": "(carry_out_ms//80)+(carry_in_ms//120)+max(alert_count-1,0)",
-    "stability_index": "volatility_index+defer_pressure_score+ledger_pressure_score"
+    "stability_index": "volatility_index+defer_pressure_score+ledger_pressure_score",
+    "worked_example_no_attenuation": {
+      "first_window": "lab [100,400): actionable=300, idle_gap=0, carry_in=0, carry_out=min(0+300,2000)=300, ledger_adjusted=300",
+      "second_window": "lab [600,850): idle_gap=200, carry_in=max(300-(200//2),0)=200, actionable=250, ledger_adjusted=250+(200//4)=300, carry_out=min(200+250,2000)=450",
+      "second_ledger_pressure_score": "(450//80)+(200//120)+max(1-1,0)=6"
+    }
   },
   "response_queue": {
     "output_path": "response_queue.jsonl",
@@ -234,14 +246,41 @@
     "severity_counts_key_order": ["p1", "p2", "p3", "p4"],
     "total_unmuted_duration_ms_contract": "sum of merged window duration_ms values from drift_windows.json (not raw alert durations)",
     "total_ledger_adjusted_actionable_ms_contract": "sum ledger_adjusted_actionable_ms over all drift windows, including windows not admitted to the response queue",
-    "canonical_alert_checksum": "sha256 over canonical alerts rows alert_id|env|start_ms|end_ms|severity|muted_int|signature",
-    "freeze_compaction_checksum": "sha256 over compacted freeze rows env|start_ms|end_ms",
-    "reopen_compaction_checksum": "sha256 over compacted reopen rows env|severity_scope|start_ms|end_ms",
-    "rotation_compaction_checksum": "sha256 over compacted rotation rows env|severity_scope|start_ms|end_ms",
-    "defer_compaction_checksum": "sha256 over compacted defer rows env|severity_scope|start_ms|end_ms",
+    "maximum_aggregation_domains": {
+      "queue_only": "max_stability_pressure_score, max_volatility_index, max_defer_pressure_score, max_ledger_pressure_score, and max_stability_index are maxima over final admitted response_queue rows only; use 0 when the queue is empty",
+      "all_drift_windows": "max_carry_out_ms is the maximum over every drift window, including windows not admitted to the response queue; use 0 when there are no windows"
+    },
+    "checksum_serialization_contract": {
+      "text_encoding": "UTF-8",
+      "field_delimiter": "|",
+      "row_delimiter": "one LF character (\\n)",
+      "trailing_delimiter": "none: do not append a newline or pipe after the final row",
+      "empty_input": "hash the empty byte string",
+      "muted_encoding": "integer text 1 when normalized muted is true, otherwise integer text 0; never serialize JSON true/false",
+      "canonical_alert_rows": "one alert_id|env|start_ms|end_ms|severity|muted_int|signature row for each canonical deduplicated alert, sorted by (env ascending, start_ms ascending, alert_id ascending)",
+      "freeze_rows": "one env|start_ms|end_ms row for each compacted interval, sorted by env ascending and then interval (start_ms,end_ms) ascending",
+      "scoped_rows": "one env|severity_scope|start_ms|end_ms row for reopen/rotation/defer, sorted by (env,severity_scope) ascending and then interval (start_ms,end_ms) ascending",
+      "ledger_rows": "one env|start_ms|idle_gap_ms|carry_in_ms|carry_out_ms|ledger_adjusted_actionable_ms row for every drift window, sorted by env ascending and start_ms ascending",
+      "sha256_step": "compute lowercase hashlib.sha256(payload.encode('utf-8')).hexdigest()"
+    },
+    "checksum_test_vectors": {
+      "canonical_alert_payload": "a1|prod|100|200|p1|0|rule one\na2|prod|220|300|p2|1|rule two",
+      "canonical_alert_sha256": "ca27c1943da70a32a11c9462e36ffa198a8ff2310c778b5be57fd2312f919dc0",
+      "freeze_payload": "prod|100|200\nprod|250|300",
+      "freeze_sha256": "dfc434623d0aedd92600e13abbe7d09915248f923c246adb8bc04a4fec1fcc24",
+      "scoped_payload": "prod|all|100|200\nprod|p1|250|300",
+      "scoped_sha256": "d79f6726cb232c4b53940a311d2ce84f71d5c7f8ef241240efa24b039c8303b0",
+      "ledger_payload": "prod|100|0|0|100|125\nprod|300|100|50|200|225",
+      "ledger_sha256": "cd8fe19fe12c68d4456a0b4b574e31456974e6f5c2b87998af6f94fb2b0bf6ff"
+    },
+    "canonical_alert_checksum": "SHA-256 of checksum_serialization_contract canonical_alert_rows",
+    "freeze_compaction_checksum": "SHA-256 of checksum_serialization_contract freeze_rows",
+    "reopen_compaction_checksum": "SHA-256 of checksum_serialization_contract scoped_rows built from compacted reopen intervals",
+    "rotation_compaction_checksum": "SHA-256 of checksum_serialization_contract scoped_rows built from compacted rotation intervals",
+    "defer_compaction_checksum": "SHA-256 of checksum_serialization_contract scoped_rows built from compacted defer intervals",
     "queue_hash_checksum": "sha256('|'.join(queue_hash values in final queue order)) lowercase 64 hex chars",
     "window_digest_checksum": "sha256('|'.join(window_digest values in final queue order)) lowercase 64 hex chars",
-    "ledger_checksum": "sha256 over env-sorted, start_ms-sorted window lines env|start_ms|idle_gap_ms|carry_in_ms|carry_out_ms|ledger_adjusted_actionable_ms"
+    "ledger_checksum": "SHA-256 of checksum_serialization_contract ledger_rows"
   },
   "drift_windows_json": {
     "shape": "flat map {env: [window, ...]}",

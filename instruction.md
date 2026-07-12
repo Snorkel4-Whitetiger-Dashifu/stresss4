@@ -2,6 +2,8 @@ Repair `/app/workflow/export_report.py` so it compiles IAM firewall drift alerts
 
 The authoritative behavioral contract is `/app/docs/report_spec.json`. Implement its normalization, deterministic deduplication, interval compaction, scoped attenuation, stateful cross-window risk ledger, queue classification, ordering, schemas, and checksums exactly. The ledger is sequential within each normalized environment: a completed window’s carry state decays across the idle gap and feeds the next window, so windows cannot be evaluated independently.
 
+For summary generation, follow the contract’s byte-level checksum serialization and aggregation domains—not generic JSON serialization. Canonical and compaction payloads are LF-joined without a trailing newline, normalized `muted` is encoded as `0` or `1`, probe overlaps account for `all` and matching-severity scopes independently, and pressure/stability maxima are queue-only except `max_carry_out_ms`, which covers all drift windows.
+
 Write exactly `summary.json`, `drift_windows.json`, and compact `response_queue.jsonl` beneath the requested output directory. Outputs must generalize to alternate inputs, remain byte-logically stable across reruns, and use only source data—not verifier fixtures or hardcoded expected values.
 
 Keep `/app/workflow/.export_report.original` unchanged and do not read or import anything from `/tests`.
