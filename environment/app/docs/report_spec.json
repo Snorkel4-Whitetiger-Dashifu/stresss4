@@ -1,6 +1,8 @@
 {
-  "title": "Firewall Drift Chain Compiler Spec",
+  "title": "IAM Firewall Policy Drift Incident-Response Runbook",
   "version": "1.7",
+  "task_scope": "security operations / IAM firewall drift containment",
+  "operational_purpose": "reconcile firewall-policy drift evidence, approved attenuation windows, and stateful environment risk into a deterministic containment queue",
   "workflow_repair": {
     "path": "/app/workflow/export_report.py",
     "cli_usage": "python3 /app/workflow/export_report.py --input PATH --output-dir PATH",

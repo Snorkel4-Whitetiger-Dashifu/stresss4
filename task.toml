@@ -9,7 +9,7 @@ subcategories = []
 number_of_milestones = 0
 codebase_size = "minimal"
 languages = ["python"]
-tags = ["security", "firewall", "drift-detection", "window-merging", "deterministic-sorting", "cli"]
+tags = ["security-operations", "iam", "firewall-governance", "incident-response", "policy-drift", "containment"]
 expert_time_estimate_min = 180
 junior_time_estimate_min = 360
 
