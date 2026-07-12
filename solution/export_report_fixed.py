@@ -13,6 +13,7 @@ FREEZE_PATH = Path("/app/data/change_freezes.json")
 REOPEN_PATH = Path("/app/data/reopen_windows.json")
 ROTATION_PATH = Path("/app/data/rotation_windows.json")
 DEFER_PATH = Path("/app/data/defer_windows.json")
+IAM_TRUST_EDGES_PATH = Path("/app/data/iam_trust_edges.json")
 SEVERITY_ORDER = ["p1", "p2", "p3", "p4"]
 SEVERITY_RANK = {name: len(SEVERITY_ORDER) - idx for idx, name in enumerate(SEVERITY_ORDER)}
 PRIORITY_ORDER = ["critical", "high", "medium"]
@@ -206,6 +207,72 @@ def defer_by_scope(rows: list[dict]) -> dict[tuple[str, str], list[tuple[int, in
     return {key: _compact_intervals(intervals) for key, intervals in by_key.items()}
 
 
+def canonicalize_trust_edges(rows: list[dict]) -> dict[str, dict[str, int]]:
+    edges: dict[str, dict[str, int]] = {}
+    for row in rows:
+        source = _normalize_env(row.get("source_env", ""))
+        target = _normalize_env(row.get("target_env", ""))
+        weight = _normalize_ms(row.get("weight", 0))
+        if source == target or weight <= 0 or weight > 9:
+            continue
+        targets = edges.setdefault(source, {})
+        targets[target] = max(targets.get(target, 0), weight)
+    return {
+        source: {target: targets[target] for target in sorted(targets)}
+        for source, targets in sorted(edges.items())
+    }
+
+
+def strongest_trust_exposure(
+    origin: str,
+    trust_edges: dict[str, dict[str, int]],
+) -> dict:
+    best: dict[str, tuple[int, tuple[str, ...]]] = {}
+
+    def visit(node: str, score: int, path: tuple[str, ...]) -> None:
+        if len(path) - 1 >= 3:
+            return
+        for target, weight in trust_edges.get(node, {}).items():
+            if target in path:
+                continue
+            next_path = path + (target,)
+            next_score = score + weight
+            current = best.get(target)
+            if (
+                current is None
+                or next_score > current[0]
+                or (next_score == current[0] and next_path < current[1])
+            ):
+                best[target] = (next_score, next_path)
+            visit(target, next_score, next_path)
+
+    visit(origin, 0, (origin,))
+    reachable = sorted(best)
+    exposure_score = sum(best[target][0] for target in reachable)
+    strongest_path: tuple[str, ...] = (origin,)
+    strongest_score = 0
+    for target in reachable:
+        score, path = best[target]
+        if score > strongest_score or (
+            score == strongest_score and path < strongest_path
+        ):
+            strongest_score = score
+            strongest_path = path
+    path_rows = [
+        f"{target}:{best[target][0]}:{'>'.join(best[target][1])}"
+        for target in reachable
+    ]
+    path_digest = hashlib.sha256(
+        f"{origin}|{exposure_score}|{';'.join(path_rows)}".encode("utf-8")
+    ).hexdigest()[:12]
+    return {
+        "trust_reachable_envs": reachable,
+        "trust_exposure_score": exposure_score,
+        "trust_strongest_path": list(strongest_path),
+        "trust_path_digest": path_digest,
+    }
+
+
 def _scope_intervals_for_window(
     scope_map: dict[tuple[str, str], list[tuple[int, int]]],
     env: str,
@@ -225,12 +292,14 @@ def build_drift_windows(
     reopen_rows: list[dict],
     rotation_rows: list[dict],
     defer_rows: list[dict],
+    trust_edge_rows: list[dict],
 ) -> tuple[
     dict[str, list[dict]],
     dict[str, list[tuple[int, int]]],
     dict[tuple[str, str], list[tuple[int, int]]],
     dict[tuple[str, str], list[tuple[int, int]]],
     dict[tuple[str, str], list[tuple[int, int]]],
+    dict[str, dict[str, int]],
 ]:
     grouped: dict[str, list[dict]] = {}
     for row in canonical:
@@ -242,6 +311,7 @@ def build_drift_windows(
     reopen_map = reopen_by_scope(reopen_rows)
     rotation_map = rotation_by_scope(rotation_rows)
     defer_map = defer_by_scope(defer_rows)
+    trust_edges = canonicalize_trust_edges(trust_edge_rows)
     result: dict[str, list[dict]] = {}
     for env, alerts in grouped.items():
         alerts.sort(key=lambda row: (row["start_ms"], row["end_ms"], row["alert_id"]))
@@ -355,6 +425,7 @@ def build_drift_windows(
         normalized_windows.sort(key=lambda row: row["start_ms"])
         previous_end_ms: int | None = None
         previous_carry_out_ms = 0
+        trust_exposure = strongest_trust_exposure(env, trust_edges)
         for window in normalized_windows:
             idle_gap_ms = (
                 0
@@ -376,11 +447,19 @@ def build_drift_windows(
             window["carry_in_ms"] = carry_in_ms
             window["carry_out_ms"] = carry_out_ms
             window["ledger_adjusted_actionable_ms"] = ledger_adjusted_actionable_ms
+            window.update(trust_exposure)
             previous_end_ms = window["end_ms"]
             previous_carry_out_ms = carry_out_ms
         result[env] = normalized_windows
 
-    return {env: result[env] for env in sorted(result)}, freeze_map, reopen_map, rotation_map, defer_map
+    return (
+        {env: result[env] for env in sorted(result)},
+        freeze_map,
+        reopen_map,
+        rotation_map,
+        defer_map,
+        trust_edges,
+    )
 
 
 def build_response_queue(
@@ -450,12 +529,19 @@ def build_response_queue(
                 + max(window["alert_count"] - 1, 0)
             )
             stability_index = (
-                volatility_index + defer_pressure_score + ledger_pressure_score
+                volatility_index
+                + defer_pressure_score
+                + ledger_pressure_score
+                + (window["trust_exposure_score"] // 2)
             )
             if (
                 window["max_severity"] == "p1"
                 and window["ledger_adjusted_actionable_ms"] >= 235
-            ) or window["ledger_adjusted_actionable_ms"] >= 500 or stability_index >= 20:
+            ) or (
+                window["ledger_adjusted_actionable_ms"] >= 500
+                or stability_index >= 20
+                or window["trust_exposure_score"] >= 24
+            ):
                 priority = "critical"
             elif window["ledger_adjusted_actionable_ms"] >= 265 or (
                 window["alert_count"] >= 3 and window["max_severity"] in {"p1", "p2"}
@@ -466,6 +552,8 @@ def build_response_queue(
                 defer_pressure_score > 0 and window["dispatchable_duration_ms"] >= 320
             ) or (
                 window["reopen_segment_count"] == 0 and window["duration_ms"] >= 420
+            ) or (
+                window["trust_exposure_score"] >= 12
             ):
                 priority = "high"
             else:
@@ -479,7 +567,8 @@ def build_response_queue(
                     f"{window['rotation_segment_count']}|{window['defer_segment_count']}|"
                     f"{window['carry_in_ms']}|{window['carry_out_ms']}|"
                     f"{window['ledger_adjusted_actionable_ms']}|{stability_pressure_score}|"
-                    f"{volatility_index}|{defer_pressure_score}|{ledger_pressure_score}"
+                    f"{volatility_index}|{defer_pressure_score}|{ledger_pressure_score}|"
+                    f"{window['trust_exposure_score']}|{window['trust_path_digest']}"
                 ).encode("utf-8")
             ).hexdigest()[:12]
             ticket_id = f"{env}:{window['start_ms']}-{window['end_ms']}"
@@ -487,7 +576,8 @@ def build_response_queue(
                 (
                     f"{ticket_id}|{priority}|{window['actionable_duration_ms']}|"
                     f"{window['ledger_adjusted_actionable_ms']}|{stability_index}|"
-                    f"{defer_pressure_score}|{volatility_index}|{ledger_pressure_score}"
+                    f"{defer_pressure_score}|{volatility_index}|{ledger_pressure_score}|"
+                    f"{window['trust_exposure_score']}|{window['trust_path_digest']}"
                 ).encode("utf-8")
             ).hexdigest()[:10]
 
@@ -516,6 +606,10 @@ def build_response_queue(
                     "ledger_adjusted_actionable_ms": window[
                         "ledger_adjusted_actionable_ms"
                     ],
+                    "trust_reachable_envs": list(window["trust_reachable_envs"]),
+                    "trust_exposure_score": window["trust_exposure_score"],
+                    "trust_strongest_path": list(window["trust_strongest_path"]),
+                    "trust_path_digest": window["trust_path_digest"],
                     "alert_count": window["alert_count"],
                     "source_alert_ids": list(window["source_alert_ids"]),
                     "max_severity": window["max_severity"],
@@ -536,6 +630,7 @@ def build_response_queue(
             -row["ledger_adjusted_actionable_ms"],
             -row["actionable_duration_ms"],
             -row["stability_index"],
+            -row["trust_exposure_score"],
             -row["defer_pressure_score"],
             -row["volatility_index"],
             -row["dispatchable_duration_ms"],
@@ -556,6 +651,7 @@ def build_summary(
     reopen_map: dict[tuple[str, str], list[tuple[int, int]]],
     rotation_map: dict[tuple[str, str], list[tuple[int, int]]],
     defer_map: dict[tuple[str, str], list[tuple[int, int]]],
+    trust_edges: dict[str, dict[str, int]],
     drift_windows: dict[str, list[dict]],
     queue: list[dict],
 ) -> dict:
@@ -636,6 +732,13 @@ def build_summary(
             for start, end in defer_map[(env, scope)]
         ).encode("utf-8")
     ).hexdigest()
+    trust_edge_checksum = hashlib.sha256(
+        "\n".join(
+            f"{source}|{target}|{trust_edges[source][target]}"
+            for source in sorted(trust_edges)
+            for target in sorted(trust_edges[source])
+        ).encode("utf-8")
+    ).hexdigest()
     queue_checksum = hashlib.sha256(
         "|".join(row["queue_hash"] for row in queue).encode("utf-8")
     ).hexdigest()
@@ -652,6 +755,9 @@ def build_summary(
             for env in sorted(drift_windows)
             for window in drift_windows[env]
         ).encode("utf-8")
+    ).hexdigest()
+    trust_path_digest_checksum = hashlib.sha256(
+        "|".join(row["trust_path_digest"] for row in queue).encode("utf-8")
     ).hexdigest()
 
     return {
@@ -690,6 +796,10 @@ def build_summary(
             (row["ledger_pressure_score"] for row in queue),
             default=0,
         ),
+        "max_trust_exposure_score": max(
+            (row["trust_exposure_score"] for row in queue),
+            default=0,
+        ),
         "max_carry_out_ms": max(
             (
                 window["carry_out_ms"]
@@ -705,8 +815,10 @@ def build_summary(
         "reopen_compaction_checksum": reopen_compaction_checksum,
         "rotation_compaction_checksum": rotation_compaction_checksum,
         "defer_compaction_checksum": defer_compaction_checksum,
+        "trust_edge_checksum": trust_edge_checksum,
         "window_digest_checksum": window_digest_checksum,
         "ledger_checksum": ledger_checksum,
+        "trust_path_digest_checksum": trust_path_digest_checksum,
     }
 
 
@@ -717,15 +829,36 @@ def export_report(
     reopen_rows: list[dict],
     rotation_rows: list[dict],
     defer_rows: list[dict],
+    trust_edge_rows: list[dict],
 ) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     canonical = canonicalize_alerts(events)
-    drift_windows, freeze_map, reopen_map, rotation_map, defer_map = build_drift_windows(
-        canonical, freeze_rows, reopen_rows, rotation_rows, defer_rows
+    (
+        drift_windows,
+        freeze_map,
+        reopen_map,
+        rotation_map,
+        defer_map,
+        trust_edges,
+    ) = build_drift_windows(
+        canonical,
+        freeze_rows,
+        reopen_rows,
+        rotation_rows,
+        defer_rows,
+        trust_edge_rows,
     )
     queue = build_response_queue(drift_windows, reopen_map, rotation_map, defer_map)
     summary = build_summary(
-        events, canonical, freeze_map, reopen_map, rotation_map, defer_map, drift_windows, queue
+        events,
+        canonical,
+        freeze_map,
+        reopen_map,
+        rotation_map,
+        defer_map,
+        trust_edges,
+        drift_windows,
+        queue,
     )
 
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
@@ -748,7 +881,16 @@ def main() -> None:
     reopen_rows = _load_json(REOPEN_PATH)
     rotation_rows = _load_json(ROTATION_PATH)
     defer_rows = _load_json(DEFER_PATH)
-    export_report(events, Path(args.output_dir), freeze_rows, reopen_rows, rotation_rows, defer_rows)
+    trust_edge_rows = _load_json(IAM_TRUST_EDGES_PATH)
+    export_report(
+        events,
+        Path(args.output_dir),
+        freeze_rows,
+        reopen_rows,
+        rotation_rows,
+        defer_rows,
+        trust_edge_rows,
+    )
     print(f"Wrote report to {args.output_dir}")
 
 

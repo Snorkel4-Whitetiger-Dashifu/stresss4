@@ -17,6 +17,7 @@ FREEZE_PATH = Path("/app/data/change_freezes.json")
 REOPEN_PATH = Path("/app/data/reopen_windows.json")
 ROTATION_PATH = Path("/app/data/rotation_windows.json")
 DEFER_PATH = Path("/app/data/defer_windows.json")
+TRUST_EDGES_PATH = Path("/app/data/iam_trust_edges.json")
 SPEC_PATH = Path("/app/docs/report_spec.json")
 EXPECTED_FIXTURE = Path("/tests/fixtures/expected_summary.json")
 ALT_INPUT = Path("/tests/fixtures/alt_events.json")
@@ -48,7 +49,7 @@ def _write_json(path: Path, value: object) -> None:
 
 def test_checksum_serialization_contract_vectors():
     vectors = SPEC["summary_json"]["checksum_test_vectors"]
-    for prefix in ("canonical_alert", "freeze", "scoped", "ledger"):
+    for prefix in ("canonical_alert", "freeze", "scoped", "ledger", "trust_edge"):
         payload = vectors[f"{prefix}_payload"].encode("utf-8")
         assert hashlib.sha256(payload).hexdigest() == vectors[f"{prefix}_sha256"]
 
@@ -130,6 +131,7 @@ def test_summary_schema(primary_outputs):
         "max_volatility_index",
         "max_defer_pressure_score",
         "max_ledger_pressure_score",
+        "max_trust_exposure_score",
         "max_carry_out_ms",
         "max_stability_index",
         "canonical_alert_checksum",
@@ -138,8 +140,10 @@ def test_summary_schema(primary_outputs):
         "reopen_compaction_checksum",
         "rotation_compaction_checksum",
         "defer_compaction_checksum",
+        "trust_edge_checksum",
         "window_digest_checksum",
         "ledger_checksum",
+        "trust_path_digest_checksum",
     }
     assert summary["schema_version"] == "firewall-drift-v1"
     assert list(summary["severity_counts"]) == SEVERITY_ORDER
@@ -149,8 +153,10 @@ def test_summary_schema(primary_outputs):
     assert len(summary["reopen_compaction_checksum"]) == 64
     assert len(summary["rotation_compaction_checksum"]) == 64
     assert len(summary["defer_compaction_checksum"]) == 64
+    assert len(summary["trust_edge_checksum"]) == 64
     assert len(summary["window_digest_checksum"]) == 64
     assert len(summary["ledger_checksum"]) == 64
+    assert len(summary["trust_path_digest_checksum"]) == 64
 
 
 def test_windows_schema_and_sorting(primary_outputs):
@@ -175,6 +181,10 @@ def test_windows_schema_and_sorting(primary_outputs):
         "carry_in_ms",
         "carry_out_ms",
         "ledger_adjusted_actionable_ms",
+        "trust_reachable_envs",
+        "trust_exposure_score",
+        "trust_strongest_path",
+        "trust_path_digest",
         "alert_count",
         "source_alert_ids",
         "max_severity",
@@ -202,6 +212,8 @@ def test_windows_schema_and_sorting(primary_outputs):
                 row["actionable_duration_ms"] + (row["carry_in_ms"] // 4)
             )
             assert row["source_alert_ids"] == sorted(row["source_alert_ids"])
+            assert row["trust_reachable_envs"] == sorted(row["trust_reachable_envs"])
+            assert len(row["trust_path_digest"]) == 12
 
 
 def test_queue_required_fields(primary_outputs):
@@ -228,6 +240,10 @@ def test_queue_required_fields(primary_outputs):
         "carry_in_ms",
         "carry_out_ms",
         "ledger_adjusted_actionable_ms",
+        "trust_reachable_envs",
+        "trust_exposure_score",
+        "trust_strongest_path",
+        "trust_path_digest",
         "alert_count",
         "source_alert_ids",
         "max_severity",
@@ -253,7 +269,11 @@ def test_priority_rules(primary_outputs):
         if (
             row["max_severity"] == "p1"
             and row["ledger_adjusted_actionable_ms"] >= 235
-        ) or row["ledger_adjusted_actionable_ms"] >= 500 or row["stability_index"] >= 20:
+        ) or (
+            row["ledger_adjusted_actionable_ms"] >= 500
+            or row["stability_index"] >= 20
+            or row["trust_exposure_score"] >= 24
+        ):
             assert row["priority"] == "critical"
         elif row["ledger_adjusted_actionable_ms"] >= 265 or (
             row["alert_count"] >= 3 and row["max_severity"] in {"p1", "p2"}
@@ -263,7 +283,9 @@ def test_priority_rules(primary_outputs):
         ) or (
             row["defer_pressure_score"] > 0
             and row["dispatchable_duration_ms"] >= 320
-        ) or (row["reopen_segment_count"] == 0 and row["duration_ms"] >= 420):
+        ) or (
+            row["reopen_segment_count"] == 0 and row["duration_ms"] >= 420
+        ) or row["trust_exposure_score"] >= 12:
             assert row["priority"] == "high"
         else:
             assert row["priority"] == "medium"
@@ -278,6 +300,7 @@ def test_queue_sorted(primary_outputs):
             -row["ledger_adjusted_actionable_ms"],
             -row["actionable_duration_ms"],
             -row["stability_index"],
+            -row["trust_exposure_score"],
             -row["defer_pressure_score"],
             -row["volatility_index"],
             -row["dispatchable_duration_ms"],
@@ -477,6 +500,85 @@ def test_defer_source_path_affects_output(tmp_path: Path):
         assert queue_a != queue_b
     finally:
         DEFER_PATH.write_text(original, encoding="utf-8")
+
+
+def test_trust_edge_source_path_affects_output(tmp_path: Path):
+    original = TRUST_EDGES_PATH.read_text(encoding="utf-8")
+    try:
+        _, summary_a, windows_a, queue_a = _run_pipeline(tmp_path / "a")
+        TRUST_EDGES_PATH.write_text("[]\n", encoding="utf-8")
+        _, summary_b, windows_b, queue_b = _run_pipeline(tmp_path / "b")
+        assert summary_a["trust_edge_checksum"] != summary_b["trust_edge_checksum"]
+        assert summary_a["trust_path_digest_checksum"] != summary_b[
+            "trust_path_digest_checksum"
+        ]
+        assert windows_a != windows_b
+        assert queue_a != queue_b
+    finally:
+        TRUST_EDGES_PATH.write_text(original, encoding="utf-8")
+
+
+def test_trust_exposure_uses_strongest_bounded_simple_paths(tmp_path: Path):
+    original = TRUST_EDGES_PATH.read_text(encoding="utf-8")
+    try:
+        edges = [
+            {"source_env": "lab", "target_env": "a", "weight": 4},
+            {"source_env": "LAB", "target_env": "a", "weight": 2},
+            {"source_env": "lab", "target_env": "b", "weight": 4},
+            {"source_env": "a", "target_env": "target", "weight": 5},
+            {"source_env": "b", "target_env": "target", "weight": 5},
+            {"source_env": "a", "target_env": "deep", "weight": 3},
+            {"source_env": "deep", "target_env": "vault", "weight": 2},
+            {"source_env": "vault", "target_env": "too-far", "weight": 9},
+            {"source_env": "target", "target_env": "lab", "weight": 9},
+            {"source_env": "lab", "target_env": "lab", "weight": 9},
+            {"source_env": "lab", "target_env": "ignored", "weight": 0},
+        ]
+        _write_json(TRUST_EDGES_PATH, edges)
+        rows = [
+            {
+                "alert_id": "trust-1",
+                "start_ms": 100,
+                "end_ms": 700,
+                "severity": "p1",
+                "env": "lab",
+                "signature": "trust traversal",
+                "muted": False,
+            }
+        ]
+        input_path = tmp_path / "trust.json"
+        _write_json(input_path, rows)
+        _, summary, windows, queue = _run_pipeline(
+            tmp_path / "run", input_path=input_path
+        )
+        window = windows["lab"][0]
+        assert window["trust_reachable_envs"] == [
+            "a",
+            "b",
+            "deep",
+            "target",
+            "vault",
+        ]
+        assert window["trust_exposure_score"] == 33
+        assert window["trust_strongest_path"] == ["lab", "a", "deep", "vault"]
+        digest_payload = (
+            "lab|33|a:4:lab>a;b:4:lab>b;deep:7:lab>a>deep;"
+            "target:9:lab>a>target;vault:9:lab>a>deep>vault"
+        )
+        assert window["trust_path_digest"] == hashlib.sha256(
+            digest_payload.encode("utf-8")
+        ).hexdigest()[:12]
+        assert queue[0]["trust_exposure_score"] == 33
+        assert queue[0]["priority"] == "critical"
+        trust_payload = (
+            "a|deep|3\na|target|5\nb|target|5\ndeep|vault|2\n"
+            "lab|a|4\nlab|b|4\ntarget|lab|9\nvault|too-far|9"
+        )
+        assert summary["trust_edge_checksum"] == hashlib.sha256(
+            trust_payload.encode("utf-8")
+        ).hexdigest()
+    finally:
+        TRUST_EDGES_PATH.write_text(original, encoding="utf-8")
 
 
 def test_compacted_freeze_segments_are_used(tmp_path: Path):

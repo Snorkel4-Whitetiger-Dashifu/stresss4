@@ -1,6 +1,6 @@
 {
   "title": "IAM Firewall Policy Drift Incident-Response Runbook",
-  "version": "1.7",
+  "version": "2.0",
   "task_scope": "security operations / IAM firewall drift containment",
   "operational_purpose": "reconcile firewall-policy drift evidence, approved attenuation windows, and stateful environment risk into a deterministic containment queue",
   "workflow_repair": {
@@ -12,7 +12,8 @@
       "change_freezes": "/app/data/change_freezes.json",
       "reopen_windows": "/app/data/reopen_windows.json",
       "rotation_windows": "/app/data/rotation_windows.json",
-      "defer_windows": "/app/data/defer_windows.json"
+      "defer_windows": "/app/data/defer_windows.json",
+      "iam_trust_edges": "/app/data/iam_trust_edges.json"
     },
     "forbidden_executable_tokens": [
       "event[\"seen_ms\"]",
@@ -27,6 +28,7 @@
       "REOPEN_PATH",
       "ROTATION_PATH",
       "DEFER_PATH",
+      "IAM_TRUST_EDGES_PATH",
       "reopen_compaction_checksum",
       "rotation_compaction_checksum",
       "defer_compaction_checksum",
@@ -36,6 +38,9 @@
       "ledger_pressure_score",
       "ledger_adjusted_actionable_ms",
       "ledger_checksum",
+      "trust_edge_checksum",
+      "trust_exposure_score",
+      "trust_path_digest",
       "stability_index",
       "window_digest"
     ],
@@ -73,6 +78,10 @@
       "carry_in_ms",
       "carry_out_ms",
       "ledger_adjusted_actionable_ms",
+      "trust_reachable_envs",
+      "trust_exposure_score",
+      "trust_strongest_path",
+      "trust_path_digest",
       "alert_count",
       "source_alert_ids",
       "max_severity"
@@ -139,6 +148,21 @@
       "second_ledger_pressure_score": "(450//80)+(200//120)+max(1-1,0)=6"
     }
   },
+  "iam_trust_exposure": {
+    "source_path": "/app/data/iam_trust_edges.json",
+    "row_fields": ["source_env", "target_env", "weight"],
+    "canonicalization": "normalize source_env and target_env with canonicalization.env_normalization; coerce weight with int(str(value).strip()) and invalid to 0; discard self edges and weights outside 1..9; collapse duplicate directed (source_env,target_env) rows by maximum weight",
+    "graph_direction": "edges are directed from source_env to target_env",
+    "path_domain": "for each drift window, begin at its normalized env and enumerate simple directed paths of one, two, or three edges; a simple path never repeats a node, so cycles are bounded and the origin cannot reappear",
+    "path_score": "sum canonical edge weights along the path",
+    "strongest_per_target": "for each reachable target retain the path with greatest path_score; on equal score retain the lexicographically smallest full node sequence",
+    "trust_reachable_envs": "all retained target names sorted ascending",
+    "trust_exposure_score": "sum retained strongest path scores across trust_reachable_envs; use 0 when no target is reachable",
+    "trust_strongest_path": "among retained target paths choose greatest path_score, then lexicographically smallest full node sequence; use [origin_env] when no target is reachable",
+    "trust_path_digest": "first 12 lowercase hex chars of sha256(origin|trust_exposure_score|semicolon_joined_target_rows), where each target row in trust_reachable_envs order is target:score:path_nodes_joined_by_>",
+    "stability_integration": "stability_index=volatility_index+defer_pressure_score+ledger_pressure_score+(trust_exposure_score//2)",
+    "priority_integration": "critical when trust_exposure_score>=24; otherwise high when trust_exposure_score>=12, in addition to existing rules"
+  },
   "response_queue": {
     "output_path": "response_queue.jsonl",
     "include_min_ledger_adjusted_actionable_ms": {
@@ -147,11 +171,11 @@
     },
     "include_max_severities": ["p1", "p2"],
     "ticket_id_format": "{env}:{start_ms}-{end_ms}",
-    "queue_hash": "sha1('{env}|{start_ms}|{end_ms}|{csv_source_alert_ids}|{max_severity}|{freeze_segment_count}|{reopen_segment_count}|{rotation_segment_count}|{defer_segment_count}|{carry_in_ms}|{carry_out_ms}|{ledger_adjusted_actionable_ms}|{stability_pressure_score}|{volatility_index}|{defer_pressure_score}|{ledger_pressure_score}') first 12 lowercase hex chars",
-    "window_digest": "sha1('{ticket_id}|{priority}|{actionable_duration_ms}|{ledger_adjusted_actionable_ms}|{stability_index}|{defer_pressure_score}|{volatility_index}|{ledger_pressure_score}') first 10 lowercase hex chars",
+    "queue_hash": "sha1('{env}|{start_ms}|{end_ms}|{csv_source_alert_ids}|{max_severity}|{freeze_segment_count}|{reopen_segment_count}|{rotation_segment_count}|{defer_segment_count}|{carry_in_ms}|{carry_out_ms}|{ledger_adjusted_actionable_ms}|{stability_pressure_score}|{volatility_index}|{defer_pressure_score}|{ledger_pressure_score}|{trust_exposure_score}|{trust_path_digest}') first 12 lowercase hex chars",
+    "window_digest": "sha1('{ticket_id}|{priority}|{actionable_duration_ms}|{ledger_adjusted_actionable_ms}|{stability_index}|{defer_pressure_score}|{volatility_index}|{ledger_pressure_score}|{trust_exposure_score}|{trust_path_digest}') first 10 lowercase hex chars",
     "priority_rules": {
-      "critical": "max_severity == p1 and ledger_adjusted_actionable_ms >= 235, or ledger_adjusted_actionable_ms >= 500, or stability_index >= 20",
-      "high": "ledger_adjusted_actionable_ms >= 265, or alert_count >= 3 with max_severity in {p1,p2}, or rotation_segment_count == 0 with risk_adjusted_duration_ms >= 340, or defer_pressure_score > 0 with dispatchable_duration_ms >= 320, or reopen_segment_count == 0 with duration_ms >= 420",
+      "critical": "max_severity == p1 and ledger_adjusted_actionable_ms >= 235, or ledger_adjusted_actionable_ms >= 500, or stability_index >= 20, or trust_exposure_score >= 24",
+      "high": "ledger_adjusted_actionable_ms >= 265, or alert_count >= 3 with max_severity in {p1,p2}, or rotation_segment_count == 0 with risk_adjusted_duration_ms >= 340, or defer_pressure_score > 0 with dispatchable_duration_ms >= 320, or reopen_segment_count == 0 with duration_ms >= 420, or trust_exposure_score >= 12",
       "medium": "otherwise"
     },
     "sort_order": [
@@ -159,6 +183,7 @@
       "ledger_adjusted_actionable_ms desc",
       "actionable_duration_ms desc",
       "stability_index desc",
+      "trust_exposure_score desc",
       "defer_pressure_score desc",
       "volatility_index desc",
       "dispatchable_duration_ms desc",
@@ -190,6 +215,10 @@
       "carry_in_ms",
       "carry_out_ms",
       "ledger_adjusted_actionable_ms",
+      "trust_reachable_envs",
+      "trust_exposure_score",
+      "trust_strongest_path",
+      "trust_path_digest",
       "alert_count",
       "source_alert_ids",
       "max_severity",
@@ -234,6 +263,7 @@
       "max_volatility_index",
       "max_defer_pressure_score",
       "max_ledger_pressure_score",
+      "max_trust_exposure_score",
       "max_carry_out_ms",
       "max_stability_index",
       "canonical_alert_checksum",
@@ -242,14 +272,16 @@
       "reopen_compaction_checksum",
       "rotation_compaction_checksum",
       "defer_compaction_checksum",
+      "trust_edge_checksum",
       "window_digest_checksum",
-      "ledger_checksum"
+      "ledger_checksum",
+      "trust_path_digest_checksum"
     ],
     "severity_counts_key_order": ["p1", "p2", "p3", "p4"],
     "total_unmuted_duration_ms_contract": "sum of merged window duration_ms values from drift_windows.json (not raw alert durations)",
     "total_ledger_adjusted_actionable_ms_contract": "sum ledger_adjusted_actionable_ms over all drift windows, including windows not admitted to the response queue",
     "maximum_aggregation_domains": {
-      "queue_only": "max_stability_pressure_score, max_volatility_index, max_defer_pressure_score, max_ledger_pressure_score, and max_stability_index are maxima over final admitted response_queue rows only; use 0 when the queue is empty",
+      "queue_only": "max_stability_pressure_score, max_volatility_index, max_defer_pressure_score, max_ledger_pressure_score, max_trust_exposure_score, and max_stability_index are maxima over final admitted response_queue rows only; use 0 when the queue is empty",
       "all_drift_windows": "max_carry_out_ms is the maximum over every drift window, including windows not admitted to the response queue; use 0 when there are no windows"
     },
     "checksum_serialization_contract": {
@@ -262,6 +294,7 @@
       "canonical_alert_rows": "one alert_id|env|start_ms|end_ms|severity|muted_int|signature row for each canonical deduplicated alert, sorted by (env ascending, start_ms ascending, alert_id ascending)",
       "freeze_rows": "one env|start_ms|end_ms row for each compacted interval, sorted by env ascending and then interval (start_ms,end_ms) ascending",
       "scoped_rows": "one env|severity_scope|start_ms|end_ms row for reopen/rotation/defer using only compacted rows whose severity_scope is in that source's scope_values allowlist; sort by (env,severity_scope) ascending and then interval (start_ms,end_ms) ascending",
+      "trust_edge_rows": "one source_env|target_env|weight row per canonical deduplicated directed edge, sorted by source_env then target_env ascending",
       "ledger_rows": "one env|start_ms|idle_gap_ms|carry_in_ms|carry_out_ms|ledger_adjusted_actionable_ms row for every drift window, sorted by env ascending and start_ms ascending",
       "sha256_step": "compute lowercase hashlib.sha256(payload.encode('utf-8')).hexdigest()"
     },
@@ -273,16 +306,20 @@
       "scoped_payload": "prod|all|100|200\nprod|p1|250|300",
       "scoped_sha256": "d79f6726cb232c4b53940a311d2ce84f71d5c7f8ef241240efa24b039c8303b0",
       "ledger_payload": "prod|100|0|0|100|125\nprod|300|100|50|200|225",
-      "ledger_sha256": "cd8fe19fe12c68d4456a0b4b574e31456974e6f5c2b87998af6f94fb2b0bf6ff"
+      "ledger_sha256": "cd8fe19fe12c68d4456a0b4b574e31456974e6f5c2b87998af6f94fb2b0bf6ff",
+      "trust_edge_payload": "dmz|edge|6\ndmz|vault|7\nprod|dmz|5",
+      "trust_edge_sha256": "84f65928e0230952cdeb5a1bad88f4aaa96ee08190579cf2e11ab15fa6ea262f"
     },
     "canonical_alert_checksum": "SHA-256 of checksum_serialization_contract canonical_alert_rows",
     "freeze_compaction_checksum": "SHA-256 of checksum_serialization_contract freeze_rows",
     "reopen_compaction_checksum": "SHA-256 of checksum_serialization_contract scoped_rows built from compacted reopen intervals",
     "rotation_compaction_checksum": "SHA-256 of checksum_serialization_contract scoped_rows built from compacted rotation intervals",
     "defer_compaction_checksum": "SHA-256 of checksum_serialization_contract scoped_rows built from compacted defer intervals",
+    "trust_edge_checksum": "SHA-256 of checksum_serialization_contract trust_edge_rows",
     "queue_hash_checksum": "sha256('|'.join(queue_hash values in final queue order)) lowercase 64 hex chars",
     "window_digest_checksum": "sha256('|'.join(window_digest values in final queue order)) lowercase 64 hex chars",
-    "ledger_checksum": "SHA-256 of checksum_serialization_contract ledger_rows"
+    "ledger_checksum": "SHA-256 of checksum_serialization_contract ledger_rows",
+    "trust_path_digest_checksum": "sha256('|'.join(trust_path_digest values in final queue order)) lowercase 64 hex chars"
   },
   "drift_windows_json": {
     "shape": "flat map {env: [window, ...]}",
