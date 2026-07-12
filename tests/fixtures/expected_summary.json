@@ -36,20 +36,24 @@
       "total_defer_overlap_ms": 830,
       "total_defer_segment_count": 5,
       "total_actionable_duration_ms": 2332,
+      "total_ledger_adjusted_actionable_ms": 2332,
       "longest_window_ms": 1200,
       "queued_window_count": 1,
       "muted_excluded_count": 2,
       "max_stability_pressure_score": 5,
       "max_volatility_index": 7,
       "max_defer_pressure_score": 1,
-      "max_stability_index": 8,
+      "max_ledger_pressure_score": 4,
+      "max_carry_out_ms": 500,
+      "max_stability_index": 12,
       "canonical_alert_checksum": "1254d33bb3d2e56f02c3d98867ddee1a83d7a816102ebf74490c4a6dba66b13c",
-      "queue_hash_checksum": "abb33b17abc6851f5ec1573069537d9e44b376291228bf03457141cf1c581383",
+      "queue_hash_checksum": "7bf356a568139e3784a3de51853ef3991998dbb19bb25202a92b93e9d0cb56c7",
       "freeze_compaction_checksum": "836e9fbfdec2fd6a9d6f850585ac90b4ff950ccc4d3086effe2e5dc86e629757",
       "reopen_compaction_checksum": "0e1c4e3b7a635d3b44655c43b667773d17644341f10f536a8a9b9e1619b36e92",
       "rotation_compaction_checksum": "4ddf2b923948d27b40fa0fb076c69a58061a514bc6b1b1f96c38463499ec21b1",
       "defer_compaction_checksum": "06ebfcdcd45dcb1cac9d21835e34a91d5a6ec300facb8ca25cd2d71057a1b648",
-      "window_digest_checksum": "feb94d4ab87879f7be0490081ac3e44beda2bd3a80722732a33553e5cfa6b6dd"
+      "window_digest_checksum": "aafc2124909fc925f59577f5cec59881b9f20e97560f44376b5b9ee7d009ed59",
+      "ledger_checksum": "0c2809764faab389c66e58d2bc5e1973a39c97b5124e46cb2c1c77089d74d3ac"
     },
     "windows": {
       "dmz": [
@@ -73,7 +77,11 @@
           "source_alert_ids": [
             "d05"
           ],
-          "max_severity": "p3"
+          "max_severity": "p3",
+          "idle_gap_ms": 0,
+          "carry_in_ms": 0,
+          "carry_out_ms": 500,
+          "ledger_adjusted_actionable_ms": 500
         },
         {
           "start_ms": 2010000005000,
@@ -95,7 +103,11 @@
           "source_alert_ids": [
             "d07"
           ],
-          "max_severity": "p1"
+          "max_severity": "p1",
+          "idle_gap_ms": 1100,
+          "carry_in_ms": 0,
+          "carry_out_ms": 0,
+          "ledger_adjusted_actionable_ms": 0
         },
         {
           "start_ms": 2010000006200,
@@ -117,7 +129,11 @@
           "source_alert_ids": [
             "d09"
           ],
-          "max_severity": "p2"
+          "max_severity": "p2",
+          "idle_gap_ms": 600,
+          "carry_in_ms": 0,
+          "carry_out_ms": 190,
+          "ledger_adjusted_actionable_ms": 165
         },
         {
           "start_ms": 2010000008600,
@@ -140,7 +156,11 @@
             "d13",
             "d15"
           ],
-          "max_severity": "p1"
+          "max_severity": "p1",
+          "idle_gap_ms": 1800,
+          "carry_in_ms": 0,
+          "carry_out_ms": 273,
+          "ledger_adjusted_actionable_ms": 248
         }
       ],
       "edge": [
@@ -164,7 +184,11 @@
           "source_alert_ids": [
             "d02"
           ],
-          "max_severity": "p2"
+          "max_severity": "p2",
+          "idle_gap_ms": 0,
+          "carry_in_ms": 0,
+          "carry_out_ms": 164,
+          "ledger_adjusted_actionable_ms": 129
         },
         {
           "start_ms": 2010000003000,
@@ -186,7 +210,11 @@
           "source_alert_ids": [
             "d04"
           ],
-          "max_severity": "p3"
+          "max_severity": "p3",
+          "idle_gap_ms": 800,
+          "carry_in_ms": 0,
+          "carry_out_ms": 300,
+          "ledger_adjusted_actionable_ms": 300
         },
         {
           "start_ms": 2010000005400,
@@ -208,7 +236,11 @@
           "source_alert_ids": [
             "d08"
           ],
-          "max_severity": "p2"
+          "max_severity": "p2",
+          "idle_gap_ms": 2100,
+          "carry_in_ms": 0,
+          "carry_out_ms": 150,
+          "ledger_adjusted_actionable_ms": 150
         },
         {
           "start_ms": 2010000008800,
@@ -230,7 +262,11 @@
           "source_alert_ids": [
             "d14"
           ],
-          "max_severity": "p3"
+          "max_severity": "p3",
+          "idle_gap_ms": 3000,
+          "carry_in_ms": 0,
+          "carry_out_ms": 200,
+          "ledger_adjusted_actionable_ms": 200
         }
       ],
       "prod": [
@@ -254,7 +290,11 @@
           "source_alert_ids": [
             "d01"
           ],
-          "max_severity": "p1"
+          "max_severity": "p1",
+          "idle_gap_ms": 0,
+          "carry_in_ms": 0,
+          "carry_out_ms": 150,
+          "ledger_adjusted_actionable_ms": 150
         },
         {
           "start_ms": 2010000002400,
@@ -276,7 +316,11 @@
           "source_alert_ids": [
             "d03"
           ],
-          "max_severity": "p4"
+          "max_severity": "p4",
+          "idle_gap_ms": 1100,
+          "carry_in_ms": 0,
+          "carry_out_ms": 200,
+          "ledger_adjusted_actionable_ms": 200
         },
         {
           "start_ms": 2010000004500,
@@ -298,7 +342,11 @@
           "source_alert_ids": [
             "d06"
           ],
-          "max_severity": "p2"
+          "max_severity": "p2",
+          "idle_gap_ms": 1900,
+          "carry_in_ms": 0,
+          "carry_out_ms": 165,
+          "ledger_adjusted_actionable_ms": 140
         },
         {
           "start_ms": 2010000006800,
@@ -320,7 +368,11 @@
           "source_alert_ids": [
             "d10"
           ],
-          "max_severity": "p1"
+          "max_severity": "p1",
+          "idle_gap_ms": 1900,
+          "carry_in_ms": 0,
+          "carry_out_ms": 0,
+          "ledger_adjusted_actionable_ms": 0
         },
         {
           "start_ms": 2010000007300,
@@ -342,7 +394,11 @@
           "source_alert_ids": [
             "d11"
           ],
-          "max_severity": "p4"
+          "max_severity": "p4",
+          "idle_gap_ms": 300,
+          "carry_in_ms": 0,
+          "carry_out_ms": 50,
+          "ledger_adjusted_actionable_ms": 50
         },
         {
           "start_ms": 2010000009200,
@@ -364,7 +420,11 @@
           "source_alert_ids": [
             "d17"
           ],
-          "max_severity": "p2"
+          "max_severity": "p2",
+          "idle_gap_ms": 1850,
+          "carry_in_ms": 0,
+          "carry_out_ms": 100,
+          "ledger_adjusted_actionable_ms": 100
         }
       ]
     },
@@ -387,6 +447,10 @@
         "defer_overlap_ms": 170,
         "defer_segment_count": 1,
         "actionable_duration_ms": 248,
+        "idle_gap_ms": 1800,
+        "carry_in_ms": 0,
+        "carry_out_ms": 273,
+        "ledger_adjusted_actionable_ms": 248,
         "alert_count": 2,
         "source_alert_ids": [
           "d13",
@@ -396,10 +460,11 @@
         "stability_pressure_score": 5,
         "volatility_index": 7,
         "defer_pressure_score": 1,
-        "stability_index": 8,
+        "ledger_pressure_score": 4,
+        "stability_index": 12,
         "priority": "critical",
-        "queue_hash": "0f16b51f6bc1",
-        "window_digest": "81fcc36177"
+        "queue_hash": "12859a9ff441",
+        "window_digest": "8faa2f4040"
       }
     ]
   },
@@ -429,20 +494,24 @@
       "total_defer_overlap_ms": 0,
       "total_defer_segment_count": 0,
       "total_actionable_duration_ms": 750,
+      "total_ledger_adjusted_actionable_ms": 836,
       "longest_window_ms": 370,
       "queued_window_count": 2,
       "muted_excluded_count": 0,
       "max_stability_pressure_score": 1,
       "max_volatility_index": 1,
       "max_defer_pressure_score": 0,
-      "max_stability_index": 1,
+      "max_ledger_pressure_score": 5,
+      "max_carry_out_ms": 415,
+      "max_stability_index": 6,
       "canonical_alert_checksum": "ecd2ab7007a70a9fb020c106e5d1453a7a5db0ba00f7ecbbd804899bb37a4718",
-      "queue_hash_checksum": "135d98df6388d2120200f37ab064ddd849dab077eedd9b6fd65bb459ca56f814",
+      "queue_hash_checksum": "0c3527343846d1e65cb6c5cb9ff53a33894b16b808d247b2bce86182c99cf92d",
       "freeze_compaction_checksum": "836e9fbfdec2fd6a9d6f850585ac90b4ff950ccc4d3086effe2e5dc86e629757",
       "reopen_compaction_checksum": "0e1c4e3b7a635d3b44655c43b667773d17644341f10f536a8a9b9e1619b36e92",
       "rotation_compaction_checksum": "4ddf2b923948d27b40fa0fb076c69a58061a514bc6b1b1f96c38463499ec21b1",
       "defer_compaction_checksum": "06ebfcdcd45dcb1cac9d21835e34a91d5a6ec300facb8ca25cd2d71057a1b648",
-      "window_digest_checksum": "e1a7593b5e236ad275085029c52951909ff63ccf2cef6b08c05ca16f55548d2d"
+      "window_digest_checksum": "95f522d10b32c426c4fb4255182c94440a61f4168fe4fa112fd8c693ed2b5a7d",
+      "ledger_checksum": "03650c688c10aa5a21d7a5cc2408a4f9f20e5e20f0c8bd07caeeaf95d0d7dd74"
     },
     "windows": {
       "edge": [
@@ -466,7 +535,11 @@
           "source_alert_ids": [
             "x4"
           ],
-          "max_severity": "p2"
+          "max_severity": "p2",
+          "idle_gap_ms": 0,
+          "carry_in_ms": 0,
+          "carry_out_ms": 310,
+          "ledger_adjusted_actionable_ms": 310
         }
       ],
       "lab": [
@@ -491,7 +564,11 @@
             "x1",
             "x2"
           ],
-          "max_severity": "p1"
+          "max_severity": "p1",
+          "idle_gap_ms": 0,
+          "carry_in_ms": 0,
+          "carry_out_ms": 370,
+          "ledger_adjusted_actionable_ms": 370
         },
         {
           "start_ms": 520,
@@ -513,7 +590,11 @@
           "source_alert_ids": [
             "x3"
           ],
-          "max_severity": "p3"
+          "max_severity": "p3",
+          "idle_gap_ms": 50,
+          "carry_in_ms": 345,
+          "carry_out_ms": 415,
+          "ledger_adjusted_actionable_ms": 156
         }
       ]
     },
@@ -536,6 +617,10 @@
         "defer_overlap_ms": 0,
         "defer_segment_count": 0,
         "actionable_duration_ms": 370,
+        "idle_gap_ms": 0,
+        "carry_in_ms": 0,
+        "carry_out_ms": 370,
+        "ledger_adjusted_actionable_ms": 370,
         "alert_count": 2,
         "source_alert_ids": [
           "x1",
@@ -545,10 +630,11 @@
         "stability_pressure_score": 1,
         "volatility_index": 1,
         "defer_pressure_score": 0,
-        "stability_index": 1,
+        "ledger_pressure_score": 5,
+        "stability_index": 6,
         "priority": "critical",
-        "queue_hash": "83ceb48355bf",
-        "window_digest": "731f9d7d0c"
+        "queue_hash": "1b555254c6da",
+        "window_digest": "96886a158d"
       },
       {
         "ticket_id": "edge:600-910",
@@ -568,6 +654,10 @@
         "defer_overlap_ms": 0,
         "defer_segment_count": 0,
         "actionable_duration_ms": 310,
+        "idle_gap_ms": 0,
+        "carry_in_ms": 0,
+        "carry_out_ms": 310,
+        "ledger_adjusted_actionable_ms": 310,
         "alert_count": 1,
         "source_alert_ids": [
           "x4"
@@ -576,10 +666,11 @@
         "stability_pressure_score": 0,
         "volatility_index": 0,
         "defer_pressure_score": 0,
-        "stability_index": 0,
+        "ledger_pressure_score": 3,
+        "stability_index": 3,
         "priority": "high",
-        "queue_hash": "0a769be33321",
-        "window_digest": "982839e14c"
+        "queue_hash": "a1ca1e993a6f",
+        "window_digest": "7d553fbb7e"
       }
     ]
   }

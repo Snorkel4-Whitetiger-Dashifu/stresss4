@@ -113,12 +113,15 @@ def test_summary_schema(primary_outputs):
         "total_defer_overlap_ms",
         "total_defer_segment_count",
         "total_actionable_duration_ms",
+        "total_ledger_adjusted_actionable_ms",
         "longest_window_ms",
         "queued_window_count",
         "muted_excluded_count",
         "max_stability_pressure_score",
         "max_volatility_index",
         "max_defer_pressure_score",
+        "max_ledger_pressure_score",
+        "max_carry_out_ms",
         "max_stability_index",
         "canonical_alert_checksum",
         "queue_hash_checksum",
@@ -127,6 +130,7 @@ def test_summary_schema(primary_outputs):
         "rotation_compaction_checksum",
         "defer_compaction_checksum",
         "window_digest_checksum",
+        "ledger_checksum",
     }
     assert summary["schema_version"] == "firewall-drift-v1"
     assert list(summary["severity_counts"]) == SEVERITY_ORDER
@@ -137,6 +141,7 @@ def test_summary_schema(primary_outputs):
     assert len(summary["rotation_compaction_checksum"]) == 64
     assert len(summary["defer_compaction_checksum"]) == 64
     assert len(summary["window_digest_checksum"]) == 64
+    assert len(summary["ledger_checksum"]) == 64
 
 
 def test_windows_schema_and_sorting(primary_outputs):
@@ -157,6 +162,10 @@ def test_windows_schema_and_sorting(primary_outputs):
         "defer_overlap_ms",
         "defer_segment_count",
         "actionable_duration_ms",
+        "idle_gap_ms",
+        "carry_in_ms",
+        "carry_out_ms",
+        "ledger_adjusted_actionable_ms",
         "alert_count",
         "source_alert_ids",
         "max_severity",
@@ -179,6 +188,9 @@ def test_windows_schema_and_sorting(primary_outputs):
             )
             assert row["actionable_duration_ms"] == max(
                 row["dispatchable_duration_ms"] - (row["defer_overlap_ms"] // 4), 0
+            )
+            assert row["ledger_adjusted_actionable_ms"] == (
+                row["actionable_duration_ms"] + (row["carry_in_ms"] // 4)
             )
             assert row["source_alert_ids"] == sorted(row["source_alert_ids"])
 
@@ -203,12 +215,17 @@ def test_queue_required_fields(primary_outputs):
         "defer_overlap_ms",
         "defer_segment_count",
         "actionable_duration_ms",
+        "idle_gap_ms",
+        "carry_in_ms",
+        "carry_out_ms",
+        "ledger_adjusted_actionable_ms",
         "alert_count",
         "source_alert_ids",
         "max_severity",
         "stability_pressure_score",
         "volatility_index",
         "defer_pressure_score",
+        "ledger_pressure_score",
         "stability_index",
         "priority",
         "queue_hash",
@@ -225,10 +242,11 @@ def test_priority_rules(primary_outputs):
     _, _, _, queue = primary_outputs
     for row in queue:
         if (
-            row["max_severity"] == "p1" and row["actionable_duration_ms"] >= 235
-        ) or row["actionable_duration_ms"] >= 500 or row["stability_index"] >= 20:
+            row["max_severity"] == "p1"
+            and row["ledger_adjusted_actionable_ms"] >= 235
+        ) or row["ledger_adjusted_actionable_ms"] >= 500 or row["stability_index"] >= 20:
             assert row["priority"] == "critical"
-        elif row["actionable_duration_ms"] >= 265 or (
+        elif row["ledger_adjusted_actionable_ms"] >= 265 or (
             row["alert_count"] >= 3 and row["max_severity"] in {"p1", "p2"}
         ) or (
             row["rotation_segment_count"] == 0
@@ -248,6 +266,7 @@ def test_queue_sorted(primary_outputs):
         queue,
         key=lambda row: (
             -PRIORITY_RANK[row["priority"]],
+            -row["ledger_adjusted_actionable_ms"],
             -row["actionable_duration_ms"],
             -row["stability_index"],
             -row["defer_pressure_score"],
@@ -287,6 +306,7 @@ def test_summary_math_consistency(primary_outputs):
     defer_overlap_total = 0
     defer_segment_total = 0
     actionable_total = 0
+    ledger_adjusted_total = 0
     longest = 0
     for env_windows in windows.values():
         for row in env_windows:
@@ -303,6 +323,7 @@ def test_summary_math_consistency(primary_outputs):
             defer_overlap_total += row["defer_overlap_ms"]
             defer_segment_total += row["defer_segment_count"]
             actionable_total += row["actionable_duration_ms"]
+            ledger_adjusted_total += row["ledger_adjusted_actionable_ms"]
             longest = max(longest, row["duration_ms"])
     assert summary["total_unmuted_duration_ms"] == duration_total
     assert summary["total_freeze_overlap_ms"] == overlap_total
@@ -317,6 +338,7 @@ def test_summary_math_consistency(primary_outputs):
     assert summary["total_defer_overlap_ms"] == defer_overlap_total
     assert summary["total_defer_segment_count"] == defer_segment_total
     assert summary["total_actionable_duration_ms"] == actionable_total
+    assert summary["total_ledger_adjusted_actionable_ms"] == ledger_adjusted_total
     assert summary["longest_window_ms"] == longest
 
 
@@ -677,6 +699,58 @@ def test_muted_truthiness_non_string_non_bool(tmp_path: Path):
     _, summary, windows, _ = _run_pipeline(tmp_path / "run", input_path=input_path)
     assert summary["muted_excluded_count"] == 1
     assert sum(w["alert_count"] for env_windows in windows.values() for w in env_windows) == 1
+
+
+def test_stateful_risk_ledger_propagates_and_decays_between_windows(tmp_path: Path):
+    originals = {
+        FREEZE_PATH: FREEZE_PATH.read_text(encoding="utf-8"),
+        REOPEN_PATH: REOPEN_PATH.read_text(encoding="utf-8"),
+        ROTATION_PATH: ROTATION_PATH.read_text(encoding="utf-8"),
+        DEFER_PATH: DEFER_PATH.read_text(encoding="utf-8"),
+    }
+    try:
+        for path in originals:
+            path.write_text("[]\n", encoding="utf-8")
+        rows = [
+            {
+                "alert_id": "l1",
+                "start_ms": 100,
+                "end_ms": 400,
+                "severity": "p1",
+                "env": "lab",
+                "signature": "first",
+                "muted": False,
+            },
+            {
+                "alert_id": "l2",
+                "start_ms": 600,
+                "end_ms": 850,
+                "severity": "p2",
+                "env": "lab",
+                "signature": "second",
+                "muted": False,
+            },
+        ]
+        input_path = tmp_path / "ledger.json"
+        _write_json(input_path, rows)
+        _, summary, windows, queue = _run_pipeline(
+            tmp_path / "run", input_path=input_path
+        )
+        first, second = windows["lab"]
+        assert first["idle_gap_ms"] == 0
+        assert first["carry_in_ms"] == 0
+        assert first["carry_out_ms"] == 300
+        assert second["idle_gap_ms"] == 200
+        assert second["carry_in_ms"] == 200
+        assert second["ledger_adjusted_actionable_ms"] == 300
+        assert second["carry_out_ms"] == 450
+        assert summary["max_carry_out_ms"] == 450
+        assert len(summary["ledger_checksum"]) == 64
+        second_queue = next(row for row in queue if row["ticket_id"] == "lab:600-850")
+        assert second_queue["ledger_pressure_score"] == (450 // 80) + (200 // 120)
+    finally:
+        for path, content in originals.items():
+            path.write_text(content, encoding="utf-8")
 
 
 def test_pipeline_does_not_reference_test_artifacts():

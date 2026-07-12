@@ -331,6 +331,31 @@ def build_drift_windows(
                 }
             )
         normalized_windows.sort(key=lambda row: row["start_ms"])
+        previous_end_ms: int | None = None
+        previous_carry_out_ms = 0
+        for window in normalized_windows:
+            idle_gap_ms = (
+                0
+                if previous_end_ms is None
+                else max(window["start_ms"] - previous_end_ms, 0)
+            )
+            carry_in_ms = max(previous_carry_out_ms - (idle_gap_ms // 2), 0)
+            ledger_adjusted_actionable_ms = (
+                window["actionable_duration_ms"] + (carry_in_ms // 4)
+            )
+            carry_out_ms = min(
+                carry_in_ms
+                + window["actionable_duration_ms"]
+                + (window["rotation_segment_count"] * 15)
+                + (window["defer_segment_count"] * 10),
+                2000,
+            )
+            window["idle_gap_ms"] = idle_gap_ms
+            window["carry_in_ms"] = carry_in_ms
+            window["carry_out_ms"] = carry_out_ms
+            window["ledger_adjusted_actionable_ms"] = ledger_adjusted_actionable_ms
+            previous_end_ms = window["end_ms"]
+            previous_carry_out_ms = carry_out_ms
         result[env] = normalized_windows
 
     return {env: result[env] for env in sorted(result)}, freeze_map, reopen_map, rotation_map, defer_map
@@ -348,7 +373,7 @@ def build_response_queue(
             if window["max_severity"] not in {"p1", "p2"}:
                 continue
             include_min_ms = 180 if window["max_severity"] == "p1" else 225
-            if window["actionable_duration_ms"] < include_min_ms:
+            if window["ledger_adjusted_actionable_ms"] < include_min_ms:
                 continue
 
             all_probe_ms = _probe_overlap_ms(window["end_ms"], reopen_map.get((env, "all"), []))
@@ -388,13 +413,20 @@ def build_response_queue(
                 + (severity_defer_probe_ms // 28)
                 + window["defer_segment_count"]
             )
-            stability_index = volatility_index + defer_pressure_score
+            ledger_pressure_score = (
+                (window["carry_out_ms"] // 80)
+                + (window["carry_in_ms"] // 120)
+                + max(window["alert_count"] - 1, 0)
+            )
+            stability_index = (
+                volatility_index + defer_pressure_score + ledger_pressure_score
+            )
             if (
                 window["max_severity"] == "p1"
-                and window["actionable_duration_ms"] >= 235
-            ) or window["actionable_duration_ms"] >= 500 or stability_index >= 20:
+                and window["ledger_adjusted_actionable_ms"] >= 235
+            ) or window["ledger_adjusted_actionable_ms"] >= 500 or stability_index >= 20:
                 priority = "critical"
-            elif window["actionable_duration_ms"] >= 265 or (
+            elif window["ledger_adjusted_actionable_ms"] >= 265 or (
                 window["alert_count"] >= 3 and window["max_severity"] in {"p1", "p2"}
             ) or (
                 window["rotation_segment_count"] == 0
@@ -414,14 +446,17 @@ def build_response_queue(
                     f"{','.join(window['source_alert_ids'])}|{window['max_severity']}|"
                     f"{window['freeze_segment_count']}|{window['reopen_segment_count']}|"
                     f"{window['rotation_segment_count']}|{window['defer_segment_count']}|"
-                    f"{stability_pressure_score}|{volatility_index}|{defer_pressure_score}"
+                    f"{window['carry_in_ms']}|{window['carry_out_ms']}|"
+                    f"{window['ledger_adjusted_actionable_ms']}|{stability_pressure_score}|"
+                    f"{volatility_index}|{defer_pressure_score}|{ledger_pressure_score}"
                 ).encode("utf-8")
             ).hexdigest()[:12]
             ticket_id = f"{env}:{window['start_ms']}-{window['end_ms']}"
             window_digest = hashlib.sha1(
                 (
                     f"{ticket_id}|{priority}|{window['actionable_duration_ms']}|"
-                    f"{stability_index}|{defer_pressure_score}|{volatility_index}"
+                    f"{window['ledger_adjusted_actionable_ms']}|{stability_index}|"
+                    f"{defer_pressure_score}|{volatility_index}|{ledger_pressure_score}"
                 ).encode("utf-8")
             ).hexdigest()[:10]
 
@@ -444,12 +479,19 @@ def build_response_queue(
                     "defer_overlap_ms": window["defer_overlap_ms"],
                     "defer_segment_count": window["defer_segment_count"],
                     "actionable_duration_ms": window["actionable_duration_ms"],
+                    "idle_gap_ms": window["idle_gap_ms"],
+                    "carry_in_ms": window["carry_in_ms"],
+                    "carry_out_ms": window["carry_out_ms"],
+                    "ledger_adjusted_actionable_ms": window[
+                        "ledger_adjusted_actionable_ms"
+                    ],
                     "alert_count": window["alert_count"],
                     "source_alert_ids": list(window["source_alert_ids"]),
                     "max_severity": window["max_severity"],
                     "stability_pressure_score": stability_pressure_score,
                     "volatility_index": volatility_index,
                     "defer_pressure_score": defer_pressure_score,
+                    "ledger_pressure_score": ledger_pressure_score,
                     "stability_index": stability_index,
                     "priority": priority,
                     "queue_hash": queue_hash,
@@ -460,6 +502,7 @@ def build_response_queue(
     queue.sort(
         key=lambda row: (
             -PRIORITY_RANK[row["priority"]],
+            -row["ledger_adjusted_actionable_ms"],
             -row["actionable_duration_ms"],
             -row["stability_index"],
             -row["defer_pressure_score"],
@@ -502,6 +545,7 @@ def build_summary(
     total_defer_overlap = 0
     total_defer_segments = 0
     total_actionable = 0
+    total_ledger_adjusted_actionable = 0
     longest_window = 0
     for windows in drift_windows.values():
         for window in windows:
@@ -518,6 +562,9 @@ def build_summary(
             total_defer_overlap += window["defer_overlap_ms"]
             total_defer_segments += window["defer_segment_count"]
             total_actionable += window["actionable_duration_ms"]
+            total_ledger_adjusted_actionable += window[
+                "ledger_adjusted_actionable_ms"
+            ]
             longest_window = max(longest_window, window["duration_ms"])
 
     muted_excluded_count = sum(1 for row in canonical if row["muted"])
@@ -564,6 +611,17 @@ def build_summary(
     window_digest_checksum = hashlib.sha256(
         "|".join(row["window_digest"] for row in queue).encode("utf-8")
     ).hexdigest()
+    ledger_checksum = hashlib.sha256(
+        "\n".join(
+            (
+                f"{env}|{window['start_ms']}|{window['idle_gap_ms']}|"
+                f"{window['carry_in_ms']}|{window['carry_out_ms']}|"
+                f"{window['ledger_adjusted_actionable_ms']}"
+            )
+            for env in sorted(drift_windows)
+            for window in drift_windows[env]
+        ).encode("utf-8")
+    ).hexdigest()
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -587,6 +645,7 @@ def build_summary(
         "total_defer_overlap_ms": total_defer_overlap,
         "total_defer_segment_count": total_defer_segments,
         "total_actionable_duration_ms": total_actionable,
+        "total_ledger_adjusted_actionable_ms": total_ledger_adjusted_actionable,
         "longest_window_ms": longest_window,
         "queued_window_count": len(queue),
         "muted_excluded_count": muted_excluded_count,
@@ -596,6 +655,18 @@ def build_summary(
         ),
         "max_volatility_index": max((row["volatility_index"] for row in queue), default=0),
         "max_defer_pressure_score": max((row["defer_pressure_score"] for row in queue), default=0),
+        "max_ledger_pressure_score": max(
+            (row["ledger_pressure_score"] for row in queue),
+            default=0,
+        ),
+        "max_carry_out_ms": max(
+            (
+                window["carry_out_ms"]
+                for windows in drift_windows.values()
+                for window in windows
+            ),
+            default=0,
+        ),
         "max_stability_index": max((row["stability_index"] for row in queue), default=0),
         "canonical_alert_checksum": canonical_alert_checksum,
         "queue_hash_checksum": queue_checksum,
@@ -604,6 +675,7 @@ def build_summary(
         "rotation_compaction_checksum": rotation_compaction_checksum,
         "defer_compaction_checksum": defer_compaction_checksum,
         "window_digest_checksum": window_digest_checksum,
+        "ledger_checksum": ledger_checksum,
     }
 
 

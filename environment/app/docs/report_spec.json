@@ -1,6 +1,6 @@
 {
   "title": "Firewall Drift Chain Compiler Spec",
-  "version": "1.4",
+  "version": "1.5",
   "workflow_repair": {
     "path": "/app/workflow/export_report.py",
     "cli_usage": "python3 /app/workflow/export_report.py --input PATH --output-dir PATH",
@@ -31,6 +31,9 @@
       "stability_pressure_score",
       "volatility_index",
       "defer_pressure_score",
+      "ledger_pressure_score",
+      "ledger_adjusted_actionable_ms",
+      "ledger_checksum",
       "stability_index",
       "window_digest"
     ],
@@ -64,6 +67,10 @@
       "defer_overlap_ms",
       "defer_segment_count",
       "actionable_duration_ms",
+      "idle_gap_ms",
+      "carry_in_ms",
+      "carry_out_ms",
+      "ledger_adjusted_actionable_ms",
       "alert_count",
       "source_alert_ids",
       "max_severity"
@@ -104,26 +111,38 @@
     "matching_scopes": "{all,max_severity} for each window",
     "defer_overlap_union": "collect overlap segments from matching scopes then compact/union those segments to compute defer_overlap_ms and defer_segment_count",
     "actionable_duration_ms": "max(dispatchable_duration_ms - (defer_overlap_ms // 4), 0)",
-    "defer_pressure_score": "probe [end_ms-300,end_ms+1): (all_defer_probe_ms//40)+(severity_defer_probe_ms//28)+defer_segment_count",
-    "stability_index": "volatility_index + defer_pressure_score"
+    "defer_pressure_score": "probe [end_ms-300,end_ms+1): (all_defer_probe_ms//40)+(severity_defer_probe_ms//28)+defer_segment_count"
+  },
+  "risk_ledger": {
+    "evaluation_scope": "state is independent per normalized env",
+    "evaluation_order": "process each env's merged windows in start_ms ascending order after all four attenuation layers are complete",
+    "first_window": "idle_gap_ms=0, carry_in_ms=0",
+    "idle_gap_ms": "for later windows max(current.start_ms-previous.end_ms,0)",
+    "carry_in_ms": "max(previous.carry_out_ms-(idle_gap_ms//2),0)",
+    "ledger_adjusted_actionable_ms": "actionable_duration_ms+(carry_in_ms//4)",
+    "carry_out_ms": "min(carry_in_ms+actionable_duration_ms+(rotation_segment_count*15)+(defer_segment_count*10),2000)",
+    "state_update": "finalize carry_out_ms for one window before evaluating the next window in the same env",
+    "ledger_pressure_score": "(carry_out_ms//80)+(carry_in_ms//120)+max(alert_count-1,0)",
+    "stability_index": "volatility_index+defer_pressure_score+ledger_pressure_score"
   },
   "response_queue": {
     "output_path": "response_queue.jsonl",
-    "include_min_actionable_duration_ms": {
+    "include_min_ledger_adjusted_actionable_ms": {
       "p1": 180,
       "p2": 225
     },
     "include_max_severities": ["p1", "p2"],
     "ticket_id_format": "{env}:{start_ms}-{end_ms}",
-    "queue_hash": "sha1('{env}|{start_ms}|{end_ms}|{csv_source_alert_ids}|{max_severity}|{freeze_segment_count}|{reopen_segment_count}|{rotation_segment_count}|{defer_segment_count}|{stability_pressure_score}|{volatility_index}|{defer_pressure_score}') first 12 lowercase hex chars",
-    "window_digest": "sha1('{ticket_id}|{priority}|{actionable_duration_ms}|{stability_index}|{defer_pressure_score}|{volatility_index}') first 10 lowercase hex chars",
+    "queue_hash": "sha1('{env}|{start_ms}|{end_ms}|{csv_source_alert_ids}|{max_severity}|{freeze_segment_count}|{reopen_segment_count}|{rotation_segment_count}|{defer_segment_count}|{carry_in_ms}|{carry_out_ms}|{ledger_adjusted_actionable_ms}|{stability_pressure_score}|{volatility_index}|{defer_pressure_score}|{ledger_pressure_score}') first 12 lowercase hex chars",
+    "window_digest": "sha1('{ticket_id}|{priority}|{actionable_duration_ms}|{ledger_adjusted_actionable_ms}|{stability_index}|{defer_pressure_score}|{volatility_index}|{ledger_pressure_score}') first 10 lowercase hex chars",
     "priority_rules": {
-      "critical": "max_severity == p1 and actionable_duration_ms >= 235, or actionable_duration_ms >= 500, or stability_index >= 20",
-      "high": "actionable_duration_ms >= 265, or alert_count >= 3 with max_severity in {p1,p2}, or rotation_segment_count == 0 with risk_adjusted_duration_ms >= 340, or defer_pressure_score > 0 with dispatchable_duration_ms >= 320, or reopen_segment_count == 0 with duration_ms >= 420",
+      "critical": "max_severity == p1 and ledger_adjusted_actionable_ms >= 235, or ledger_adjusted_actionable_ms >= 500, or stability_index >= 20",
+      "high": "ledger_adjusted_actionable_ms >= 265, or alert_count >= 3 with max_severity in {p1,p2}, or rotation_segment_count == 0 with risk_adjusted_duration_ms >= 340, or defer_pressure_score > 0 with dispatchable_duration_ms >= 320, or reopen_segment_count == 0 with duration_ms >= 420",
       "medium": "otherwise"
     },
     "sort_order": [
       "priority rank critical>high>medium",
+      "ledger_adjusted_actionable_ms desc",
       "actionable_duration_ms desc",
       "stability_index desc",
       "defer_pressure_score desc",
@@ -134,6 +153,40 @@
       "alert_count desc",
       "env asc",
       "start_ms asc"
+    ],
+    "required_fields": [
+      "ticket_id",
+      "env",
+      "start_ms",
+      "end_ms",
+      "duration_ms",
+      "freeze_overlap_ms",
+      "freeze_segment_count",
+      "effective_duration_ms",
+      "reopen_overlap_ms",
+      "reopen_segment_count",
+      "risk_adjusted_duration_ms",
+      "rotation_overlap_ms",
+      "rotation_segment_count",
+      "dispatchable_duration_ms",
+      "defer_overlap_ms",
+      "defer_segment_count",
+      "actionable_duration_ms",
+      "idle_gap_ms",
+      "carry_in_ms",
+      "carry_out_ms",
+      "ledger_adjusted_actionable_ms",
+      "alert_count",
+      "source_alert_ids",
+      "max_severity",
+      "stability_pressure_score",
+      "volatility_index",
+      "defer_pressure_score",
+      "ledger_pressure_score",
+      "stability_index",
+      "priority",
+      "queue_hash",
+      "window_digest"
     ],
     "json_format": "compact JSON lines via json.dumps(..., separators=(',', ':'))"
   },
@@ -159,12 +212,15 @@
       "total_defer_overlap_ms",
       "total_defer_segment_count",
       "total_actionable_duration_ms",
+      "total_ledger_adjusted_actionable_ms",
       "longest_window_ms",
       "queued_window_count",
       "muted_excluded_count",
       "max_stability_pressure_score",
       "max_volatility_index",
       "max_defer_pressure_score",
+      "max_ledger_pressure_score",
+      "max_carry_out_ms",
       "max_stability_index",
       "canonical_alert_checksum",
       "queue_hash_checksum",
@@ -172,17 +228,20 @@
       "reopen_compaction_checksum",
       "rotation_compaction_checksum",
       "defer_compaction_checksum",
-      "window_digest_checksum"
+      "window_digest_checksum",
+      "ledger_checksum"
     ],
     "severity_counts_key_order": ["p1", "p2", "p3", "p4"],
     "total_unmuted_duration_ms_contract": "sum of merged window duration_ms values from drift_windows.json (not raw alert durations)",
+    "total_ledger_adjusted_actionable_ms_contract": "sum ledger_adjusted_actionable_ms over all drift windows, including windows not admitted to the response queue",
     "canonical_alert_checksum": "sha256 over canonical alerts rows alert_id|env|start_ms|end_ms|severity|muted_int|signature",
     "freeze_compaction_checksum": "sha256 over compacted freeze rows env|start_ms|end_ms",
     "reopen_compaction_checksum": "sha256 over compacted reopen rows env|severity_scope|start_ms|end_ms",
     "rotation_compaction_checksum": "sha256 over compacted rotation rows env|severity_scope|start_ms|end_ms",
     "defer_compaction_checksum": "sha256 over compacted defer rows env|severity_scope|start_ms|end_ms",
     "queue_hash_checksum": "sha256('|'.join(queue_hash values in final queue order)) lowercase 64 hex chars",
-    "window_digest_checksum": "sha256('|'.join(window_digest values in final queue order)) lowercase 64 hex chars"
+    "window_digest_checksum": "sha256('|'.join(window_digest values in final queue order)) lowercase 64 hex chars",
+    "ledger_checksum": "sha256 over env-sorted, start_ms-sorted window lines env|start_ms|idle_gap_ms|carry_in_ms|carry_out_ms|ledger_adjusted_actionable_ms"
   },
   "drift_windows_json": {
     "shape": "flat map {env: [window, ...]}",
