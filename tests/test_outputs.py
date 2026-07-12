@@ -552,6 +552,9 @@ def test_reopen_compaction_and_scope_are_used(tmp_path: Path):
         assert second["reopen_overlap_ms"] == 0
         assert summary["total_reopen_overlap_ms"] == 150
         assert summary["total_reopen_segment_count"] == 2
+        assert summary["reopen_compaction_checksum"] == hashlib.sha256(
+            "lab|all|150|240\nlab|p1|260|320".encode("utf-8")
+        ).hexdigest()
         assert [row["ticket_id"] for row in queue] == ["lab:500-800", "lab:100-400"]
     finally:
         REOPEN_PATH.write_text(original_reopen, encoding="utf-8")
@@ -600,6 +603,9 @@ def test_rotation_compaction_and_scope_are_used(tmp_path: Path):
         assert second["rotation_overlap_ms"] == 0
         assert summary["total_rotation_overlap_ms"] == 160
         assert summary["total_rotation_segment_count"] == 2
+        assert summary["rotation_compaction_checksum"] == hashlib.sha256(
+            "lab|all|130|240\nlab|p1|260|310".encode("utf-8")
+        ).hexdigest()
         assert [row["ticket_id"] for row in queue] == ["lab:100-400", "lab:500-820"]
     finally:
         ROTATION_PATH.write_text(original_rotation, encoding="utf-8")
@@ -648,9 +654,82 @@ def test_defer_compaction_and_scope_are_used(tmp_path: Path):
         assert second["defer_overlap_ms"] == 0
         assert summary["total_defer_overlap_ms"] == 210
         assert summary["total_defer_segment_count"] == 2
+        assert summary["defer_compaction_checksum"] == hashlib.sha256(
+            "lab|all|110|250\nlab|p1|255|325".encode("utf-8")
+        ).hexdigest()
         assert [row["ticket_id"] for row in queue] == ["lab:100-420", "lab:500-860"]
     finally:
         DEFER_PATH.write_text(original_defer, encoding="utf-8")
+
+
+def test_p2_windows_borrow_p1_scope_when_p2_scope_missing(tmp_path: Path):
+    originals = {
+        REOPEN_PATH: REOPEN_PATH.read_text(encoding="utf-8"),
+        ROTATION_PATH: ROTATION_PATH.read_text(encoding="utf-8"),
+        DEFER_PATH: DEFER_PATH.read_text(encoding="utf-8"),
+        FREEZE_PATH: FREEZE_PATH.read_text(encoding="utf-8"),
+    }
+    try:
+        _write_json(FREEZE_PATH, [])
+        _write_json(
+            REOPEN_PATH,
+            [
+                {
+                    "env": "lab",
+                    "severity_scope": "p1",
+                    "start_ms": 150,
+                    "end_ms": 250,
+                }
+            ],
+        )
+        _write_json(
+            ROTATION_PATH,
+            [
+                {
+                    "env": "lab",
+                    "severity_scope": "p1",
+                    "start_ms": 150,
+                    "end_ms": 250,
+                }
+            ],
+        )
+        _write_json(
+            DEFER_PATH,
+            [
+                {
+                    "env": "lab",
+                    "severity_scope": "p1",
+                    "start_ms": 150,
+                    "end_ms": 250,
+                }
+            ],
+        )
+        rows = [
+            {
+                "alert_id": "fb1",
+                "start_ms": 100,
+                "end_ms": 400,
+                "severity": "p2",
+                "env": "lab",
+                "signature": "fallback",
+                "muted": False,
+            }
+        ]
+        input_path = tmp_path / "fallback_scope.json"
+        _write_json(input_path, rows)
+        _, summary, windows, queue = _run_pipeline(tmp_path / "run", input_path=input_path)
+        window = windows["lab"][0]
+        assert window["reopen_overlap_ms"] == 100
+        assert window["rotation_overlap_ms"] == 100
+        assert window["defer_overlap_ms"] == 100
+        assert window["risk_adjusted_duration_ms"] == 250
+        assert window["dispatchable_duration_ms"] == 217
+        assert window["actionable_duration_ms"] == 192
+        assert summary["queued_window_count"] == 0
+        assert queue == []
+    finally:
+        for path, content in originals.items():
+            path.write_text(content, encoding="utf-8")
 
 
 def test_tie_break_full_tie_keeps_first_seen(tmp_path: Path):

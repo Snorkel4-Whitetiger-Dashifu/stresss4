@@ -1,6 +1,6 @@
 {
   "title": "Firewall Drift Chain Compiler Spec",
-  "version": "1.6",
+  "version": "1.7",
   "workflow_repair": {
     "path": "/app/workflow/export_report.py",
     "cli_usage": "python3 /app/workflow/export_report.py --input PATH --output-dir PATH",
@@ -87,8 +87,8 @@
     "source_path": "/app/data/reopen_windows.json",
     "same_env_only": true,
     "scope_values": ["all", "p1", "p2"],
-    "reopen_canonicalization": "normalize env/scope/start/end, drop end<=start, compact overlap/touch intervals per (env,severity_scope)",
-    "matching_scopes": "{all,max_severity} for each window",
+    "reopen_canonicalization": "normalize env/scope/start/end, keep rows whose severity_scope is in scope_values, drop end<=start, compact overlap/touch intervals per (env,severity_scope)",
+    "matching_scopes": "{all,max_severity} for each window; if max_severity is p2 and (env,p2) has no compacted intervals, borrow (env,p1) as the severity scope fallback",
     "reopen_overlap_union": "collect overlap segments from matching scopes then compact/union those segments to compute reopen_overlap_ms and reopen_segment_count",
     "risk_adjusted_duration_ms": "max(effective_duration_ms - (reopen_overlap_ms // 2), 0)",
     "stability_pressure_score": "probe window [end_ms-180, end_ms+1) using reopen all + severity scopes; score=(all_probe_ms//30)+(severity_probe_ms//20)+max(alert_count-1,0)"
@@ -97,8 +97,8 @@
     "source_path": "/app/data/rotation_windows.json",
     "same_env_only": true,
     "scope_values": ["all", "p1", "p2"],
-    "rotation_canonicalization": "normalize env/scope/start/end, drop end<=start, compact overlap/touch intervals per (env,severity_scope)",
-    "matching_scopes": "{all,max_severity} for each window",
+    "rotation_canonicalization": "normalize env/scope/start/end, keep rows whose severity_scope is in scope_values, drop end<=start, compact overlap/touch intervals per (env,severity_scope)",
+    "matching_scopes": "{all,max_severity} for each window; if max_severity is p2 and (env,p2) has no compacted intervals, borrow (env,p1) as the severity scope fallback",
     "rotation_overlap_union": "collect overlap segments from matching scopes then compact/union those segments to compute rotation_overlap_ms and rotation_segment_count",
     "dispatchable_duration_ms": "max(risk_adjusted_duration_ms - (rotation_overlap_ms // 3), 0)",
     "volatility_index": "stability_pressure_score + (all_rotation_probe_ms//24) + (severity_rotation_probe_ms//16) + (rotation_segment_count*2) where probe is [end_ms-240,end_ms+1)"
@@ -107,15 +107,15 @@
     "source_path": "/app/data/defer_windows.json",
     "same_env_only": true,
     "scope_values": ["all", "p1", "p2"],
-    "defer_canonicalization": "normalize env/scope/start/end, drop end<=start, compact overlap/touch intervals per (env,severity_scope)",
-    "matching_scopes": "{all,max_severity} for each window",
+    "defer_canonicalization": "normalize env/scope/start/end, keep rows whose severity_scope is in scope_values, drop end<=start, compact overlap/touch intervals per (env,severity_scope)",
+    "matching_scopes": "{all,max_severity} for each window; if max_severity is p2 and (env,p2) has no compacted intervals, borrow (env,p1) as the severity scope fallback",
     "defer_overlap_union": "collect overlap segments from matching scopes then compact/union those segments to compute defer_overlap_ms and defer_segment_count",
     "actionable_duration_ms": "max(dispatchable_duration_ms - (defer_overlap_ms // 4), 0)",
     "defer_pressure_score": "probe [end_ms-300,end_ms+1): (all_defer_probe_ms//40)+(severity_defer_probe_ms//28)+defer_segment_count"
   },
   "probe_scoring_contract": {
     "interval_semantics": "all source intervals and probes are half-open; overlap is max(0,min(probe_end,interval_end)-max(probe_start,interval_start))",
-    "scope_accounting": "all_probe_ms uses only the already-compacted (env,all) intervals and severity_probe_ms uses only the already-compacted (env,max_severity) intervals",
+    "scope_accounting": "all_probe_ms uses only the already-compacted (env,all) intervals; severity_probe_ms uses already-compacted (env,max_severity) intervals, except p2 windows fall back to (env,p1) when (env,p2) is empty",
     "cross_scope_rule": "do not union or deduplicate all-scope probe overlap against severity-scope probe overlap; an instant covered by both scopes contributes independently to both integer-division terms",
     "within_scope_rule": "source intervals are compacted within each (env,severity_scope) before probing, so overlap is not duplicated within one scope",
     "probe_end_rule": "the +1 endpoint is literal: an anchor E with lookback L probes [E-L,E+1), whose duration is L+1 milliseconds before clipping"
@@ -259,7 +259,7 @@
       "muted_encoding": "integer text 1 when normalized muted is true, otherwise integer text 0; never serialize JSON true/false",
       "canonical_alert_rows": "one alert_id|env|start_ms|end_ms|severity|muted_int|signature row for each canonical deduplicated alert, sorted by (env ascending, start_ms ascending, alert_id ascending)",
       "freeze_rows": "one env|start_ms|end_ms row for each compacted interval, sorted by env ascending and then interval (start_ms,end_ms) ascending",
-      "scoped_rows": "one env|severity_scope|start_ms|end_ms row for reopen/rotation/defer, sorted by (env,severity_scope) ascending and then interval (start_ms,end_ms) ascending",
+      "scoped_rows": "one env|severity_scope|start_ms|end_ms row for reopen/rotation/defer using only compacted rows whose severity_scope is in that source's scope_values allowlist; sort by (env,severity_scope) ascending and then interval (start_ms,end_ms) ascending",
       "ledger_rows": "one env|start_ms|idle_gap_ms|carry_in_ms|carry_out_ms|ledger_adjusted_actionable_ms row for every drift window, sorted by env ascending and start_ms ascending",
       "sha256_step": "compute lowercase hashlib.sha256(payload.encode('utf-8')).hexdigest()"
     },

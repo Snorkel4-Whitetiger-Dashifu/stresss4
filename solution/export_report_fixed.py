@@ -206,6 +206,19 @@ def defer_by_scope(rows: list[dict]) -> dict[tuple[str, str], list[tuple[int, in
     return {key: _compact_intervals(intervals) for key, intervals in by_key.items()}
 
 
+def _scope_intervals_for_window(
+    scope_map: dict[tuple[str, str], list[tuple[int, int]]],
+    env: str,
+    max_severity: str,
+) -> tuple[list[tuple[int, int]], list[tuple[int, int]]]:
+    all_intervals = scope_map.get((env, "all"), [])
+    severity_intervals = scope_map.get((env, max_severity), [])
+    # p2 windows borrow p1 scope when p2 is absent.
+    if max_severity == "p2" and not severity_intervals:
+        severity_intervals = scope_map.get((env, "p1"), [])
+    return all_intervals, severity_intervals
+
+
 def build_drift_windows(
     canonical: list[dict],
     freeze_rows: list[dict],
@@ -268,41 +281,50 @@ def build_drift_windows(
             freeze_overlap = sum(end - start for start, end in freeze_segments)
             effective_duration = max(duration - freeze_overlap, 0)
 
+            reopen_all, reopen_severity = _scope_intervals_for_window(
+                reopen_map, env, window["max_severity"]
+            )
             reopen_segments = _window_overlaps(
-                window["start_ms"], window["end_ms"], reopen_map.get((env, "all"), [])
+                window["start_ms"], window["end_ms"], reopen_all
             )
             reopen_segments.extend(
                 _window_overlaps(
                     window["start_ms"],
                     window["end_ms"],
-                    reopen_map.get((env, window["max_severity"]), []),
+                    reopen_severity,
                 )
             )
             compacted_reopen_segments = _compact_intervals(reopen_segments)
             reopen_overlap = sum(end - start for start, end in compacted_reopen_segments)
             risk_adjusted_duration = max(effective_duration - (reopen_overlap // 2), 0)
 
+            rotation_all, rotation_severity = _scope_intervals_for_window(
+                rotation_map, env, window["max_severity"]
+            )
             rotation_segments = _window_overlaps(
-                window["start_ms"], window["end_ms"], rotation_map.get((env, "all"), [])
+                window["start_ms"], window["end_ms"], rotation_all
             )
             rotation_segments.extend(
                 _window_overlaps(
                     window["start_ms"],
                     window["end_ms"],
-                    rotation_map.get((env, window["max_severity"]), []),
+                    rotation_severity,
                 )
             )
             compacted_rotation_segments = _compact_intervals(rotation_segments)
             rotation_overlap = sum(end - start for start, end in compacted_rotation_segments)
             dispatchable_duration = max(risk_adjusted_duration - (rotation_overlap // 3), 0)
+            defer_all, defer_severity = _scope_intervals_for_window(
+                defer_map, env, window["max_severity"]
+            )
             defer_segments = _window_overlaps(
-                window["start_ms"], window["end_ms"], defer_map.get((env, "all"), [])
+                window["start_ms"], window["end_ms"], defer_all
             )
             defer_segments.extend(
                 _window_overlaps(
                     window["start_ms"],
                     window["end_ms"],
-                    defer_map.get((env, window["max_severity"]), []),
+                    defer_severity,
                 )
             )
             compacted_defer_segments = _compact_intervals(defer_segments)
@@ -376,22 +398,28 @@ def build_response_queue(
             if window["ledger_adjusted_actionable_ms"] < include_min_ms:
                 continue
 
-            all_probe_ms = _probe_overlap_ms(window["end_ms"], reopen_map.get((env, "all"), []))
+            reopen_all, reopen_severity = _scope_intervals_for_window(
+                reopen_map, env, window["max_severity"]
+            )
+            all_probe_ms = _probe_overlap_ms(window["end_ms"], reopen_all)
             severity_probe_ms = _probe_overlap_ms(
                 window["end_ms"],
-                reopen_map.get((env, window["max_severity"]), []),
+                reopen_severity,
             )
             stability_pressure_score = (
                 (all_probe_ms // 30)
                 + (severity_probe_ms // 20)
                 + max(window["alert_count"] - 1, 0)
             )
+            rotation_all, rotation_severity = _scope_intervals_for_window(
+                rotation_map, env, window["max_severity"]
+            )
             all_rotation_probe_ms = _probe_overlap_ms(
-                window["end_ms"], rotation_map.get((env, "all"), []), lookback_ms=240
+                window["end_ms"], rotation_all, lookback_ms=240
             )
             severity_rotation_probe_ms = _probe_overlap_ms(
                 window["end_ms"],
-                rotation_map.get((env, window["max_severity"]), []),
+                rotation_severity,
                 lookback_ms=240,
             )
             volatility_index = (
@@ -400,12 +428,15 @@ def build_response_queue(
                 + (severity_rotation_probe_ms // 16)
                 + (window["rotation_segment_count"] * 2)
             )
+            defer_all, defer_severity = _scope_intervals_for_window(
+                defer_map, env, window["max_severity"]
+            )
             all_defer_probe_ms = _probe_overlap_ms(
-                window["end_ms"], defer_map.get((env, "all"), []), lookback_ms=300
+                window["end_ms"], defer_all, lookback_ms=300
             )
             severity_defer_probe_ms = _probe_overlap_ms(
                 window["end_ms"],
-                defer_map.get((env, window["max_severity"]), []),
+                defer_severity,
                 lookback_ms=300,
             )
             defer_pressure_score = (
