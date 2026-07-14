@@ -333,6 +333,7 @@ Shift lead logged a routine enforcement observation for fabric (central) during 
 Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
 
 ### Review entry 0080 — prod lane
+> **Governance decision (2026-03-04 - #FW-5211)** Lena: drift windows merge when next.start_ms <= current.end_ms + 30. *(Revised — see the 2026-05 decision log.)*
 Shift lead logged a routine enforcement observation for prod (east) during review window 0080. Firewall rule sync drill completed; drift alert acknowledgment stayed within the governance SLO.
 Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
 
@@ -353,6 +354,7 @@ Shift lead logged a routine enforcement observation for core (east) during revie
 Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
 
 ### Review entry 0085 — dmz lane
+> **Governance decision (2026-03-07 - #FW-5214)** Priya: risk_adjusted_duration_ms subtracts one third of the reopen overlap: max(effective_duration_ms - (reopen_overlap_ms // 3), 0). *(Revised — see the 2026-05 decision log.)*
 Shift lead logged a routine enforcement observation for dmz (west) during review window 0085. Rule-set rollback rehearsal ran clean; no changes to enforcement parameters were approved.
 Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
 > **Enforcement draft proposal (2026-02-26 - #FW-4840)** Anders: trust traversal should allow revisiting nodes so cyclic trust loops accumulate exposure credit *(Superseded — reversed in the 2026-05 governance review; see the matching decision entry.)*
@@ -374,6 +376,7 @@ Shift lead logged a routine enforcement observation for staging (west) during re
 Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
 
 ### Review entry 0090 — lab lane
+> **Governance decision (2026-03-10 - #FW-5217)** Priya: dispatchable_duration_ms subtracts half of the rotation overlap: max(risk_adjusted_duration_ms - (rotation_overlap_ms // 2), 0). *(Revised — see the 2026-05 decision log.)*
 Shift lead logged a routine enforcement observation for lab (north) during review window 0090. Firewall rule sync drill completed; drift alert acknowledgment stayed within the governance SLO.
 No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
 
@@ -394,6 +397,7 @@ Shift lead logged a routine enforcement observation for vault (north) during rev
 No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
 
 ### Review entry 0095 — fabric lane
+> **Governance decision (2026-03-13 - #FW-5221)** Marek: actionable_duration_ms subtracts one fifth of the defer overlap: max(dispatchable_duration_ms - (defer_overlap_ms // 5), 0). *(Revised — see the 2026-05 decision log.)*
 Shift lead logged a routine enforcement observation for fabric (central) during review window 0095. Rule-set rollback rehearsal ran clean; no changes to enforcement parameters were approved.
 Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
 
@@ -414,6 +418,7 @@ Shift lead logged a routine enforcement observation for edge (central) during re
 Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
 
 ### Review entry 0100 — core lane
+> **Governance decision (2026-03-16 - #FW-5224)** Yusuf: risk carry decays by one third of the idle gap and caps at 1800: carry_in_ms = max(previous.carry_out_ms - (idle_gap_ms // 3), 0); carry_out_ms is capped at 1800. *(Revised — see the 2026-05 decision log.)*
 Shift lead logged a routine enforcement observation for core (east) during review window 0100. Firewall rule sync drill completed; drift alert acknowledgment stayed within the governance SLO.
 Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
 
@@ -434,6 +439,7 @@ Shift lead logged a routine enforcement observation for prod (east) during revie
 Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
 
 ### Review entry 0105 — staging lane
+> **Governance decision (2026-03-19 - #FW-5227)** Lena: IAM trust edge weights are valid in 1..7 and traversal enumerates simple paths of at most two edges. *(Revised — see the 2026-05 decision log.)*
 Shift lead logged a routine enforcement observation for staging (west) during review window 0105. Rule-set rollback rehearsal ran clean; no changes to enforcement parameters were approved.
 Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
 
@@ -646,7 +652,7 @@ Historical CSV exports remain archived and non-authoritative for the JSON reconc
 ### Review entry 0157 — dmz lane
 Shift lead logged a routine enforcement observation for dmz (west) during review window 0157. Quarterly access recertification touched this lane; no compile-relevant configuration changed.
 Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
-> **Governance decision (2026-05-03 - #FW-5304)** Lena: drift windows group by normalized env; merge condition: next.start_ms <= current.end_ms + 45. Muted alerts are excluded from window construction. This supersedes #FW-4819.
+> **Governance decision (2026-05-03 - #FW-5304)** Lena: drift windows group by normalized env; merge condition: next.start_ms <= current.end_ms + 45. Muted alerts are excluded from window construction. This supersedes #FW-4819 and revises the +30 stitch in #FW-5211.
 
 ### Review entry 0158 — vault lane
 Shift lead logged a routine enforcement observation for vault (north) during review window 0158. Vendor ticket on webhook retries closed; delivery within contractual budget.
@@ -816,7 +822,7 @@ No reconciler semantics changed in this entry; parameters remain as approved by 
 ### Review entry 0199 — fabric lane
 Shift lead logged a routine enforcement observation for fabric (central) during review window 0199. Capacity review noted rising alert volume; thresholds unchanged outside the governance process.
 Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
-> **Governance decision (2026-05-04 - #FW-5307)** Priya: reopen layer: scope allowlist is ['all', 'p1', 'p2']; normalize env/scope/start/end, keep rows whose severity_scope is in scope_values, drop end<=start, compact overlap/touch intervals per (env,severity_scope). Rows with any other severity_scope are dropped entirely before compaction and checksums (supersedes #FW-4822). Matching scopes: {all,max_severity} for each window; if max_severity is p2 and (env,p2) has no compacted intervals, borrow (env,p1) as the severity scope fallback. Union: collect overlap segments from matching scopes then compact/union those segments to compute reopen_overlap_ms and reopen_segment_count. risk_adjusted_duration_ms = max(effective_duration_ms - (reopen_overlap_ms // 2), 0). stability_pressure_score: probe window [end_ms-180, end_ms+1) using reopen all + severity scopes; score=(all_probe_ms//30)+(severity_probe_ms//20)+max(alert_count-1,0).
+> **Governance decision (2026-05-04 - #FW-5307)** Priya: reopen layer: scope allowlist is ['all', 'p1', 'p2']; normalize env/scope/start/end, keep rows whose severity_scope is in scope_values, drop end<=start, compact overlap/touch intervals per (env,severity_scope). Rows with any other severity_scope are dropped entirely before compaction and checksums (supersedes #FW-4822). Matching scopes: {all,max_severity} for each window; if max_severity is p2 and (env,p2) has no compacted intervals, borrow (env,p1) as the severity scope fallback. Union: collect overlap segments from matching scopes then compact/union those segments to compute reopen_overlap_ms and reopen_segment_count. risk_adjusted_duration_ms = max(effective_duration_ms - (reopen_overlap_ms // 2), 0) — the //2 divisor is final and revises #FW-5214. stability_pressure_score: probe window [end_ms-180, end_ms+1) using reopen all + severity scopes; score=(all_probe_ms//30)+(severity_probe_ms//20)+max(alert_count-1,0).
 
 ### Review entry 0200 — prod lane
 Shift lead logged a routine enforcement observation for prod (east) during review window 0200. Firewall rule sync drill completed; drift alert acknowledgment stayed within the governance SLO.
@@ -901,7 +907,7 @@ Thread archived; see the #FW decision entries for anything affecting reconciler 
 ### Review entry 0220 — core lane
 Shift lead logged a routine enforcement observation for core (east) during review window 0220. Firewall rule sync drill completed; drift alert acknowledgment stayed within the governance SLO.
 Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
-> **Governance decision (2026-05-04 - #FW-5308)** Priya: rotation layer: scope allowlist ['all', 'p1', 'p2']; normalize env/scope/start/end, keep rows whose severity_scope is in scope_values, drop end<=start, compact overlap/touch intervals per (env,severity_scope). Matching scopes: {all,max_severity} for each window; if max_severity is p2 and (env,p2) has no compacted intervals, borrow (env,p1) as the severity scope fallback. Union: collect overlap segments from matching scopes then compact/union those segments to compute rotation_overlap_ms and rotation_segment_count. dispatchable_duration_ms = max(risk_adjusted_duration_ms - (rotation_overlap_ms // 3), 0). volatility_index: stability_pressure_score + (all_rotation_probe_ms//24) + (severity_rotation_probe_ms//16) + (rotation_segment_count*2) where probe is [end_ms-240,end_ms+1).
+> **Governance decision (2026-05-04 - #FW-5308)** Priya: rotation layer: scope allowlist ['all', 'p1', 'p2']; normalize env/scope/start/end, keep rows whose severity_scope is in scope_values, drop end<=start, compact overlap/touch intervals per (env,severity_scope). Matching scopes: {all,max_severity} for each window; if max_severity is p2 and (env,p2) has no compacted intervals, borrow (env,p1) as the severity scope fallback. Union: collect overlap segments from matching scopes then compact/union those segments to compute rotation_overlap_ms and rotation_segment_count. dispatchable_duration_ms = max(risk_adjusted_duration_ms - (rotation_overlap_ms // 3), 0) — the //3 divisor is final and revises #FW-5217. volatility_index: stability_pressure_score + (all_rotation_probe_ms//24) + (severity_rotation_probe_ms//16) + (rotation_segment_count*2) where probe is [end_ms-240,end_ms+1).
 
 ### Review entry 0221 — dmz lane
 Shift lead logged a routine enforcement observation for dmz (west) during review window 0221. Dashboard tiles for drift volume lagged during rule refresh; attributed to cache staleness, not the reconciler.
@@ -986,7 +992,7 @@ Historical CSV exports remain archived and non-authoritative for the JSON reconc
 ### Review entry 0241 — staging lane
 Shift lead logged a routine enforcement observation for staging (west) during review window 0241. Dashboard tiles for drift volume lagged during rule refresh; attributed to cache staleness, not the reconciler.
 Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
-> **Governance decision (2026-05-05 - #FW-5310)** Marek: defer layer: scope allowlist ['all', 'p1', 'p2']; normalize env/scope/start/end, keep rows whose severity_scope is in scope_values, drop end<=start, compact overlap/touch intervals per (env,severity_scope). Matching scopes: {all,max_severity} for each window; if max_severity is p2 and (env,p2) has no compacted intervals, borrow (env,p1) as the severity scope fallback. Union: collect overlap segments from matching scopes then compact/union those segments to compute defer_overlap_ms and defer_segment_count. actionable_duration_ms = max(dispatchable_duration_ms - (defer_overlap_ms // 4), 0). defer_pressure_score: probe [end_ms-300,end_ms+1): (all_defer_probe_ms//40)+(severity_defer_probe_ms//28)+defer_segment_count.
+> **Governance decision (2026-05-05 - #FW-5310)** Marek: defer layer: scope allowlist ['all', 'p1', 'p2']; normalize env/scope/start/end, keep rows whose severity_scope is in scope_values, drop end<=start, compact overlap/touch intervals per (env,severity_scope). Matching scopes: {all,max_severity} for each window; if max_severity is p2 and (env,p2) has no compacted intervals, borrow (env,p1) as the severity scope fallback. Union: collect overlap segments from matching scopes then compact/union those segments to compute defer_overlap_ms and defer_segment_count. actionable_duration_ms = max(dispatchable_duration_ms - (defer_overlap_ms // 4), 0) — the //4 divisor is final and revises #FW-5221. defer_pressure_score: probe [end_ms-300,end_ms+1): (all_defer_probe_ms//40)+(severity_defer_probe_ms//28)+defer_segment_count.
 
 ### Review entry 0242 — lab lane
 Shift lead logged a routine enforcement observation for lab (north) during review window 0242. Change-board reviewed stale exception approvals; owners pinged before the next enforcement cycle.
@@ -1156,7 +1162,7 @@ No reconciler semantics changed in this entry; parameters remain as approved by 
 ### Review entry 0283 — edge lane
 Shift lead logged a routine enforcement observation for edge (central) during review window 0283. IAM trust edge audit sampled cross-account roles; no reconciler-relevant findings for this lane.
 Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
-> **Governance decision (2026-05-06 - #FW-5313)** Yusuf: risk ledger: state is independent per normalized env; process each env's merged windows in start_ms ascending order after all four attenuation layers are complete. First window: idle_gap_ms=0, carry_in_ms=0. idle_gap_ms: for later windows max(current.start_ms-previous.end_ms,0). carry_in_ms = max(previous.carry_out_ms-(idle_gap_ms//2),0). ledger_adjusted_actionable_ms = actionable_duration_ms+(carry_in_ms//4). carry_out_ms = min(carry_in_ms+actionable_duration_ms+(rotation_segment_count*15)+(defer_segment_count*10),2000). finalize carry_out_ms for one window before evaluating the next window in the same env. This supersedes #FW-4835.
+> **Governance decision (2026-05-06 - #FW-5313)** Yusuf: risk ledger: state is independent per normalized env; process each env's merged windows in start_ms ascending order after all four attenuation layers are complete. First window: idle_gap_ms=0, carry_in_ms=0. idle_gap_ms: for later windows max(current.start_ms-previous.end_ms,0). carry_in_ms = max(previous.carry_out_ms-(idle_gap_ms//2),0). ledger_adjusted_actionable_ms = actionable_duration_ms+(carry_in_ms//4). carry_out_ms = min(carry_in_ms+actionable_duration_ms+(rotation_segment_count*15)+(defer_segment_count*10),2000). finalize carry_out_ms for one window before evaluating the next window in the same env. The //2 idle decay and the 2000 cap are final and revise #FW-5224. This supersedes #FW-4835.
 
 ### Review entry 0284 — core lane
 Shift lead logged a routine enforcement observation for core (east) during review window 0284. Synthetic drift injection verified pager delivery to the containment rotation for this region.
@@ -1326,7 +1332,7 @@ Historical CSV exports remain archived and non-authoritative for the JSON reconc
 ### Review entry 0325 — dmz lane
 Shift lead logged a routine enforcement observation for dmz (west) during review window 0325. Rule-set rollback rehearsal ran clean; no changes to enforcement parameters were approved.
 Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
-> **Governance decision (2026-05-07 - #FW-5316)** Lena: IAM trust edges: normalize source_env and target_env with canonicalization.env_normalization; coerce weight with int(str(value).strip()) and invalid to 0; discard self edges and weights outside 1..9; collapse duplicate directed (source_env,target_env) rows by maximum weight. edges are directed from source_env to target_env.
+> **Governance decision (2026-05-07 - #FW-5316)** Lena: IAM trust edges: normalize source_env and target_env with canonicalization.env_normalization; coerce weight with int(str(value).strip()) and invalid to 0; discard self edges and weights outside 1..9 (the 1..9 bound is final and revises #FW-5227); collapse duplicate directed (source_env,target_env) rows by maximum weight. edges are directed from source_env to target_env.
 
 ### Review entry 0326 — vault lane
 Shift lead logged a routine enforcement observation for vault (north) during review window 0326. Noise review: repeated drift alerts traced to a flapping policy probe, muted at the source.
@@ -1411,7 +1417,7 @@ Reviewers should reconcile behavior questions against #FW governance decisions r
 ### Review entry 0346 — lab lane
 Shift lead logged a routine enforcement observation for lab (north) during review window 0346. Noise review: repeated drift alerts traced to a flapping policy probe, muted at the source.
 No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
-> **Governance decision (2026-05-07 - #FW-5317)** Lena: trust traversal: for each drift window, begin at its normalized env and enumerate simple directed paths of one, two, or three edges; a simple path never repeats a node, so cycles are bounded and the origin cannot reappear Path score: sum canonical edge weights along the path. This supersedes #FW-4840.
+> **Governance decision (2026-05-07 - #FW-5317)** Lena: trust traversal: for each drift window, begin at its normalized env and enumerate simple directed paths of one, two, or three edges (the three-edge bound is final and revises #FW-5227); a simple path never repeats a node, so cycles are bounded and the origin cannot reappear Path score: sum canonical edge weights along the path. This supersedes #FW-4840.
 
 ### Review entry 0347 — edge lane
 Shift lead logged a routine enforcement observation for edge (central) during review window 0347. Quarterly access recertification touched this lane; no compile-relevant configuration changed.

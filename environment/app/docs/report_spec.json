@@ -187,7 +187,36 @@
   "drift_windows_json": {
     "shape": "flat map {env: [window, ...]}",
     "env_sort": "ascending",
-    "window_sort": "start_ms ascending"
+    "window_sort": "start_ms ascending",
+    "required_fields": [
+      "start_ms",
+      "end_ms",
+      "duration_ms",
+      "freeze_overlap_ms",
+      "freeze_segment_count",
+      "effective_duration_ms",
+      "reopen_overlap_ms",
+      "reopen_segment_count",
+      "risk_adjusted_duration_ms",
+      "rotation_overlap_ms",
+      "rotation_segment_count",
+      "dispatchable_duration_ms",
+      "defer_overlap_ms",
+      "defer_segment_count",
+      "actionable_duration_ms",
+      "idle_gap_ms",
+      "carry_in_ms",
+      "carry_out_ms",
+      "ledger_adjusted_actionable_ms",
+      "trust_reachable_envs",
+      "trust_exposure_score",
+      "trust_strongest_path",
+      "trust_path_digest",
+      "alert_count",
+      "source_alert_ids",
+      "max_severity"
+    ],
+    "field_policy": "Each window row carries EXACTLY the required_fields keys \u2014 no extras and no omissions. Queue-level fields (ticket_id, priority, queue_hash, window_digest, stability_pressure_score, volatility_index, defer_pressure_score, ledger_pressure_score, stability_index) belong only to response_queue.jsonl rows. env is the top-level map key, not a row field."
   },
   "digest_payloads": {
     "trust_path_digest": "first 12 lowercase hex chars of sha256(origin|trust_exposure_score|semicolon_joined_target_rows), where each target row in trust_reachable_envs order is target:score:path_nodes_joined_by_>"
