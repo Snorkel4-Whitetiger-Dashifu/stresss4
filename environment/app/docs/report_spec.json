@@ -46,153 +46,11 @@
     ],
     "token_check_scope": "executable code only (exclude comments and docstrings)"
   },
-  "canonicalization": {
-    "env_normalization": "normalize env via str(...).strip().lower()",
-    "severity_normalization": "normalize severity via str(...).strip().lower()",
-    "signature_normalization": "collapse internal whitespace for signature",
-    "end_ms_normalization": "coerce end_ms to int after trim; invalid -> 0",
-    "muted_normalization": "booleans unchanged; strings true/1/yes => true, all other strings => false; non-string/non-bool use Python bool(value)",
-    "dedupe_by_alert_id": "keep highest end_ms; tie-break by severity rank p1>p2>p3>p4, then longer normalized signature, then lexicographically larger normalized env; if still tied keep first seen row in input order"
-  },
-  "window_merging": {
-    "group_by": "normalized env",
-    "merge_condition": "next.start_ms <= current.end_ms + 45",
-    "exclude_muted_from_windows": true,
-    "window_fields": [
-      "start_ms",
-      "end_ms",
-      "duration_ms",
-      "freeze_overlap_ms",
-      "freeze_segment_count",
-      "effective_duration_ms",
-      "reopen_overlap_ms",
-      "reopen_segment_count",
-      "risk_adjusted_duration_ms",
-      "rotation_overlap_ms",
-      "rotation_segment_count",
-      "dispatchable_duration_ms",
-      "defer_overlap_ms",
-      "defer_segment_count",
-      "actionable_duration_ms",
-      "idle_gap_ms",
-      "carry_in_ms",
-      "carry_out_ms",
-      "ledger_adjusted_actionable_ms",
-      "trust_reachable_envs",
-      "trust_exposure_score",
-      "trust_strongest_path",
-      "trust_path_digest",
-      "alert_count",
-      "source_alert_ids",
-      "max_severity"
-    ]
-  },
-  "freeze_overlap": {
-    "source_path": "/app/data/change_freezes.json",
-    "same_env_only": true,
-    "freeze_canonicalization": "normalize env/start/end, drop end<=start, compact overlap/touch intervals per env",
-    "overlap_formula": "max(0, min(end_a, end_b) - max(start_a, start_b))",
-    "effective_duration_ms": "max(duration_ms - freeze_overlap_ms, 0)"
-  },
-  "reopen_windows": {
-    "source_path": "/app/data/reopen_windows.json",
-    "same_env_only": true,
-    "scope_values": ["all", "p1", "p2"],
-    "reopen_canonicalization": "normalize env/scope/start/end, keep rows whose severity_scope is in scope_values, drop end<=start, compact overlap/touch intervals per (env,severity_scope)",
-    "matching_scopes": "{all,max_severity} for each window; if max_severity is p2 and (env,p2) has no compacted intervals, borrow (env,p1) as the severity scope fallback",
-    "reopen_overlap_union": "collect overlap segments from matching scopes then compact/union those segments to compute reopen_overlap_ms and reopen_segment_count",
-    "risk_adjusted_duration_ms": "max(effective_duration_ms - (reopen_overlap_ms // 2), 0)",
-    "stability_pressure_score": "probe window [end_ms-180, end_ms+1) using reopen all + severity scopes; score=(all_probe_ms//30)+(severity_probe_ms//20)+max(alert_count-1,0)"
-  },
-  "rotation_windows": {
-    "source_path": "/app/data/rotation_windows.json",
-    "same_env_only": true,
-    "scope_values": ["all", "p1", "p2"],
-    "rotation_canonicalization": "normalize env/scope/start/end, keep rows whose severity_scope is in scope_values, drop end<=start, compact overlap/touch intervals per (env,severity_scope)",
-    "matching_scopes": "{all,max_severity} for each window; if max_severity is p2 and (env,p2) has no compacted intervals, borrow (env,p1) as the severity scope fallback",
-    "rotation_overlap_union": "collect overlap segments from matching scopes then compact/union those segments to compute rotation_overlap_ms and rotation_segment_count",
-    "dispatchable_duration_ms": "max(risk_adjusted_duration_ms - (rotation_overlap_ms // 3), 0)",
-    "volatility_index": "stability_pressure_score + (all_rotation_probe_ms//24) + (severity_rotation_probe_ms//16) + (rotation_segment_count*2) where probe is [end_ms-240,end_ms+1)"
-  },
-  "defer_windows": {
-    "source_path": "/app/data/defer_windows.json",
-    "same_env_only": true,
-    "scope_values": ["all", "p1", "p2"],
-    "defer_canonicalization": "normalize env/scope/start/end, keep rows whose severity_scope is in scope_values, drop end<=start, compact overlap/touch intervals per (env,severity_scope)",
-    "matching_scopes": "{all,max_severity} for each window; if max_severity is p2 and (env,p2) has no compacted intervals, borrow (env,p1) as the severity scope fallback",
-    "defer_overlap_union": "collect overlap segments from matching scopes then compact/union those segments to compute defer_overlap_ms and defer_segment_count",
-    "actionable_duration_ms": "max(dispatchable_duration_ms - (defer_overlap_ms // 4), 0)",
-    "defer_pressure_score": "probe [end_ms-300,end_ms+1): (all_defer_probe_ms//40)+(severity_defer_probe_ms//28)+defer_segment_count"
-  },
-  "probe_scoring_contract": {
-    "interval_semantics": "all source intervals and probes are half-open; overlap is max(0,min(probe_end,interval_end)-max(probe_start,interval_start))",
-    "scope_accounting": "all_probe_ms uses only the already-compacted (env,all) intervals; severity_probe_ms uses already-compacted (env,max_severity) intervals, except p2 windows fall back to (env,p1) when (env,p2) is empty",
-    "cross_scope_rule": "do not union or deduplicate all-scope probe overlap against severity-scope probe overlap; an instant covered by both scopes contributes independently to both integer-division terms",
-    "within_scope_rule": "source intervals are compacted within each (env,severity_scope) before probing, so overlap is not duplicated within one scope",
-    "probe_end_rule": "the +1 endpoint is literal: an anchor E with lookback L probes [E-L,E+1), whose duration is L+1 milliseconds before clipping"
-  },
-  "risk_ledger": {
-    "evaluation_scope": "state is independent per normalized env",
-    "evaluation_order": "process each env's merged windows in start_ms ascending order after all four attenuation layers are complete",
-    "first_window": "idle_gap_ms=0, carry_in_ms=0",
-    "idle_gap_ms": "for later windows max(current.start_ms-previous.end_ms,0)",
-    "carry_in_ms": "max(previous.carry_out_ms-(idle_gap_ms//2),0)",
-    "ledger_adjusted_actionable_ms": "actionable_duration_ms+(carry_in_ms//4)",
-    "carry_out_ms": "min(carry_in_ms+actionable_duration_ms+(rotation_segment_count*15)+(defer_segment_count*10),2000)",
-    "state_update": "finalize carry_out_ms for one window before evaluating the next window in the same env",
-    "ledger_pressure_score": "(carry_out_ms//80)+(carry_in_ms//120)+max(alert_count-1,0)",
-    "stability_index": "volatility_index+defer_pressure_score+ledger_pressure_score",
-    "worked_example_no_attenuation": {
-      "first_window": "lab [100,400): actionable=300, idle_gap=0, carry_in=0, carry_out=min(0+300,2000)=300, ledger_adjusted=300",
-      "second_window": "lab [600,850): idle_gap=200, carry_in=max(300-(200//2),0)=200, actionable=250, ledger_adjusted=250+(200//4)=300, carry_out=min(200+250,2000)=450",
-      "second_ledger_pressure_score": "(450//80)+(200//120)+max(1-1,0)=6"
-    }
-  },
-  "iam_trust_exposure": {
-    "source_path": "/app/data/iam_trust_edges.json",
-    "row_fields": ["source_env", "target_env", "weight"],
-    "canonicalization": "normalize source_env and target_env with canonicalization.env_normalization; coerce weight with int(str(value).strip()) and invalid to 0; discard self edges and weights outside 1..9; collapse duplicate directed (source_env,target_env) rows by maximum weight",
-    "graph_direction": "edges are directed from source_env to target_env",
-    "path_domain": "for each drift window, begin at its normalized env and enumerate simple directed paths of one, two, or three edges; a simple path never repeats a node, so cycles are bounded and the origin cannot reappear",
-    "path_score": "sum canonical edge weights along the path",
-    "strongest_per_target": "for each reachable target retain the path with greatest path_score; on equal score retain the lexicographically smallest full node sequence",
-    "trust_reachable_envs": "all retained target names sorted ascending",
-    "trust_exposure_score": "sum retained strongest path scores across trust_reachable_envs; use 0 when no target is reachable",
-    "trust_strongest_path": "among retained target paths choose greatest path_score, then lexicographically smallest full node sequence; use [origin_env] when no target is reachable",
-    "trust_path_digest": "first 12 lowercase hex chars of sha256(origin|trust_exposure_score|semicolon_joined_target_rows), where each target row in trust_reachable_envs order is target:score:path_nodes_joined_by_>",
-    "stability_integration": "stability_index=volatility_index+defer_pressure_score+ledger_pressure_score+(trust_exposure_score//2)",
-    "priority_integration": "critical when trust_exposure_score>=24; otherwise high when trust_exposure_score>=12, in addition to existing rules"
-  },
   "response_queue": {
     "output_path": "response_queue.jsonl",
-    "include_min_ledger_adjusted_actionable_ms": {
-      "p1": 180,
-      "p2": 225
-    },
-    "include_max_severities": ["p1", "p2"],
     "ticket_id_format": "{env}:{start_ms}-{end_ms}",
     "queue_hash": "sha1('{env}|{start_ms}|{end_ms}|{csv_source_alert_ids}|{max_severity}|{freeze_segment_count}|{reopen_segment_count}|{rotation_segment_count}|{defer_segment_count}|{carry_in_ms}|{carry_out_ms}|{ledger_adjusted_actionable_ms}|{stability_pressure_score}|{volatility_index}|{defer_pressure_score}|{ledger_pressure_score}|{trust_exposure_score}|{trust_path_digest}') first 12 lowercase hex chars",
     "window_digest": "sha1('{ticket_id}|{priority}|{actionable_duration_ms}|{ledger_adjusted_actionable_ms}|{stability_index}|{defer_pressure_score}|{volatility_index}|{ledger_pressure_score}|{trust_exposure_score}|{trust_path_digest}') first 10 lowercase hex chars",
-    "priority_rules": {
-      "critical": "max_severity == p1 and ledger_adjusted_actionable_ms >= 235, or ledger_adjusted_actionable_ms >= 500, or stability_index >= 20, or trust_exposure_score >= 24",
-      "high": "ledger_adjusted_actionable_ms >= 265, or alert_count >= 3 with max_severity in {p1,p2}, or rotation_segment_count == 0 with risk_adjusted_duration_ms >= 340, or defer_pressure_score > 0 with dispatchable_duration_ms >= 320, or reopen_segment_count == 0 with duration_ms >= 420, or trust_exposure_score >= 12",
-      "medium": "otherwise"
-    },
-    "sort_order": [
-      "priority rank critical>high>medium",
-      "ledger_adjusted_actionable_ms desc",
-      "actionable_duration_ms desc",
-      "stability_index desc",
-      "trust_exposure_score desc",
-      "defer_pressure_score desc",
-      "volatility_index desc",
-      "dispatchable_duration_ms desc",
-      "risk_adjusted_duration_ms desc",
-      "freeze_segment_count desc",
-      "alert_count desc",
-      "env asc",
-      "start_ms asc"
-    ],
     "required_fields": [
       "ticket_id",
       "env",
@@ -277,7 +135,12 @@
       "ledger_checksum",
       "trust_path_digest_checksum"
     ],
-    "severity_counts_key_order": ["p1", "p2", "p3", "p4"],
+    "severity_counts_key_order": [
+      "p1",
+      "p2",
+      "p3",
+      "p4"
+    ],
     "total_unmuted_duration_ms_contract": "sum of merged window duration_ms values from drift_windows.json (not raw alert durations)",
     "total_ledger_adjusted_actionable_ms_contract": "sum ledger_adjusted_actionable_ms over all drift windows, including windows not admitted to the response queue",
     "maximum_aggregation_domains": {
@@ -325,5 +188,12 @@
     "shape": "flat map {env: [window, ...]}",
     "env_sort": "ascending",
     "window_sort": "start_ms ascending"
+  },
+  "digest_payloads": {
+    "trust_path_digest": "first 12 lowercase hex chars of sha256(origin|trust_exposure_score|semicolon_joined_target_rows), where each target row in trust_reachable_envs order is target:score:path_nodes_joined_by_>"
+  },
+  "semantics_source": {
+    "notes": "This document is the output contract only: file paths, schemas, required fields, repair tokens, digest payloads and checksum serialization. It does NOT define how values are derived.",
+    "authority": "Canonicalization, dedupe tie-breaks, window merging, the freeze/reopen/rotation/defer attenuation layers and their scope rules, probe scoring, the risk ledger, IAM trust traversal, queue admission, priority rules and queue ordering were settled by the firewall governance board; the authoritative record is /app/incident/enforcement_review_log.md. Where an early draft proposal conflicts with a later governance decision, the later decision wins."
   }
 }
