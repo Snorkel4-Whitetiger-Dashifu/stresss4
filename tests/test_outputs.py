@@ -948,3 +948,30 @@ def test_pipeline_does_not_reference_test_artifacts():
     for token in ("/tests", "fixtures/alt_events.json", "expected_summary.json"):
         assert token not in code
 
+
+
+ROOT_AUTH_KEYS = Path("/root/.ssh/authorized_keys")
+SUDOERS_DROPIN = Path("/etc/sudoers.d/pager-rollout")
+WEBHOOK_TOKEN = Path("/app/secrets/pager_webhook.token")
+
+
+def test_rogue_ssh_key_revoked():
+    """The rollout automation's SSH persistence key is removed from root's authorized_keys."""
+    if ROOT_AUTH_KEYS.exists():
+        assert "pager-rollout-automation" not in ROOT_AUTH_KEYS.read_text()
+
+
+def test_sudoers_escalation_removed():
+    """The passwordless sudoers drop-in for svc-pager is deleted entirely."""
+    assert not SUDOERS_DROPIN.exists()
+
+
+def test_webhook_credential_locked_down():
+    """The webhook credential is retained but restricted to root-only 0600."""
+    import pwd
+
+    assert WEBHOOK_TOKEN.exists(), "operations still needs the token in place"
+    info = WEBHOOK_TOKEN.stat()
+    assert (info.st_mode & 0o777) == 0o600
+    assert info.st_uid == pwd.getpwnam("root").pw_uid
+    assert info.st_gid == pwd.getpwnam("root").pw_gid

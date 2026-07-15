@@ -3,5 +3,23 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# --- Contain the host per /app/docs/containment_runbook.md ---
+
+# Revoke the rollout automation's SSH persistence, preserving any other keys.
+if [ -f /root/.ssh/authorized_keys ]; then
+  grep -v 'pager-rollout-automation' /root/.ssh/authorized_keys > /root/.ssh/authorized_keys.tmp || true
+  mv /root/.ssh/authorized_keys.tmp /root/.ssh/authorized_keys
+  chmod 600 /root/.ssh/authorized_keys
+fi
+
+# Remove the passwordless sudoers escalation entirely.
+rm -f /etc/sudoers.d/pager-rollout
+
+# Lock down the exposed webhook credential (keep it, restrict to root 0600).
+chown root:root /app/secrets/pager_webhook.token
+chmod 0600 /app/secrets/pager_webhook.token
+
+# --- Restore the reconciler and produce responder outputs ---
+
 cp "${SCRIPT_DIR}/export_report_fixed.py" /app/workflow/export_report.py
 python3 /app/workflow/export_report.py --output-dir /app/output
