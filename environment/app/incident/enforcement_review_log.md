@@ -1963,3 +1963,510 @@ Historical CSV exports remain archived and non-authoritative for the JSON reconc
 ### Review entry 0481 — staging lane
 Shift lead logged a routine enforcement observation for staging (west) during review window 0481. Dashboard tiles for drift volume lagged during rule refresh; attributed to cache staleness, not the reconciler.
 Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
+
+
+## Communications Retro — Rollout Incident (filed 2026-05-30)
+The comms retro reviewed how decisions traveled during the enforcement incident, because two early misimplementations traced back to engineers acting on chat summaries rather than ticketed decisions. Findings: the governance board's decisions were consistently correct at the ticket level, but paraphrases posted to the incident channel dropped qualifiers — most notably scope restrictions — and those paraphrases were what several implementers actually read. The retro adopted three practices. First, decision announcements in chat must link the ticket and quote its operative sentence verbatim, with paraphrase explicitly labeled as non-authoritative. Second, the weekly digest pilots a superseded-by column so anyone skimming can see at a glance which February drafts and March interim positions were later revised, without having to reconstruct the chain by hand. Third, the incident channel's pinned post now states the reading rule that already governs this archive: where an earlier proposal and a later decision disagree, the later decision governs, and the ticketed record — not chat — is the source of truth. The retro closed by reaffirming that no communications practice changes any reconciler semantics; the tickets remain the only mechanism by which compile behavior changes, and the archive below them remains the authoritative record.
+
+
+> **Governance decision (2026-05-24 - #FW-5330)** Rosa: enforcement dashboard tiles retain ninety days of drift history; older windows are served from the evidence archive on demand. Dashboard retention is an operational setting and carries no weight in reconciler computation.
+
+> **Governance decision (2026-05-27 - #FW-5333)** Anders: the paging rota moves to a two-lane primary/secondary model per window; acknowledgment SLO stays at five minutes. Rota shape does not affect queue admission, priority, or ordering.
+
+
+### Review entry 0482 — core lane
+Shift lead logged a routine enforcement observation for core (east) during review window 0482. Quarterly access recertification for the enforcement dashboards closed with two dormant reviewer accounts disabled; no service principals were touched. The rule-refresh drill completed in nine minutes; the runbook's fifteen-minute budget stands with no change requested.
+Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
+
+### Review entry 0483 — dmz lane
+Shift lead logged a routine enforcement observation for dmz (west) during review window 0483. A typo fix in the schema reference doc was merged; reviewers confirmed it altered prose only, not any field list.
+Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
+
+### Review entry 0484 — edge lane
+Shift lead logged a routine enforcement observation for edge (central) during review window 0484. The comms channel piloted a weekly digest of #FW decisions; the pilot continues through the end of the quarter.
+No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
+
+### Review entry 0485 — fabric lane
+Shift lead logged a routine enforcement observation for fabric (central) during review window 0485. The board reconfirmed that lane-local experiments must not write to the shared evidence store. The comms channel piloted a weekly digest of #FW decisions; the pilot continues through the end of the quarter.
+Filed for context only; the authoritative record for compile behavior stays with the #FW tickets.
+
+### Review entry 0486 — lab lane
+Shift lead logged a routine enforcement observation for lab (north) during review window 0486. Change-window grooming moved four stale exception approvals back to their owners for re-justification before the next cycle.
+Nothing in this window altered admission, priority, or ordering; those remain governed by the ticketed decisions.
+
+### Review entry 0487 — prod lane
+Shift lead logged a routine enforcement observation for prod (east) during review window 0487. A tabletop prep note asked lanes to verify their escalation trees before the Q2 exercise; three lanes confirmed same day.
+Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
+
+### Review entry 0488 — staging lane
+Shift lead logged a routine enforcement observation for staging (west) during review window 0488. The drill scribe rotated per the roster; minutes were filed within the same business day. Post-deploy verification matched tile counts against the queue artifact; figures agreed on the first pass.
+Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
+
+### Review entry 0489 — vault lane
+Shift lead logged a routine enforcement observation for vault (north) during review window 0489. SIEM ingest lag spiked for eleven minutes during the log-shipper restart; alert timestamps were unaffected because the reconciler reads posted event times, not ingest times.
+Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
+
+### Review entry 0490 — core lane
+Shift lead logged a routine enforcement observation for core (east) during review window 0490. Retention sampling of archived evidence bundles passed spot audit; two bundles were re-indexed for slow retrieval.
+No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
+
+### Review entry 0491 — dmz lane
+Shift lead logged a routine enforcement observation for dmz (west) during review window 0491. A reviewer flagged that two chat excerpts contradicted a ticketed decision; the thread was annotated to point at the ticket as authoritative. Retention sampling of archived evidence bundles passed spot audit; two bundles were re-indexed for slow retrieval.
+Filed for context only; the authoritative record for compile behavior stays with the #FW tickets.
+
+### Review entry 0492 — edge lane
+Shift lead logged a routine enforcement observation for edge (central) during review window 0492. An access request for the evidence bucket was declined pending manager re-approval; no data was exposed.
+Nothing in this window altered admission, priority, or ordering; those remain governed by the ticketed decisions.
+
+### Review entry 0493 — fabric lane
+Shift lead logged a routine enforcement observation for fabric (central) during review window 0493. The rule-refresh drill completed in nine minutes; the runbook's fifteen-minute budget stands with no change requested.
+Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
+
+### Review entry 0494 — lab lane
+Shift lead logged a routine enforcement observation for lab (north) during review window 0494. Backlog grooming closed six informational tickets that referenced the pre-rollout compiler; none carried behavior decisions. A stale bookmark in the operations wiki still pointed at the deprecated compiler notes; the link was retired.
+Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
+
+### Review entry 0495 — prod lane
+Shift lead logged a routine enforcement observation for prod (east) during review window 0495. A monitoring rule for dashboard staleness was tuned to stop double-paging when a refresh overlaps a deploy.
+Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
+
+### Review entry 0496 — staging lane
+Shift lead logged a routine enforcement observation for staging (west) during review window 0496. The on-call handoff template gained a checklist row for confirming the drift dashboard is live before accepting the pager.
+No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
+
+### Review entry 0497 — vault lane
+Shift lead logged a routine enforcement observation for vault (north) during review window 0497. The dashboard TLS certificate was rotated ahead of expiry; tiles rendered stale for one refresh cycle and recovered without intervention. The on-call handoff template gained a checklist row for confirming the drift dashboard is live before accepting the pager.
+Filed for context only; the authoritative record for compile behavior stays with the #FW tickets.
+
+### Review entry 0498 — core lane
+Shift lead logged a routine enforcement observation for core (east) during review window 0498. Log-retention verification confirmed the ninety-day tier is intact; nothing in the enforcement path reads beyond thirty days.
+Nothing in this window altered admission, priority, or ordering; those remain governed by the ticketed decisions.
+
+### Review entry 0499 — dmz lane
+Shift lead logged a routine enforcement observation for dmz (west) during review window 0499. Post-deploy verification matched tile counts against the queue artifact; figures agreed on the first pass.
+Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
+
+### Review entry 0500 — edge lane
+Shift lead logged a routine enforcement observation for edge (central) during review window 0500. Capacity review noted alert volume trending up week over week; the board declined to adjust any thresholds outside the governance process. A tabletop prep note asked lanes to verify their escalation trees before the Q2 exercise; three lanes confirmed same day.
+Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
+
+### Review entry 0501 — fabric lane
+Shift lead logged a routine enforcement observation for fabric (central) during review window 0501. An audit sampling pass matched queue artifacts against their recorded digests; no mismatches were observed.
+Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
+
+### Review entry 0502 — lab lane
+Shift lead logged a routine enforcement observation for lab (north) during review window 0502. Two junior reviewers completed shadowing rotations and were added to the secondary review pool.
+No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
+
+### Review entry 0503 — prod lane
+Shift lead logged a routine enforcement observation for prod (east) during review window 0503. A vendor webhook flapped twice during the window; both flaps were absorbed by the retry queue and no enforcement decision was involved. Two junior reviewers completed shadowing rotations and were added to the secondary review pool.
+Filed for context only; the authoritative record for compile behavior stays with the #FW tickets.
+
+### Review entry 0504 — staging lane
+Shift lead logged a routine enforcement observation for staging (west) during review window 0504. Pager noise stayed within the governance SLO; the single page during the window was acknowledged inside four minutes.
+Nothing in this window altered admission, priority, or ordering; those remain governed by the ticketed decisions.
+
+### Review entry 0505 — vault lane
+Shift lead logged a routine enforcement observation for vault (north) during review window 0505. A stale bookmark in the operations wiki still pointed at the deprecated compiler notes; the link was retired.
+Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
+
+### Review entry 0506 — core lane
+Shift lead logged a routine enforcement observation for core (east) during review window 0506. Quarterly access recertification for the enforcement dashboards closed with two dormant reviewer accounts disabled; no service principals were touched. The rule-refresh drill completed in nine minutes; the runbook's fifteen-minute budget stands with no change requested.
+Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
+
+### Review entry 0507 — dmz lane
+Shift lead logged a routine enforcement observation for dmz (west) during review window 0507. A typo fix in the schema reference doc was merged; reviewers confirmed it altered prose only, not any field list.
+Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
+
+### Review entry 0508 — edge lane
+Shift lead logged a routine enforcement observation for edge (central) during review window 0508. The comms channel piloted a weekly digest of #FW decisions; the pilot continues through the end of the quarter.
+No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
+
+### Review entry 0509 — fabric lane
+Shift lead logged a routine enforcement observation for fabric (central) during review window 0509. The board reconfirmed that lane-local experiments must not write to the shared evidence store. The comms channel piloted a weekly digest of #FW decisions; the pilot continues through the end of the quarter.
+Filed for context only; the authoritative record for compile behavior stays with the #FW tickets.
+
+### Review entry 0510 — lab lane
+Shift lead logged a routine enforcement observation for lab (north) during review window 0510. Change-window grooming moved four stale exception approvals back to their owners for re-justification before the next cycle.
+Nothing in this window altered admission, priority, or ordering; those remain governed by the ticketed decisions.
+
+### Review entry 0511 — prod lane
+Shift lead logged a routine enforcement observation for prod (east) during review window 0511. A tabletop prep note asked lanes to verify their escalation trees before the Q2 exercise; three lanes confirmed same day.
+Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
+
+
+## Q2 Tabletop Exercise — Minutes (2026-06-03)
+The quarterly tabletop walked the full drift-to-containment path with the reconciler treated as a black box: a synthetic alert burst was injected into a staging replica, and each lane's on-call narrated the actions they would take from the artifacts alone. Facilitators stopped the clock four times. The first stop tested whether responders could tell an attenuated window from an admitted one using only the queue artifact and the runbook; all lanes answered correctly but two took over five minutes, and the board asked for a one-page reading guide rather than any change to the artifacts themselves. The second stop simulated a stale dashboard during an active page; the on-call correctly fell back to the queue file on disk, which the facilitators noted as the intended behavior since the dashboard is a projection, never the record. The third stop was a deliberately malformed escalation where the paged lane did not own the affected environment; the handoff completed in ninety seconds using the escalation tree verified in the prep notes. The final stop rehearsed evidence preservation: responders exported the queue and summary artifacts, recorded their digests in the incident channel, and confirmed the frozen snapshot remained untouched. Action items: publish the reading guide, add the digest-recording step to the runbook appendix, and schedule a repeat run with the secondary review pool as primary. No action item touches reconciler behavior; the board minuted explicitly that all compile semantics remain exactly as ticketed.
+
+
+> **Governance decision (2026-06-02 - #FW-5336)** Rosa: evidence bundles must record artifact digests at export time and again at archive ingest; a mismatch quarantines the bundle for manual review. This governs evidence handling only, not artifact contents.
+
+
+### Review entry 0512 — staging lane
+Shift lead logged a routine enforcement observation for staging (west) during review window 0512. The drill scribe rotated per the roster; minutes were filed within the same business day. Post-deploy verification matched tile counts against the queue artifact; figures agreed on the first pass.
+Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
+
+### Review entry 0513 — vault lane
+Shift lead logged a routine enforcement observation for vault (north) during review window 0513. SIEM ingest lag spiked for eleven minutes during the log-shipper restart; alert timestamps were unaffected because the reconciler reads posted event times, not ingest times.
+Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
+
+### Review entry 0514 — core lane
+Shift lead logged a routine enforcement observation for core (east) during review window 0514. Retention sampling of archived evidence bundles passed spot audit; two bundles were re-indexed for slow retrieval.
+No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
+
+### Review entry 0515 — dmz lane
+Shift lead logged a routine enforcement observation for dmz (west) during review window 0515. A reviewer flagged that two chat excerpts contradicted a ticketed decision; the thread was annotated to point at the ticket as authoritative. Retention sampling of archived evidence bundles passed spot audit; two bundles were re-indexed for slow retrieval.
+Filed for context only; the authoritative record for compile behavior stays with the #FW tickets.
+
+### Review entry 0516 — edge lane
+Shift lead logged a routine enforcement observation for edge (central) during review window 0516. An access request for the evidence bucket was declined pending manager re-approval; no data was exposed.
+Nothing in this window altered admission, priority, or ordering; those remain governed by the ticketed decisions.
+
+### Review entry 0517 — fabric lane
+Shift lead logged a routine enforcement observation for fabric (central) during review window 0517. The rule-refresh drill completed in nine minutes; the runbook's fifteen-minute budget stands with no change requested.
+Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
+
+### Review entry 0518 — lab lane
+Shift lead logged a routine enforcement observation for lab (north) during review window 0518. Backlog grooming closed six informational tickets that referenced the pre-rollout compiler; none carried behavior decisions. A stale bookmark in the operations wiki still pointed at the deprecated compiler notes; the link was retired.
+Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
+
+### Review entry 0519 — prod lane
+Shift lead logged a routine enforcement observation for prod (east) during review window 0519. A monitoring rule for dashboard staleness was tuned to stop double-paging when a refresh overlaps a deploy.
+Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
+
+### Review entry 0520 — staging lane
+Shift lead logged a routine enforcement observation for staging (west) during review window 0520. The on-call handoff template gained a checklist row for confirming the drift dashboard is live before accepting the pager.
+No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
+
+### Review entry 0521 — vault lane
+Shift lead logged a routine enforcement observation for vault (north) during review window 0521. The dashboard TLS certificate was rotated ahead of expiry; tiles rendered stale for one refresh cycle and recovered without intervention. The on-call handoff template gained a checklist row for confirming the drift dashboard is live before accepting the pager.
+Filed for context only; the authoritative record for compile behavior stays with the #FW tickets.
+
+### Review entry 0522 — core lane
+Shift lead logged a routine enforcement observation for core (east) during review window 0522. Log-retention verification confirmed the ninety-day tier is intact; nothing in the enforcement path reads beyond thirty days.
+Nothing in this window altered admission, priority, or ordering; those remain governed by the ticketed decisions.
+
+### Review entry 0523 — dmz lane
+Shift lead logged a routine enforcement observation for dmz (west) during review window 0523. Post-deploy verification matched tile counts against the queue artifact; figures agreed on the first pass.
+Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
+
+### Review entry 0524 — edge lane
+Shift lead logged a routine enforcement observation for edge (central) during review window 0524. Capacity review noted alert volume trending up week over week; the board declined to adjust any thresholds outside the governance process. A tabletop prep note asked lanes to verify their escalation trees before the Q2 exercise; three lanes confirmed same day.
+Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
+
+### Review entry 0525 — fabric lane
+Shift lead logged a routine enforcement observation for fabric (central) during review window 0525. An audit sampling pass matched queue artifacts against their recorded digests; no mismatches were observed.
+Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
+
+### Review entry 0526 — lab lane
+Shift lead logged a routine enforcement observation for lab (north) during review window 0526. Two junior reviewers completed shadowing rotations and were added to the secondary review pool.
+No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
+
+### Review entry 0527 — prod lane
+Shift lead logged a routine enforcement observation for prod (east) during review window 0527. A vendor webhook flapped twice during the window; both flaps were absorbed by the retry queue and no enforcement decision was involved. Two junior reviewers completed shadowing rotations and were added to the secondary review pool.
+Filed for context only; the authoritative record for compile behavior stays with the #FW tickets.
+
+### Review entry 0528 — staging lane
+Shift lead logged a routine enforcement observation for staging (west) during review window 0528. Pager noise stayed within the governance SLO; the single page during the window was acknowledged inside four minutes.
+Nothing in this window altered admission, priority, or ordering; those remain governed by the ticketed decisions.
+
+### Review entry 0529 — vault lane
+Shift lead logged a routine enforcement observation for vault (north) during review window 0529. A stale bookmark in the operations wiki still pointed at the deprecated compiler notes; the link was retired.
+Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
+
+### Review entry 0530 — core lane
+Shift lead logged a routine enforcement observation for core (east) during review window 0530. Quarterly access recertification for the enforcement dashboards closed with two dormant reviewer accounts disabled; no service principals were touched. The rule-refresh drill completed in nine minutes; the runbook's fifteen-minute budget stands with no change requested.
+Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
+
+### Review entry 0531 — dmz lane
+Shift lead logged a routine enforcement observation for dmz (west) during review window 0531. A typo fix in the schema reference doc was merged; reviewers confirmed it altered prose only, not any field list.
+Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
+
+### Review entry 0532 — edge lane
+Shift lead logged a routine enforcement observation for edge (central) during review window 0532. The comms channel piloted a weekly digest of #FW decisions; the pilot continues through the end of the quarter.
+No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
+
+### Review entry 0533 — fabric lane
+Shift lead logged a routine enforcement observation for fabric (central) during review window 0533. The board reconfirmed that lane-local experiments must not write to the shared evidence store. The comms channel piloted a weekly digest of #FW decisions; the pilot continues through the end of the quarter.
+Filed for context only; the authoritative record for compile behavior stays with the #FW tickets.
+
+### Review entry 0534 — lab lane
+Shift lead logged a routine enforcement observation for lab (north) during review window 0534. Change-window grooming moved four stale exception approvals back to their owners for re-justification before the next cycle.
+Nothing in this window altered admission, priority, or ordering; those remain governed by the ticketed decisions.
+
+### Review entry 0535 — prod lane
+Shift lead logged a routine enforcement observation for prod (east) during review window 0535. A tabletop prep note asked lanes to verify their escalation trees before the Q2 exercise; three lanes confirmed same day.
+Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
+
+### Review entry 0536 — staging lane
+Shift lead logged a routine enforcement observation for staging (west) during review window 0536. The drill scribe rotated per the roster; minutes were filed within the same business day. Post-deploy verification matched tile counts against the queue artifact; figures agreed on the first pass.
+Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
+
+### Review entry 0537 — vault lane
+Shift lead logged a routine enforcement observation for vault (north) during review window 0537. SIEM ingest lag spiked for eleven minutes during the log-shipper restart; alert timestamps were unaffected because the reconciler reads posted event times, not ingest times.
+Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
+
+### Review entry 0538 — core lane
+Shift lead logged a routine enforcement observation for core (east) during review window 0538. Retention sampling of archived evidence bundles passed spot audit; two bundles were re-indexed for slow retrieval.
+No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
+
+### Review entry 0539 — dmz lane
+Shift lead logged a routine enforcement observation for dmz (west) during review window 0539. A reviewer flagged that two chat excerpts contradicted a ticketed decision; the thread was annotated to point at the ticket as authoritative. Retention sampling of archived evidence bundles passed spot audit; two bundles were re-indexed for slow retrieval.
+Filed for context only; the authoritative record for compile behavior stays with the #FW tickets.
+
+### Review entry 0540 — edge lane
+Shift lead logged a routine enforcement observation for edge (central) during review window 0540. An access request for the evidence bucket was declined pending manager re-approval; no data was exposed.
+Nothing in this window altered admission, priority, or ordering; those remain governed by the ticketed decisions.
+
+### Review entry 0541 — fabric lane
+Shift lead logged a routine enforcement observation for fabric (central) during review window 0541. The rule-refresh drill completed in nine minutes; the runbook's fifteen-minute budget stands with no change requested.
+Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
+
+
+## Access Review Appendix — 2026-06 Cycle
+The June access review covered every principal with write access to the enforcement path. Findings, in review order: the two rollout-era automation principals remained disabled and their credentials expired, with no login attempts recorded since containment; the evidence bucket's writer list matched the roster exactly after one contractor account was removed at the end of their engagement; the dashboard service account retained read-only scopes and its token rotation was verified against the ninety-day policy; and the break-glass account passed its quarterly seal check with the envelope log countersigned by two leads. One finding required follow-up: a legacy CI role still carried a stale policy attachment referencing the pre-rollout compiler path. The role had no active trust relationships and the attachment was removed the same day, with the change recorded through the standard change process rather than an emergency action since nothing exploitable was reachable. The review also sampled ten permission grants issued during the quarter; all ten carried ticket references and approver signatures. The board accepted the appendix without dissent and noted that the next cycle should sample service-to-service grants at double the rate, purely as a precaution following the rollout incident. Nothing in this appendix modifies how the reconciler computes, admits, or orders containment work.
+
+
+> **Governance decision (2026-06-05 - #FW-5339)** Anders: quarterly access recertification for the enforcement path samples service-to-service grants at twice the standard rate through year end. Access policy; no reconciler impact.
+
+
+### Review entry 0542 — lab lane
+Shift lead logged a routine enforcement observation for lab (north) during review window 0542. Backlog grooming closed six informational tickets that referenced the pre-rollout compiler; none carried behavior decisions. A stale bookmark in the operations wiki still pointed at the deprecated compiler notes; the link was retired.
+Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
+
+### Review entry 0543 — prod lane
+Shift lead logged a routine enforcement observation for prod (east) during review window 0543. A monitoring rule for dashboard staleness was tuned to stop double-paging when a refresh overlaps a deploy.
+Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
+
+### Review entry 0544 — staging lane
+Shift lead logged a routine enforcement observation for staging (west) during review window 0544. The on-call handoff template gained a checklist row for confirming the drift dashboard is live before accepting the pager.
+No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
+
+### Review entry 0545 — vault lane
+Shift lead logged a routine enforcement observation for vault (north) during review window 0545. The dashboard TLS certificate was rotated ahead of expiry; tiles rendered stale for one refresh cycle and recovered without intervention. The on-call handoff template gained a checklist row for confirming the drift dashboard is live before accepting the pager.
+Filed for context only; the authoritative record for compile behavior stays with the #FW tickets.
+
+### Review entry 0546 — core lane
+Shift lead logged a routine enforcement observation for core (east) during review window 0546. Log-retention verification confirmed the ninety-day tier is intact; nothing in the enforcement path reads beyond thirty days.
+Nothing in this window altered admission, priority, or ordering; those remain governed by the ticketed decisions.
+
+### Review entry 0547 — dmz lane
+Shift lead logged a routine enforcement observation for dmz (west) during review window 0547. Post-deploy verification matched tile counts against the queue artifact; figures agreed on the first pass.
+Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
+
+### Review entry 0548 — edge lane
+Shift lead logged a routine enforcement observation for edge (central) during review window 0548. Capacity review noted alert volume trending up week over week; the board declined to adjust any thresholds outside the governance process. A tabletop prep note asked lanes to verify their escalation trees before the Q2 exercise; three lanes confirmed same day.
+Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
+
+### Review entry 0549 — fabric lane
+Shift lead logged a routine enforcement observation for fabric (central) during review window 0549. An audit sampling pass matched queue artifacts against their recorded digests; no mismatches were observed.
+Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
+
+### Review entry 0550 — lab lane
+Shift lead logged a routine enforcement observation for lab (north) during review window 0550. Two junior reviewers completed shadowing rotations and were added to the secondary review pool.
+No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
+
+### Review entry 0551 — prod lane
+Shift lead logged a routine enforcement observation for prod (east) during review window 0551. A vendor webhook flapped twice during the window; both flaps were absorbed by the retry queue and no enforcement decision was involved. Two junior reviewers completed shadowing rotations and were added to the secondary review pool.
+Filed for context only; the authoritative record for compile behavior stays with the #FW tickets.
+
+### Review entry 0552 — staging lane
+Shift lead logged a routine enforcement observation for staging (west) during review window 0552. Pager noise stayed within the governance SLO; the single page during the window was acknowledged inside four minutes.
+Nothing in this window altered admission, priority, or ordering; those remain governed by the ticketed decisions.
+
+### Review entry 0553 — vault lane
+Shift lead logged a routine enforcement observation for vault (north) during review window 0553. A stale bookmark in the operations wiki still pointed at the deprecated compiler notes; the link was retired.
+Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
+
+### Review entry 0554 — core lane
+Shift lead logged a routine enforcement observation for core (east) during review window 0554. Quarterly access recertification for the enforcement dashboards closed with two dormant reviewer accounts disabled; no service principals were touched. The rule-refresh drill completed in nine minutes; the runbook's fifteen-minute budget stands with no change requested.
+Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
+
+### Review entry 0555 — dmz lane
+Shift lead logged a routine enforcement observation for dmz (west) during review window 0555. A typo fix in the schema reference doc was merged; reviewers confirmed it altered prose only, not any field list.
+Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
+
+### Review entry 0556 — edge lane
+Shift lead logged a routine enforcement observation for edge (central) during review window 0556. The comms channel piloted a weekly digest of #FW decisions; the pilot continues through the end of the quarter.
+No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
+
+### Review entry 0557 — fabric lane
+Shift lead logged a routine enforcement observation for fabric (central) during review window 0557. The board reconfirmed that lane-local experiments must not write to the shared evidence store. The comms channel piloted a weekly digest of #FW decisions; the pilot continues through the end of the quarter.
+Filed for context only; the authoritative record for compile behavior stays with the #FW tickets.
+
+### Review entry 0558 — lab lane
+Shift lead logged a routine enforcement observation for lab (north) during review window 0558. Change-window grooming moved four stale exception approvals back to their owners for re-justification before the next cycle.
+Nothing in this window altered admission, priority, or ordering; those remain governed by the ticketed decisions.
+
+### Review entry 0559 — prod lane
+Shift lead logged a routine enforcement observation for prod (east) during review window 0559. A tabletop prep note asked lanes to verify their escalation trees before the Q2 exercise; three lanes confirmed same day.
+Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
+
+### Review entry 0560 — staging lane
+Shift lead logged a routine enforcement observation for staging (west) during review window 0560. The drill scribe rotated per the roster; minutes were filed within the same business day. Post-deploy verification matched tile counts against the queue artifact; figures agreed on the first pass.
+Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
+
+### Review entry 0561 — vault lane
+Shift lead logged a routine enforcement observation for vault (north) during review window 0561. SIEM ingest lag spiked for eleven minutes during the log-shipper restart; alert timestamps were unaffected because the reconciler reads posted event times, not ingest times.
+Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
+
+### Review entry 0562 — core lane
+Shift lead logged a routine enforcement observation for core (east) during review window 0562. Retention sampling of archived evidence bundles passed spot audit; two bundles were re-indexed for slow retrieval.
+No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
+
+### Review entry 0563 — dmz lane
+Shift lead logged a routine enforcement observation for dmz (west) during review window 0563. A reviewer flagged that two chat excerpts contradicted a ticketed decision; the thread was annotated to point at the ticket as authoritative. Retention sampling of archived evidence bundles passed spot audit; two bundles were re-indexed for slow retrieval.
+Filed for context only; the authoritative record for compile behavior stays with the #FW tickets.
+
+### Review entry 0564 — edge lane
+Shift lead logged a routine enforcement observation for edge (central) during review window 0564. An access request for the evidence bucket was declined pending manager re-approval; no data was exposed.
+Nothing in this window altered admission, priority, or ordering; those remain governed by the ticketed decisions.
+
+### Review entry 0565 — fabric lane
+Shift lead logged a routine enforcement observation for fabric (central) during review window 0565. The rule-refresh drill completed in nine minutes; the runbook's fifteen-minute budget stands with no change requested.
+Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
+
+### Review entry 0566 — lab lane
+Shift lead logged a routine enforcement observation for lab (north) during review window 0566. Backlog grooming closed six informational tickets that referenced the pre-rollout compiler; none carried behavior decisions. A stale bookmark in the operations wiki still pointed at the deprecated compiler notes; the link was retired.
+Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
+
+### Review entry 0567 — prod lane
+Shift lead logged a routine enforcement observation for prod (east) during review window 0567. A monitoring rule for dashboard staleness was tuned to stop double-paging when a refresh overlaps a deploy.
+Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
+
+### Review entry 0568 — staging lane
+Shift lead logged a routine enforcement observation for staging (west) during review window 0568. The on-call handoff template gained a checklist row for confirming the drift dashboard is live before accepting the pager.
+No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
+
+### Review entry 0569 — vault lane
+Shift lead logged a routine enforcement observation for vault (north) during review window 0569. The dashboard TLS certificate was rotated ahead of expiry; tiles rendered stale for one refresh cycle and recovered without intervention. The on-call handoff template gained a checklist row for confirming the drift dashboard is live before accepting the pager.
+Filed for context only; the authoritative record for compile behavior stays with the #FW tickets.
+
+### Review entry 0570 — core lane
+Shift lead logged a routine enforcement observation for core (east) during review window 0570. Log-retention verification confirmed the ninety-day tier is intact; nothing in the enforcement path reads beyond thirty days.
+Nothing in this window altered admission, priority, or ordering; those remain governed by the ticketed decisions.
+
+### Review entry 0571 — dmz lane
+Shift lead logged a routine enforcement observation for dmz (west) during review window 0571. Post-deploy verification matched tile counts against the queue artifact; figures agreed on the first pass.
+Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
+
+
+### Review entry 0572 — edge lane
+Shift lead logged a routine enforcement observation for edge (central) during review window 0572. Capacity review noted alert volume trending up week over week; the board declined to adjust any thresholds outside the governance process. A tabletop prep note asked lanes to verify their escalation trees before the Q2 exercise; three lanes confirmed same day.
+Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
+
+### Review entry 0573 — fabric lane
+Shift lead logged a routine enforcement observation for fabric (central) during review window 0573. An audit sampling pass matched queue artifacts against their recorded digests; no mismatches were observed.
+Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
+
+### Review entry 0574 — lab lane
+Shift lead logged a routine enforcement observation for lab (north) during review window 0574. Two junior reviewers completed shadowing rotations and were added to the secondary review pool.
+No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
+
+### Review entry 0575 — prod lane
+Shift lead logged a routine enforcement observation for prod (east) during review window 0575. A vendor webhook flapped twice during the window; both flaps were absorbed by the retry queue and no enforcement decision was involved. Two junior reviewers completed shadowing rotations and were added to the secondary review pool.
+Filed for context only; the authoritative record for compile behavior stays with the #FW tickets.
+
+### Review entry 0576 — staging lane
+Shift lead logged a routine enforcement observation for staging (west) during review window 0576. Pager noise stayed within the governance SLO; the single page during the window was acknowledged inside four minutes.
+Nothing in this window altered admission, priority, or ordering; those remain governed by the ticketed decisions.
+
+### Review entry 0577 — vault lane
+Shift lead logged a routine enforcement observation for vault (north) during review window 0577. A stale bookmark in the operations wiki still pointed at the deprecated compiler notes; the link was retired.
+Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
+
+### Review entry 0578 — core lane
+Shift lead logged a routine enforcement observation for core (east) during review window 0578. Quarterly access recertification for the enforcement dashboards closed with two dormant reviewer accounts disabled; no service principals were touched. The rule-refresh drill completed in nine minutes; the runbook's fifteen-minute budget stands with no change requested.
+Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
+
+### Review entry 0579 — dmz lane
+Shift lead logged a routine enforcement observation for dmz (west) during review window 0579. A typo fix in the schema reference doc was merged; reviewers confirmed it altered prose only, not any field list.
+Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
+
+### Review entry 0580 — edge lane
+Shift lead logged a routine enforcement observation for edge (central) during review window 0580. The comms channel piloted a weekly digest of #FW decisions; the pilot continues through the end of the quarter.
+No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
+
+### Review entry 0581 — fabric lane
+Shift lead logged a routine enforcement observation for fabric (central) during review window 0581. The board reconfirmed that lane-local experiments must not write to the shared evidence store. The comms channel piloted a weekly digest of #FW decisions; the pilot continues through the end of the quarter.
+Filed for context only; the authoritative record for compile behavior stays with the #FW tickets.
+
+### Review entry 0582 — lab lane
+Shift lead logged a routine enforcement observation for lab (north) during review window 0582. Change-window grooming moved four stale exception approvals back to their owners for re-justification before the next cycle.
+Nothing in this window altered admission, priority, or ordering; those remain governed by the ticketed decisions.
+
+### Review entry 0583 — prod lane
+Shift lead logged a routine enforcement observation for prod (east) during review window 0583. A tabletop prep note asked lanes to verify their escalation trees before the Q2 exercise; three lanes confirmed same day.
+Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
+
+### Review entry 0584 — staging lane
+Shift lead logged a routine enforcement observation for staging (west) during review window 0584. The drill scribe rotated per the roster; minutes were filed within the same business day. Post-deploy verification matched tile counts against the queue artifact; figures agreed on the first pass.
+Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
+
+### Review entry 0585 — vault lane
+Shift lead logged a routine enforcement observation for vault (north) during review window 0585. SIEM ingest lag spiked for eleven minutes during the log-shipper restart; alert timestamps were unaffected because the reconciler reads posted event times, not ingest times.
+Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
+
+### Review entry 0586 — core lane
+Shift lead logged a routine enforcement observation for core (east) during review window 0586. Retention sampling of archived evidence bundles passed spot audit; two bundles were re-indexed for slow retrieval.
+No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
+
+### Review entry 0587 — dmz lane
+Shift lead logged a routine enforcement observation for dmz (west) during review window 0587. A reviewer flagged that two chat excerpts contradicted a ticketed decision; the thread was annotated to point at the ticket as authoritative. Retention sampling of archived evidence bundles passed spot audit; two bundles were re-indexed for slow retrieval.
+Filed for context only; the authoritative record for compile behavior stays with the #FW tickets.
+
+### Review entry 0588 — edge lane
+Shift lead logged a routine enforcement observation for edge (central) during review window 0588. An access request for the evidence bucket was declined pending manager re-approval; no data was exposed.
+Nothing in this window altered admission, priority, or ordering; those remain governed by the ticketed decisions.
+
+### Review entry 0589 — fabric lane
+Shift lead logged a routine enforcement observation for fabric (central) during review window 0589. The rule-refresh drill completed in nine minutes; the runbook's fifteen-minute budget stands with no change requested.
+Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
+
+### Review entry 0590 — lab lane
+Shift lead logged a routine enforcement observation for lab (north) during review window 0590. Backlog grooming closed six informational tickets that referenced the pre-rollout compiler; none carried behavior decisions. A stale bookmark in the operations wiki still pointed at the deprecated compiler notes; the link was retired.
+Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
+
+### Review entry 0591 — prod lane
+Shift lead logged a routine enforcement observation for prod (east) during review window 0591. A monitoring rule for dashboard staleness was tuned to stop double-paging when a refresh overlaps a deploy.
+Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
+
+### Review entry 0592 — staging lane
+Shift lead logged a routine enforcement observation for staging (west) during review window 0592. The on-call handoff template gained a checklist row for confirming the drift dashboard is live before accepting the pager.
+No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
+
+### Review entry 0593 — vault lane
+Shift lead logged a routine enforcement observation for vault (north) during review window 0593. The dashboard TLS certificate was rotated ahead of expiry; tiles rendered stale for one refresh cycle and recovered without intervention. The on-call handoff template gained a checklist row for confirming the drift dashboard is live before accepting the pager.
+Filed for context only; the authoritative record for compile behavior stays with the #FW tickets.
+
+### Review entry 0594 — core lane
+Shift lead logged a routine enforcement observation for core (east) during review window 0594. Log-retention verification confirmed the ninety-day tier is intact; nothing in the enforcement path reads beyond thirty days.
+Nothing in this window altered admission, priority, or ordering; those remain governed by the ticketed decisions.
+
+### Review entry 0595 — dmz lane
+Shift lead logged a routine enforcement observation for dmz (west) during review window 0595. Post-deploy verification matched tile counts against the queue artifact; figures agreed on the first pass.
+Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
+
+### Review entry 0596 — edge lane
+Shift lead logged a routine enforcement observation for edge (central) during review window 0596. Capacity review noted alert volume trending up week over week; the board declined to adjust any thresholds outside the governance process. A tabletop prep note asked lanes to verify their escalation trees before the Q2 exercise; three lanes confirmed same day.
+Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
+
+### Review entry 0597 — fabric lane
+Shift lead logged a routine enforcement observation for fabric (central) during review window 0597. An audit sampling pass matched queue artifacts against their recorded digests; no mismatches were observed.
+Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
+
+### Review entry 0598 — lab lane
+Shift lead logged a routine enforcement observation for lab (north) during review window 0598. Two junior reviewers completed shadowing rotations and were added to the secondary review pool.
+No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
+
+### Review entry 0599 — prod lane
+Shift lead logged a routine enforcement observation for prod (east) during review window 0599. A vendor webhook flapped twice during the window; both flaps were absorbed by the retry queue and no enforcement decision was involved. Two junior reviewers completed shadowing rotations and were added to the secondary review pool.
+Filed for context only; the authoritative record for compile behavior stays with the #FW tickets.
+
+### Review entry 0600 — staging lane
+Shift lead logged a routine enforcement observation for staging (west) during review window 0600. Pager noise stayed within the governance SLO; the single page during the window was acknowledged inside four minutes.
+Nothing in this window altered admission, priority, or ordering; those remain governed by the ticketed decisions.
+
+### Review entry 0601 — vault lane
+Shift lead logged a routine enforcement observation for vault (north) during review window 0601. A stale bookmark in the operations wiki still pointed at the deprecated compiler notes; the link was retired.
+Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
