@@ -1919,6 +1919,7 @@ Reviewers should reconcile behavior questions against #FW governance decisions r
 ### Review entry 0470 — vault lane
 Shift lead logged a routine enforcement observation for vault (north) during review window 0470. Firewall rule sync drill completed; drift alert acknowledgment stayed within the governance SLO.
 No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
+> **Governance decision (2026-05-11 - #FW-5327)** Yusuf: closing the long-incident thread raised off the 0470 drill — where an env had accumulated a large carry, that carry was inflating the actionable time of a short follow-on window without bound, which distorted admission for windows that were barely actionable on their own. The carry credit is therefore ceilinged: `ledger_adjusted_actionable_ms = actionable_duration_ms + min(carry_in_ms // 4, 120)`. The 120 credit ceiling revises #FW-5313; the `//2` idle decay and the 2000 carry_out cap recorded there are unchanged, as is the carry_out formula itself.
 
 ### Review entry 0471 — fabric lane
 Shift lead logged a routine enforcement observation for fabric (central) during review window 0471. Dashboard tiles for drift volume lagged during rule refresh; attributed to cache staleness, not the reconciler.
