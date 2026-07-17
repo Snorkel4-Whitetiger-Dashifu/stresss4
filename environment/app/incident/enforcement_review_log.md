@@ -292,6 +292,7 @@ Shift lead logged a routine enforcement observation for dmz (west) during review
 Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
 
 ### Review entry 0070 — vault lane
+> **Governance decision (2026-03-20 - #FW-5223)** Rosa: defer_pressure_score is just defer_segment_count; the all-scope and severity-scope probe terms are dropped. *(Revised — see the 2026-05 governance review.)*
 Shift lead logged a routine enforcement observation for vault (north) during review window 0070. Firewall rule sync drill completed; drift alert acknowledgment stayed within the governance SLO.
 No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
 
@@ -300,6 +301,7 @@ Shift lead logged a routine enforcement observation for fabric (central) during 
 Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
 
 ### Review entry 0072 — prod lane
+> **Governance decision (2026-03-22 - #FW-5225)** Rosa: stability_pressure_score is (all_probe_ms//20)+(severity_probe_ms//15) with no alert-count term. *(Revised — see the 2026-05 governance review.)*
 Shift lead logged a routine enforcement observation for prod (east) during review window 0072. Change-board reviewed stale exception approvals; owners pinged before the next enforcement cycle.
 Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
 
@@ -309,6 +311,7 @@ Reviewers should reconcile behavior questions against #FW governance decisions r
 > **Enforcement draft proposal (2026-02-23 - #FW-4835)** Rosa: risk carry between drift windows should accumulate without any cap or idle decay; long quiet periods keep full carry *(Superseded — reversed in the 2026-05 governance review; see the matching decision entry.)*
 
 ### Review entry 0074 — lab lane
+> **Governance decision (2026-03-24 - #FW-5229)** Rosa: ledger_pressure_score is carry_out_ms // 100 only; the carry_in and alert-count contributions are dropped. *(Revised — see the 2026-05 governance review.)*
 Shift lead logged a routine enforcement observation for lab (north) during review window 0074. Synthetic drift injection verified pager delivery to the containment rotation for this region.
 No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
 
@@ -824,7 +827,7 @@ No reconciler semantics changed in this entry; parameters remain as approved by 
 ### Review entry 0199 — fabric lane
 Shift lead logged a routine enforcement observation for fabric (central) during review window 0199. Capacity review noted rising alert volume; thresholds unchanged outside the governance process.
 Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
-> **Governance decision (2026-05-04 - #FW-5307)** Priya: reopen layer: scope allowlist is ['all', 'p1', 'p2']; normalize env/scope/start/end, keep rows whose severity_scope is in scope_values, drop end<=start, compact overlap/touch intervals per (env,severity_scope). Rows with any other severity_scope are dropped entirely before compaction and checksums (supersedes #FW-4822). Matching scopes: {all,max_severity} for each window; if max_severity is p2 and (env,p2) has no compacted intervals, borrow (env,p1) as the severity scope fallback. Union: collect overlap segments from matching scopes then compact/union those segments to compute reopen_overlap_ms and reopen_segment_count. risk_adjusted_duration_ms = max(effective_duration_ms - (reopen_overlap_ms // 2), 0) — the //2 divisor is final and revises #FW-5214. stability_pressure_score: probe window [end_ms-180, end_ms+1) using reopen all + severity scopes; score=(all_probe_ms//30)+(severity_probe_ms//20)+max(alert_count-1,0).
+> **Governance decision (2026-05-04 - #FW-5307)** Priya: reopen layer: scope allowlist is ['all', 'p1', 'p2']; normalize env/scope/start/end, keep rows whose severity_scope is in scope_values, drop end<=start, compact overlap/touch intervals per (env,severity_scope). Rows with any other severity_scope are dropped entirely before compaction and checksums (supersedes #FW-4822). Matching scopes: {all,max_severity} for each window; if max_severity is p2 and (env,p2) has no compacted intervals, borrow (env,p1) as the severity scope fallback. Union: collect overlap segments from matching scopes then compact/union those segments to compute reopen_overlap_ms and reopen_segment_count. risk_adjusted_duration_ms = max(effective_duration_ms - (reopen_overlap_ms // 2), 0) — the //2 divisor is final and revises #FW-5214. stability_pressure_score (final, revising #FW-5225 which used the wrong divisors and dropped the alert term): probe window [end_ms-180, end_ms+1) using reopen all + severity scopes; score=(all_probe_ms//30)+(severity_probe_ms//20)+max(alert_count-1,0).
 
 ### Review entry 0200 — prod lane
 Shift lead logged a routine enforcement observation for prod (east) during review window 0200. Firewall rule sync drill completed; drift alert acknowledgment stayed within the governance SLO.
@@ -994,7 +997,7 @@ Historical CSV exports remain archived and non-authoritative for the JSON reconc
 ### Review entry 0241 — staging lane
 Shift lead logged a routine enforcement observation for staging (west) during review window 0241. Dashboard tiles for drift volume lagged during rule refresh; attributed to cache staleness, not the reconciler.
 Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
-> **Governance decision (2026-05-05 - #FW-5310)** Marek: defer layer: scope allowlist ['all', 'p1', 'p2']; normalize env/scope/start/end, keep rows whose severity_scope is in scope_values, drop end<=start, compact overlap/touch intervals per (env,severity_scope). Matching scopes: {all,max_severity} for each window; if max_severity is p2 and (env,p2) has no compacted intervals, borrow (env,p1) as the severity scope fallback. Union: collect overlap segments from matching scopes then compact/union those segments to compute defer_overlap_ms and defer_segment_count. actionable_duration_ms = max(dispatchable_duration_ms - (defer_overlap_ms // 4), 0) — the //4 divisor is final and revises #FW-5221. defer_pressure_score: probe [end_ms-300,end_ms+1): (all_defer_probe_ms//40)+(severity_defer_probe_ms//28)+defer_segment_count.
+> **Governance decision (2026-05-05 - #FW-5310)** Marek: defer layer: scope allowlist ['all', 'p1', 'p2']; normalize env/scope/start/end, keep rows whose severity_scope is in scope_values, drop end<=start, compact overlap/touch intervals per (env,severity_scope). Matching scopes: {all,max_severity} for each window; if max_severity is p2 and (env,p2) has no compacted intervals, borrow (env,p1) as the severity scope fallback. Union: collect overlap segments from matching scopes then compact/union those segments to compute defer_overlap_ms and defer_segment_count. actionable_duration_ms = max(dispatchable_duration_ms - (defer_overlap_ms // 4), 0) — the //4 divisor is final and revises #FW-5221. defer_pressure_score (final, revising #FW-5223 which dropped the probe terms): probe [end_ms-300,end_ms+1): (all_defer_probe_ms//40)+(severity_defer_probe_ms//28)+defer_segment_count.
 
 ### Review entry 0242 — lab lane
 Shift lead logged a routine enforcement observation for lab (north) during review window 0242. Change-board reviewed stale exception approvals; owners pinged before the next enforcement cycle.
@@ -1250,7 +1253,7 @@ Thread archived; see the #FW decision entries for anything affecting reconciler 
 ### Review entry 0304 — prod lane
 Shift lead logged a routine enforcement observation for prod (east) during review window 0304. Synthetic drift injection verified pager delivery to the containment rotation for this region.
 Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
-> **Governance decision (2026-05-06 - #FW-5314)** Yusuf: ledger scoring: ledger_pressure_score = (carry_out_ms//80)+(carry_in_ms//120)+max(alert_count-1,0); stability_index = volatility_index+defer_pressure_score+ledger_pressure_score. Worked example, no attenuation: lab [100,400): actionable=300, idle_gap=0, carry_in=0, carry_out=min(0+300,2000)=300, ledger_adjusted=300 Then: lab [600,850): idle_gap=200, carry_in=max(300-(200//2),0)=200, actionable=250, ledger_adjusted=250+(200//4)=300, carry_out=min(200+250,2000)=450 Second window ledger pressure: (450//80)+(200//120)+max(1-1,0)=6.
+> **Governance decision (2026-05-06 - #FW-5314)** Yusuf: ledger scoring (ledger_pressure_score is final, revising #FW-5229): ledger_pressure_score = (carry_out_ms//80)+(carry_in_ms//120)+max(alert_count-1,0); stability_index = volatility_index+defer_pressure_score+ledger_pressure_score. Worked example, no attenuation: lab [100,400): actionable=300, idle_gap=0, carry_in=0, carry_out=min(0+300,2000)=300, ledger_adjusted=300 Then: lab [600,850): idle_gap=200, carry_in=max(300-(200//2),0)=200, actionable=250, ledger_adjusted=250+(200//4)=300, carry_out=min(200+250,2000)=450 Second window ledger pressure: (450//80)+(200//120)+max(1-1,0)=6.
 
 ### Review entry 0305 — staging lane
 Shift lead logged a routine enforcement observation for staging (west) during review window 0305. Rule-set rollback rehearsal ran clean; no changes to enforcement parameters were approved.
