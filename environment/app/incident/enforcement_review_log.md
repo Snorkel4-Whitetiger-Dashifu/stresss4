@@ -377,6 +377,8 @@ Reviewers should reconcile behavior questions against #FW governance decisions r
 
 > **Enforcement draft proposal (2026-02-28 - #FW-4844)** Anders: stability_index sums volatility_index, defer_pressure_score and the full trust_exposure_score; there is no separate ledger-pressure term and the trust term is not halved *(Superseded — reversed in the 2026-05 governance review; see the matching decision entry.)*
 
+> **Enforcement draft proposal (2026-03-01 - #FW-4846)** Rosa: risk-ledger carry — decay carried debt by a third of the idle gap (`carry_in_ms = max(previous.carry_out_ms - idle_gap_ms//3, 0)`), credit `ledger_adjusted_actionable_ms` with the full `carry_in_ms//4` and no ceiling, and set `carry_out_ms = min(carry_in_ms + actionable_duration_ms + rotation_segment_count*10 + defer_segment_count*5, 1500)` with no separate freeze-segment credit *(Superseded — reversed in the 2026-05 governance review; see the matching decision entry.)*
+
 ### Review entry 0086 — vault lane
 Shift lead logged a routine enforcement observation for vault (north) during review window 0086. Noise review: repeated drift alerts traced to a flapping policy probe, muted at the source.
 No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
