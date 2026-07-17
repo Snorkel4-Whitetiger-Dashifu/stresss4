@@ -350,6 +350,7 @@ Shift lead logged a routine enforcement observation for edge (central) during re
 Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
 
 ### Review entry 0084 — core lane
+> **Governance decision (2026-03-11 - #FW-5208)** Rosa: volatility_index is stability_pressure_score plus the rotation segment count, with no probe-window terms. *(Revised — see the 2026-05 governance review.)*
 Shift lead logged a routine enforcement observation for core (east) during review window 0084. Synthetic drift injection verified pager delivery to the containment rotation for this region.
 Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
 
@@ -376,6 +377,7 @@ Shift lead logged a routine enforcement observation for staging (west) during re
 Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
 
 ### Review entry 0090 — lab lane
+> **Governance decision (2026-03-15 - #FW-5212)** Rosa: stability_index folds in the full trust_exposure_score, not a halved share, and omits the defer pressure term. *(Revised — see the 2026-05 governance review.)*
 > **Governance decision (2026-03-10 - #FW-5217)** Priya: dispatchable_duration_ms subtracts half of the rotation overlap: max(risk_adjusted_duration_ms - (rotation_overlap_ms // 2), 0). *(Revised — see the 2026-05 decision log.)*
 Shift lead logged a routine enforcement observation for lab (north) during review window 0090. Firewall rule sync drill completed; drift alert acknowledgment stayed within the governance SLO.
 No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
@@ -907,7 +909,7 @@ Thread archived; see the #FW decision entries for anything affecting reconciler 
 ### Review entry 0220 — core lane
 Shift lead logged a routine enforcement observation for core (east) during review window 0220. Firewall rule sync drill completed; drift alert acknowledgment stayed within the governance SLO.
 Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
-> **Governance decision (2026-05-04 - #FW-5308)** Priya: rotation layer: scope allowlist ['all', 'p1', 'p2']; normalize env/scope/start/end, keep rows whose severity_scope is in scope_values, drop end<=start, compact overlap/touch intervals per (env,severity_scope). Matching scopes: {all,max_severity} for each window; if max_severity is p2 and (env,p2) has no compacted intervals, borrow (env,p1) as the severity scope fallback. Union: collect overlap segments from matching scopes then compact/union those segments to compute rotation_overlap_ms and rotation_segment_count. dispatchable_duration_ms = max(risk_adjusted_duration_ms - (rotation_overlap_ms // 3), 0) — the //3 divisor is final and revises #FW-5217. volatility_index: stability_pressure_score + (all_rotation_probe_ms//24) + (severity_rotation_probe_ms//16) + (rotation_segment_count*2) where probe is [end_ms-240,end_ms+1).
+> **Governance decision (2026-05-04 - #FW-5308)** Priya: rotation layer: scope allowlist ['all', 'p1', 'p2']; normalize env/scope/start/end, keep rows whose severity_scope is in scope_values, drop end<=start, compact overlap/touch intervals per (env,severity_scope). Matching scopes: {all,max_severity} for each window; if max_severity is p2 and (env,p2) has no compacted intervals, borrow (env,p1) as the severity scope fallback. Union: collect overlap segments from matching scopes then compact/union those segments to compute rotation_overlap_ms and rotation_segment_count. dispatchable_duration_ms = max(risk_adjusted_duration_ms - (rotation_overlap_ms // 3), 0) — the //3 divisor is final and revises #FW-5217. volatility_index (final, revising #FW-5208 which dropped the probe terms): stability_pressure_score + (all_rotation_probe_ms//24) + (severity_rotation_probe_ms//16) + (rotation_segment_count*2) where probe is [end_ms-240,end_ms+1).
 
 ### Review entry 0221 — dmz lane
 Shift lead logged a routine enforcement observation for dmz (west) during review window 0221. Dashboard tiles for drift volume lagged during rule refresh; attributed to cache staleness, not the reconciler.
@@ -1588,7 +1590,7 @@ Thread archived; see the #FW decision entries for anything affecting reconciler 
 ### Review entry 0388 — core lane
 Shift lead logged a routine enforcement observation for core (east) during review window 0388. Vendor ticket on webhook retries closed; delivery within contractual budget.
 Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
-> **Governance decision (2026-05-08 - #FW-5320)** Priya: trust integration: stability_index=volatility_index+defer_pressure_score+ledger_pressure_score+(trust_exposure_score//2). Priority integration: critical when trust_exposure_score>=24; otherwise high when trust_exposure_score>=12, in addition to existing rules.
+> **Governance decision (2026-05-08 - #FW-5320)** Priya: trust integration: stability_index=volatility_index+defer_pressure_score+ledger_pressure_score+(trust_exposure_score//2) — the halved trust share and the defer term are final and revise #FW-5212. Priority integration: critical when trust_exposure_score>=24; otherwise high when trust_exposure_score>=12, in addition to existing rules.
 
 ### Review entry 0389 — dmz lane
 Shift lead logged a routine enforcement observation for dmz (west) during review window 0389. Capacity review noted rising alert volume; thresholds unchanged outside the governance process.
