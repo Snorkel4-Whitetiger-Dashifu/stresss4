@@ -1,6 +1,6 @@
 {
   "title": "IAM Firewall Policy Drift Incident-Response Runbook",
-  "version": "2.0",
+  "runbook_version": "2.0",
   "task_scope": "security operations / IAM firewall drift containment",
   "operational_purpose": "reconcile firewall-policy drift evidence, approved attenuation windows, and stateful environment risk into a deterministic containment queue",
   "workflow_repair": {
@@ -96,6 +96,7 @@
   },
   "summary_json": {
     "schema_version": "firewall-drift-v1",
+    "schema_version_field_note": "The summary.json `schema_version` field must be the exact literal string \"firewall-drift-v1\" shown immediately above. It is the output schema tag and is unrelated to `runbook_version` at the top of this document — do not emit the runbook_version value here.",
     "required_fields": [
       "schema_version",
       "raw_alert_count",
