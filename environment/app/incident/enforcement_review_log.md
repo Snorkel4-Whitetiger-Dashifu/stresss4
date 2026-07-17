@@ -1211,6 +1211,7 @@ No reconciler semantics changed in this entry; parameters remain as approved by 
 ### Review entry 0295 — fabric lane
 Shift lead logged a routine enforcement observation for fabric (central) during review window 0295. Rule-set rollback rehearsal ran clean; no changes to enforcement parameters were approved.
 Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
+> **Governance decision (2026-05-13 - #FW-5331)** Yusuf: post-incident review found that a window sitting under a change-freeze still leaves residual enforcement debt the ledger was dropping, so each freeze segment now carries the same class of credit the rotation and defer segments already do: `carry_out_ms = min(carry_in_ms + actionable_duration_ms + freeze_segment_count*8 + rotation_segment_count*15 + defer_segment_count*10, 2000)`. The 8-point freeze credit revises the carry_out formula in #FW-5313; the idle-gap decay, the 2000 cap, and the rotation and defer credits recorded there are unchanged.
 
 ### Review entry 0296 — prod lane
 Shift lead logged a routine enforcement observation for prod (east) during review window 0296. Noise review: repeated drift alerts traced to a flapping policy probe, muted at the source.
