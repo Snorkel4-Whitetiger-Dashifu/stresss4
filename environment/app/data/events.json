@@ -2,7 +2,7 @@
   {
     "alert_id": "p1001",
     "start_ms": 2010000001000,
-    "end_ms": 2010000001620,
+    "end_ms": 2010000001322,
     "severity": "p1",
     "env": "prod",
     "signature": "orphaned service principal",
@@ -10,8 +10,8 @@
   },
   {
     "alert_id": "p1002",
-    "start_ms": 2010000001650,
-    "end_ms": 2010000001850,
+    "start_ms": 2010000001352,
+    "end_ms": 2010000001455,
     "severity": "p2",
     "env": "PROD",
     "signature": "cross-account trust widening",
@@ -20,7 +20,7 @@
   {
     "alert_id": "p1003",
     "start_ms": 2010000002200,
-    "end_ms": 2010000002760,
+    "end_ms": 2010000002489,
     "severity": "p2",
     "env": "Prod ",
     "signature": "mfa bypass on break-glass",
@@ -29,7 +29,7 @@
   {
     "alert_id": "p1004",
     "start_ms": 2010000003400,
-    "end_ms": 2010000004100,
+    "end_ms": 2010000003761,
     "severity": "p1",
     "env": "prod",
     "signature": "stale access key active",
@@ -37,8 +37,8 @@
   },
   {
     "alert_id": "p1005",
-    "start_ms": 2010000004130,
-    "end_ms": 2010000004290,
+    "start_ms": 2010000003791,
+    "end_ms": 2010000003870,
     "severity": "p3",
     "env": "PROD",
     "signature": "wildcard permission grant",
@@ -47,7 +47,7 @@
   {
     "alert_id": "p1006",
     "start_ms": 2010000005200,
-    "end_ms": 2010000005740,
+    "end_ms": 2010000005475,
     "severity": "p1",
     "env": "Prod ",
     "signature": "role assumption loop",
@@ -56,7 +56,7 @@
   {
     "alert_id": "d1007",
     "start_ms": 2010000201000,
-    "end_ms": 2010000201700,
+    "end_ms": 2010000201358,
     "severity": "p1",
     "env": "dmz",
     "signature": "escalation via passrole",
@@ -65,7 +65,7 @@
   {
     "alert_id": "d1008",
     "start_ms": 2010000202000,
-    "end_ms": 2010000202520,
+    "end_ms": 2010000202270,
     "severity": "p2",
     "env": "DMZ",
     "signature": "admin role takeover",
@@ -73,8 +73,8 @@
   },
   {
     "alert_id": "d1009",
-    "start_ms": 2010000202550,
-    "end_ms": 2010000202730,
+    "start_ms": 2010000202300,
+    "end_ms": 2010000202392,
     "severity": "p2",
     "env": "Dmz ",
     "signature": "policy drift on privileged group",
@@ -83,7 +83,7 @@
   {
     "alert_id": "d1010",
     "start_ms": 2010000203200,
-    "end_ms": 2010000203840,
+    "end_ms": 2010000203530,
     "severity": "p1",
     "env": "dmz",
     "signature": "orphaned service principal",
@@ -92,7 +92,7 @@
   {
     "alert_id": "d1011",
     "start_ms": 2010000204200,
-    "end_ms": 2010000204680,
+    "end_ms": 2010000204446,
     "severity": "p2",
     "env": "DMZ",
     "signature": "cross-account trust widening",
@@ -101,7 +101,7 @@
   {
     "alert_id": "e1012",
     "start_ms": 2010000401000,
-    "end_ms": 2010000401560,
+    "end_ms": 2010000401287,
     "severity": "p2",
     "env": "edge",
     "signature": "mfa bypass on break-glass",
@@ -109,8 +109,8 @@
   },
   {
     "alert_id": "e1013",
-    "start_ms": 2010000401590,
-    "end_ms": 2010000401830,
+    "start_ms": 2010000401317,
+    "end_ms": 2010000401436,
     "severity": "p1",
     "env": "EDGE ",
     "signature": "stale access key active",
@@ -119,7 +119,7 @@
   {
     "alert_id": "e1014",
     "start_ms": 2010000402400,
-    "end_ms": 2010000403000,
+    "end_ms": 2010000402706,
     "severity": "p1",
     "env": "edge",
     "signature": "wildcard permission grant",
@@ -128,7 +128,7 @@
   {
     "alert_id": "e1015",
     "start_ms": 2010000403600,
-    "end_ms": 2010000404120,
+    "end_ms": 2010000403870,
     "severity": "p2",
     "env": "EDGE ",
     "signature": "role assumption loop",
@@ -137,7 +137,7 @@
   {
     "alert_id": "v1016",
     "start_ms": 2010000601000,
-    "end_ms": 2010000601760,
+    "end_ms": 2010000601394,
     "severity": "p1",
     "env": "vault",
     "signature": "escalation via passrole",
@@ -145,8 +145,8 @@
   },
   {
     "alert_id": "v1017",
-    "start_ms": 2010000601790,
-    "end_ms": 2010000602010,
+    "start_ms": 2010000601424,
+    "end_ms": 2010000601536,
     "severity": "p2",
     "env": "Vault ",
     "signature": "admin role takeover",
@@ -155,7 +155,7 @@
   {
     "alert_id": "v1018",
     "start_ms": 2010000602600,
-    "end_ms": 2010000603140,
+    "end_ms": 2010000602877,
     "severity": "p2",
     "env": "vault",
     "signature": "policy drift on privileged group",
@@ -164,7 +164,7 @@
   {
     "alert_id": "v1019",
     "start_ms": 2010000603800,
-    "end_ms": 2010000604420,
+    "end_ms": 2010000604118,
     "severity": "p1",
     "env": "Vault ",
     "signature": "orphaned service principal",
@@ -173,7 +173,7 @@
   {
     "alert_id": "c1020",
     "start_ms": 2010000801000,
-    "end_ms": 2010000801600,
+    "end_ms": 2010000801307,
     "severity": "p1",
     "env": "core",
     "signature": "cross-account trust widening",
@@ -182,7 +182,7 @@
   {
     "alert_id": "c1021",
     "start_ms": 2010000801900,
-    "end_ms": 2010000802460,
+    "end_ms": 2010000802185,
     "severity": "p2",
     "env": "CORE ",
     "signature": "mfa bypass on break-glass",
@@ -191,7 +191,7 @@
   {
     "alert_id": "c1022",
     "start_ms": 2010000802800,
-    "end_ms": 2010000803320,
+    "end_ms": 2010000803070,
     "severity": "p1",
     "env": "core",
     "signature": "stale access key active",
@@ -200,7 +200,7 @@
   {
     "alert_id": "c1023",
     "start_ms": 2010000803700,
-    "end_ms": 2010000804180,
+    "end_ms": 2010000803948,
     "severity": "p2",
     "env": "CORE ",
     "signature": "wildcard permission grant",
@@ -209,7 +209,7 @@
   {
     "alert_id": "d1024",
     "start_ms": 2010001001000,
-    "end_ms": 2010001001640,
+    "end_ms": 2010001001330,
     "severity": "p1",
     "env": "dns",
     "signature": "role assumption loop",
@@ -218,7 +218,7 @@
   {
     "alert_id": "d1025",
     "start_ms": 2010001002300,
-    "end_ms": 2010001003000,
+    "end_ms": 2010001002661,
     "severity": "p2",
     "env": "DNS ",
     "signature": "escalation via passrole",
@@ -226,8 +226,8 @@
   },
   {
     "alert_id": "d1026",
-    "start_ms": 2010001003030,
-    "end_ms": 2010001003230,
+    "start_ms": 2010001002691,
+    "end_ms": 2010001002791,
     "severity": "p1",
     "env": "dns",
     "signature": "admin role takeover",
@@ -236,7 +236,7 @@
   {
     "alert_id": "d1027",
     "start_ms": 2010001003900,
-    "end_ms": 2010001004460,
+    "end_ms": 2010001004186,
     "severity": "p1",
     "env": "DNS ",
     "signature": "policy drift on privileged group",
@@ -245,7 +245,7 @@
   {
     "alert_id": "z1028",
     "start_ms": 2010001201000,
-    "end_ms": 2010001201580,
+    "end_ms": 2010001201295,
     "severity": "p2",
     "env": "zone",
     "signature": "orphaned service principal",
@@ -254,7 +254,7 @@
   {
     "alert_id": "z1029",
     "start_ms": 2010001202100,
-    "end_ms": 2010001202720,
+    "end_ms": 2010001202422,
     "severity": "p1",
     "env": "ZONE ",
     "signature": "cross-account trust widening",
@@ -263,7 +263,7 @@
   {
     "alert_id": "z1030",
     "start_ms": 2010001203300,
-    "end_ms": 2010001203800,
+    "end_ms": 2010001203559,
     "severity": "p2",
     "env": "zone",
     "signature": "mfa bypass on break-glass",
@@ -272,7 +272,7 @@
   {
     "alert_id": "m1031",
     "start_ms": 2010001401000,
-    "end_ms": 2010001401700,
+    "end_ms": 2010001401362,
     "severity": "p1",
     "env": "mesh",
     "signature": "stale access key active",
@@ -280,8 +280,8 @@
   },
   {
     "alert_id": "m1032",
-    "start_ms": 2010001401730,
-    "end_ms": 2010001401990,
+    "start_ms": 2010001401392,
+    "end_ms": 2010001401524,
     "severity": "p2",
     "env": "MESH ",
     "signature": "wildcard permission grant",
@@ -290,7 +290,7 @@
   {
     "alert_id": "m1033",
     "start_ms": 2010001402400,
-    "end_ms": 2010001402940,
+    "end_ms": 2010001402676,
     "severity": "p2",
     "env": "mesh",
     "signature": "role assumption loop",

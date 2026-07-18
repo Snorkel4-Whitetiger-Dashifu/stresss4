@@ -2,7 +2,7 @@
   {
     "alert_id": "p5001",
     "start_ms": 2010000001000,
-    "end_ms": 2010000001680,
+    "end_ms": 2010000001350,
     "severity": "p1",
     "env": "prod",
     "signature": "wildcard permission grant",
@@ -11,7 +11,7 @@
   {
     "alert_id": "p5002",
     "start_ms": 2010000002100,
-    "end_ms": 2010000002640,
+    "end_ms": 2010000002376,
     "severity": "p2",
     "env": "PROD",
     "signature": "role assumption loop",
@@ -20,7 +20,7 @@
   {
     "alert_id": "p5003",
     "start_ms": 2010000003300,
-    "end_ms": 2010000003900,
+    "end_ms": 2010000003607,
     "severity": "p1",
     "env": "prod",
     "signature": "escalation via passrole",
@@ -29,7 +29,7 @@
   {
     "alert_id": "d5004",
     "start_ms": 2010000201000,
-    "end_ms": 2010000201560,
+    "end_ms": 2010000201285,
     "severity": "p2",
     "env": "dmz",
     "signature": "admin role takeover",
@@ -37,8 +37,8 @@
   },
   {
     "alert_id": "d5005",
-    "start_ms": 2010000201590,
-    "end_ms": 2010000201830,
+    "start_ms": 2010000201315,
+    "end_ms": 2010000201439,
     "severity": "p1",
     "env": "Dmz ",
     "signature": "policy drift on privileged group",
@@ -47,7 +47,7 @@
   {
     "alert_id": "d5006",
     "start_ms": 2010000202400,
-    "end_ms": 2010000203040,
+    "end_ms": 2010000202731,
     "severity": "p1",
     "env": "dmz",
     "signature": "orphaned service principal",
@@ -56,7 +56,7 @@
   {
     "alert_id": "c5007",
     "start_ms": 2010000401000,
-    "end_ms": 2010000401600,
+    "end_ms": 2010000401310,
     "severity": "p1",
     "env": "core",
     "signature": "cross-account trust widening",
@@ -65,7 +65,7 @@
   {
     "alert_id": "c5008",
     "start_ms": 2010000401900,
-    "end_ms": 2010000402420,
+    "end_ms": 2010000402167,
     "severity": "p2",
     "env": "CORE ",
     "signature": "mfa bypass on break-glass",
@@ -74,7 +74,7 @@
   {
     "alert_id": "c5009",
     "start_ms": 2010000402800,
-    "end_ms": 2010000403360,
+    "end_ms": 2010000403087,
     "severity": "p1",
     "env": "core",
     "signature": "stale access key active",
@@ -83,7 +83,7 @@
   {
     "alert_id": "v5010",
     "start_ms": 2010000601000,
-    "end_ms": 2010000601720,
+    "end_ms": 2010000601369,
     "severity": "p1",
     "env": "vault",
     "signature": "wildcard permission grant",
@@ -92,7 +92,7 @@
   {
     "alert_id": "v5011",
     "start_ms": 2010000602600,
-    "end_ms": 2010000603100,
+    "end_ms": 2010000602854,
     "severity": "p2",
     "env": "vault",
     "signature": "role assumption loop",
