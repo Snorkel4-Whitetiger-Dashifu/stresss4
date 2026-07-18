@@ -2,32 +2,8 @@
 Security operations — governance archive for the failed firewall-policy enforcement rollout (2026-Q1 through 2026-Q2).
 
 ## Executive Summary
-The drift reconciler has produced unsafe containment queues since the February enforcement rollout. How the reconciler is *meant* to behave — canonicalization, deduplication, window merging, the four attenuation layers and their scope rules, probe scoring, the risk ledger, IAM trust traversal, queue admission, priority and ordering — was settled incrementally by the firewall governance board, and those decisions live in the review entries below. The **Governing Decisions Index** immediately after this summary lists, for each rule, the single binding decision that governs it — including the ones that were revised more than once — so you can navigate straight to the final entry rather than reconstruct it by scanning the whole archive. The February enforcement draft proposals were revisited during the 2026-05 governance review and several were reversed; where a draft proposal and a later decision disagree, the later decision governs, and where a decision was itself revised by a still-later one (the risk-ledger carry-out was revised twice), the latest dated decision is binding. `/app/docs/report_spec.json` is the output contract only: it fixes file paths, schemas, required fields, repair tokens, digest payloads and checksum serialization, not how the values are derived.
+The drift reconciler has produced unsafe containment queues since the February enforcement rollout. How the reconciler is *meant* to behave — canonicalization, deduplication, window merging, the four attenuation layers and their scope rules, probe scoring, the risk ledger, IAM trust traversal, queue admission, priority and ordering — was settled incrementally by the firewall governance board, and those decisions live in the review entries below, not in any single summary. The February enforcement draft proposals were revisited during the 2026-05 governance review and several were reversed; where a draft proposal and a later decision disagree, the later decision governs, and where a decision was itself revised by a still-later one (the risk-ledger carry-out was revised twice), the latest dated decision is binding — trace each rule to its final entry. `/app/docs/report_spec.json` is the output contract only: it fixes file paths, schemas, required fields, repair tokens, digest payloads and checksum serialization, not how the values are derived.
 
-## Governing Decisions Index (final — binding entries)
-Each rule below is fixed by the single decision named. Read that entry in full for the exact formula, divisors, probe windows, scopes, and tie-breaks — this index only points to the binding entry; it does not restate the values. Every one supersedes any conflicting February draft or March/April interim.
-
-* Alert canonicalization (env/severity normalization, end_ms coercion, muted parsing): **#FW-5301**
-* Deduplication by alert_id and its tie-break chain: **#FW-5302**
-* Drift-window merging (stitch threshold, muted exclusion): **#FW-5304**
-* Freeze attenuation layer: **#FW-5305**
-* Reopen layer, `risk_adjusted_duration_ms`, and `stability_pressure_score`: **#FW-5307**
-* Rotation layer, `dispatchable_duration_ms`, and `volatility_index`: **#FW-5308**
-* Defer layer, `actionable_duration_ms`, and `defer_pressure_score`: **#FW-5310**
-* Probe scoring (half-open intervals, all/severity scope terms): **#FW-5311**
-* Risk ledger — idle-gap `//2` decay, `carry_in_ms`, and the `2000` carry-out cap: **#FW-5313**
-* Risk-ledger **`carry_out_ms` formula** — the segment-credit terms: **#FW-5331** (latest word on `carry_out_ms`; adds the `freeze_segment_count*8` credit to the rotation/defer credits, revising the formula in #FW-5313. The idle `//2` decay and `2000` cap from #FW-5313 are unchanged.)
-* Ledger credit into `ledger_adjusted_actionable_ms` — the `min(carry_in_ms//4, 120)` ceiling: **#FW-5327**
-* Ledger scoring (`ledger_pressure_score`) and the base `stability_index`: **#FW-5314**
-* IAM trust edges (normalization, weight bounds, dedup): **#FW-5316**
-* Trust traversal (bounded simple directed paths, path scoring): **#FW-5317**
-* Trust retention, `trust_reachable_envs`, `trust_exposure_score`, `trust_strongest_path`: **#FW-5319**
-* Trust integration into `stability_index` and priority thresholds: **#FW-5320**
-* Queue admission thresholds: **#FW-5322**
-* Priority tier rules: **#FW-5323**
-* Final queue ordering and its tie-break sequence: **#FW-5325**
-
-Checksum and digest serialization are fixed by `/app/docs/report_spec.json`, not here.
 
 ## February Enforcement Drafts (2026-02 — partly reversed)
 The initial rollout circulated compile-behavior proposals through #FW tickets in the 4800 range. Several did not survive governance review. They are archived in place below and marked superseded; do not implement them as written.

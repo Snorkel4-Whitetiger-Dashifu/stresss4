@@ -1,11 +1,50 @@
 [
-  {"env": "dmz", "severity_scope": "all", "start_ms": 2010000006050, "end_ms": 2010000006350},
-  {"env": "dmz", "severity_scope": "all", "start_ms": 2010000006320, "end_ms": 2010000006450},
-  {"env": "dmz", "severity_scope": "p1", "start_ms": 2010000009050, "end_ms": 2010000009260},
-  {"env": "prod", "severity_scope": "p2", "start_ms": 2010000004500, "end_ms": 2010000004700},
-  {"env": "prod", "severity_scope": "p2", "start_ms": 2010000004680, "end_ms": 2010000004780},
-  {"env": "edge", "severity_scope": "all", "start_ms": 2010000001100, "end_ms": 2010000001180},
-  {"env": "edge", "severity_scope": "p2", "start_ms": 2010000002030, "end_ms": 2010000002140},
-  {"env": "edge", "severity_scope": "debug", "start_ms": 0, "end_ms": 1},
-  {"env": "prod", "severity_scope": "all", "start_ms": "oops", "end_ms": "oops2"}
+  {
+    "env": "prod",
+    "severity_scope": "p1",
+    "start_ms": 2010000005380,
+    "end_ms": 2010000005560
+  },
+  {
+    "env": "dmz",
+    "severity_scope": "p1",
+    "start_ms": 2010000201233,
+    "end_ms": 2010000201383
+  },
+  {
+    "env": "edge",
+    "severity_scope": "p1",
+    "start_ms": 2010000402600,
+    "end_ms": 2010000402780
+  },
+  {
+    "env": "edge",
+    "severity_scope": "all",
+    "start_ms": 2010000403773,
+    "end_ms": 2010000403923
+  },
+  {
+    "env": "core",
+    "severity_scope": "all",
+    "start_ms": 2010000802086,
+    "end_ms": 2010000802266
+  },
+  {
+    "env": "core",
+    "severity_scope": "p1",
+    "start_ms": 2010000802973,
+    "end_ms": 2010000803123
+  },
+  {
+    "env": "zone",
+    "severity_scope": "all",
+    "start_ms": 2010001201193,
+    "end_ms": 2010001201373
+  },
+  {
+    "env": "zone",
+    "severity_scope": "p1",
+    "start_ms": 2010001202306,
+    "end_ms": 2010001202456
+  }
 ]

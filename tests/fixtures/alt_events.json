@@ -1,7 +1,128 @@
 [
-  {"alert_id": "x1", "start_ms": 100, "end_ms": "290", "severity": "P1", "env": "lab", "signature": "root role uplift", "muted": false},
-  {"alert_id": "x2", "start_ms": 260, "end_ms": 470, "severity": "p2", "env": "lab", "signature": "token replay", "muted": false},
-  {"alert_id": "x3", "start_ms": 520, "end_ms": 590, "severity": "p3", "env": "lab", "signature": "noise", "muted": false},
-  {"alert_id": "x4", "start_ms": 600, "end_ms": " 910 ", "severity": "p2", "env": "edge", "signature": "burst drift", "muted": "yes"},
-  {"alert_id": "x4", "start_ms": 600, "end_ms": " 910 ", "severity": "p2", "env": "edge", "signature": "burst drift z", "muted": false}
+  {
+    "alert_id": "p5001",
+    "start_ms": 2010000001000,
+    "end_ms": 2010000001680,
+    "severity": "p1",
+    "env": "prod",
+    "signature": "wildcard permission grant",
+    "muted": false
+  },
+  {
+    "alert_id": "p5002",
+    "start_ms": 2010000002100,
+    "end_ms": 2010000002640,
+    "severity": "p2",
+    "env": "PROD",
+    "signature": "role assumption loop",
+    "muted": false
+  },
+  {
+    "alert_id": "p5003",
+    "start_ms": 2010000003300,
+    "end_ms": 2010000003900,
+    "severity": "p1",
+    "env": "prod",
+    "signature": "escalation via passrole",
+    "muted": false
+  },
+  {
+    "alert_id": "d5004",
+    "start_ms": 2010000201000,
+    "end_ms": 2010000201560,
+    "severity": "p2",
+    "env": "dmz",
+    "signature": "admin role takeover",
+    "muted": false
+  },
+  {
+    "alert_id": "d5005",
+    "start_ms": 2010000201590,
+    "end_ms": 2010000201830,
+    "severity": "p1",
+    "env": "Dmz ",
+    "signature": "policy drift on privileged group",
+    "muted": false
+  },
+  {
+    "alert_id": "d5006",
+    "start_ms": 2010000202400,
+    "end_ms": 2010000203040,
+    "severity": "p1",
+    "env": "dmz",
+    "signature": "orphaned service principal",
+    "muted": false
+  },
+  {
+    "alert_id": "c5007",
+    "start_ms": 2010000401000,
+    "end_ms": 2010000401600,
+    "severity": "p1",
+    "env": "core",
+    "signature": "cross-account trust widening",
+    "muted": false
+  },
+  {
+    "alert_id": "c5008",
+    "start_ms": 2010000401900,
+    "end_ms": 2010000402420,
+    "severity": "p2",
+    "env": "CORE ",
+    "signature": "mfa bypass on break-glass",
+    "muted": false
+  },
+  {
+    "alert_id": "c5009",
+    "start_ms": 2010000402800,
+    "end_ms": 2010000403360,
+    "severity": "p1",
+    "env": "core",
+    "signature": "stale access key active",
+    "muted": false
+  },
+  {
+    "alert_id": "v5010",
+    "start_ms": 2010000601000,
+    "end_ms": 2010000601720,
+    "severity": "p1",
+    "env": "vault",
+    "signature": "wildcard permission grant",
+    "muted": false
+  },
+  {
+    "alert_id": "v5011",
+    "start_ms": 2010000602600,
+    "end_ms": 2010000603100,
+    "severity": "p2",
+    "env": "vault",
+    "signature": "role assumption loop",
+    "muted": false
+  },
+  {
+    "alert_id": "AM1",
+    "start_ms": 2010000001600,
+    "end_ms": 2010000001900,
+    "severity": "p2",
+    "env": "prod",
+    "signature": "muted",
+    "muted": true
+  },
+  {
+    "alert_id": "AD1",
+    "start_ms": 2010000400200,
+    "end_ms": 2010000400500,
+    "severity": "p2",
+    "env": "vault",
+    "signature": "dup a",
+    "muted": false
+  },
+  {
+    "alert_id": "AD1",
+    "start_ms": 2010000400200,
+    "end_ms": 2010000400700,
+    "severity": "p2",
+    "env": "vault",
+    "signature": "dup b",
+    "muted": false
+  }
 ]
