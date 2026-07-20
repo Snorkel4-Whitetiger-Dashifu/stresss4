@@ -8,6 +8,8 @@ import hashlib
 import json
 from pathlib import Path
 
+ENV_QUEUE_CAP = 3
+CARRY_OUT_CAP = 900
 SCHEMA_VERSION = "firewall-drift-v1"
 FREEZE_PATH = Path("/app/data/change_freezes.json")
 REOPEN_PATH = Path("/app/data/reopen_windows.json")
@@ -128,10 +130,11 @@ def canonicalize_alerts(rows: list[dict]) -> list[dict]:
             continue
         if candidate["end_ms"] < existing["end_ms"]:
             continue
-        if _severity_rank(candidate["severity"]) > _severity_rank(existing["severity"]):
+        # #FW-5366 reverses this step: the LOWER severity rank wins a duplicate tie.
+        if _severity_rank(candidate["severity"]) < _severity_rank(existing["severity"]):
             deduped[alert_id] = candidate
             continue
-        if _severity_rank(candidate["severity"]) < _severity_rank(existing["severity"]):
+        if _severity_rank(candidate["severity"]) > _severity_rank(existing["severity"]):
             continue
         if len(candidate["signature"]) > len(existing["signature"]):
             deduped[alert_id] = candidate
@@ -326,7 +329,7 @@ def build_drift_windows(
                     "max_severity": row["severity"],
                 }
                 continue
-            if row["start_ms"] <= current["end_ms"] + 45:
+            if row["start_ms"] <= current["end_ms"] + 100:  # stitch gap per #FW-5370
                 current["end_ms"] = max(current["end_ms"], row["end_ms"])
                 current["source_alert_ids"].append(row["alert_id"])
                 if _severity_rank(row["severity"]) > _severity_rank(current["max_severity"]):
@@ -384,7 +387,16 @@ def build_drift_windows(
             )
             compacted_rotation_segments = _compact_intervals(rotation_segments)
             rotation_overlap = sum(end - start for start, end in compacted_rotation_segments)
-            dispatchable_duration = max(risk_adjusted_duration - (rotation_overlap // 3), 0)
+            # #FW-5354: reopen wins any instant both layers cover; the rotation overlap
+            # excludes the reopen/rotation intersection. Defer is not part of this rule.
+            shared_reopen_rotation_ms = 0
+            for rot_start, rot_end in compacted_rotation_segments:
+                for rep_start, rep_end in compacted_reopen_segments:
+                    shared_reopen_rotation_ms += max(
+                        0, min(rot_end, rep_end) - max(rot_start, rep_start)
+                    )
+            rotation_overlap = max(rotation_overlap - shared_reopen_rotation_ms, 0)
+            dispatchable_duration = max(risk_adjusted_duration - (-(-rotation_overlap // 3)), 0)
             defer_all, defer_severity = _scope_intervals_for_window(
                 defer_map, env, window["max_severity"]
             )
@@ -434,7 +446,7 @@ def build_drift_windows(
                 if previous_end_ms is None
                 else max(window["start_ms"] - previous_end_ms, 0)
             )
-            carry_in_ms = max(previous_carry_out_ms - (idle_gap_ms // 2), 0)
+            carry_in_ms = max(previous_carry_out_ms - (-(-idle_gap_ms // 2)), 0)
             ledger_adjusted_actionable_ms = (
                 window["actionable_duration_ms"] + min(carry_in_ms // 4, 120)
             )
@@ -444,7 +456,7 @@ def build_drift_windows(
                 + (window["freeze_segment_count"] * 8)
                 + (window["rotation_segment_count"] * 15)
                 + (window["defer_segment_count"] * 10),
-                2000,
+                CARRY_OUT_CAP,   # per #FW-5368
             )
             window["idle_gap_ms"] = idle_gap_ms
             window["carry_in_ms"] = carry_in_ms
@@ -509,7 +521,7 @@ def build_response_queue(
             volatility_index = (
                 stability_pressure_score
                 + (all_rotation_probe_ms // 24)
-                + (severity_rotation_probe_ms // 16)
+                + (-(-severity_rotation_probe_ms // 16))
                 + (window["rotation_segment_count"] * 2)
             )
             defer_all, defer_severity = _scope_intervals_for_window(
@@ -524,13 +536,13 @@ def build_response_queue(
                 lookback_ms=300,
             )
             defer_pressure_score = (
-                (all_defer_probe_ms // 40)
+                (-(-all_defer_probe_ms // 40))
                 + (severity_defer_probe_ms // 28)
                 + window["defer_segment_count"]
             )
             ledger_pressure_score = (
-                (window["carry_out_ms"] // 80)
-                + (window["carry_in_ms"] // 120)
+                (-(-window["carry_out_ms"] // 80))
+                + (-(-window["carry_in_ms"] // 120))
                 + max(window["alert_count"] - 1, 0)
             )
             stability_index = (
@@ -541,15 +553,15 @@ def build_response_queue(
             )
             if (
                 window["max_severity"] == "p1"
-                and window["ledger_adjusted_actionable_ms"] >= 235
+                and window["ledger_adjusted_actionable_ms"] >= 454
             ) or (
-                window["ledger_adjusted_actionable_ms"] >= 500
-                or stability_index >= 20
-                or window["trust_exposure_score"] >= 24
+                window["ledger_adjusted_actionable_ms"] >= 600
+                or stability_index >= 40
+                or window["trust_exposure_score"] >= 76
             ):
                 priority = "critical"
-            elif window["ledger_adjusted_actionable_ms"] >= 265 or (
-                window["alert_count"] >= 3 and window["max_severity"] in {"p1", "p2"}
+            elif window["ledger_adjusted_actionable_ms"] >= 330 or (
+                window["alert_count"] >= 2 and window["max_severity"] in {"p1", "p2"}
             ) or (
                 window["rotation_segment_count"] == 0
                 and window["risk_adjusted_duration_ms"] >= 340
@@ -558,7 +570,7 @@ def build_response_queue(
             ) or (
                 window["reopen_segment_count"] == 0 and window["duration_ms"] >= 420
             ) or (
-                window["trust_exposure_score"] >= 12
+                window["trust_exposure_score"] >= 30
             ):
                 priority = "high"
             else:
@@ -646,6 +658,16 @@ def build_response_queue(
             row["start_ms"],
         )
     )
+    # Responder capacity cap per #FW-5356, applied AFTER the full ordering above.
+    retained_per_env: dict[str, int] = {}
+    capped_queue: list[dict] = []
+    for row in queue:
+        taken = retained_per_env.get(row["env"], 0)
+        if taken < ENV_QUEUE_CAP:
+            capped_queue.append(row)
+            retained_per_env[row["env"]] = taken + 1
+    queue = capped_queue
+
     return queue
 
 

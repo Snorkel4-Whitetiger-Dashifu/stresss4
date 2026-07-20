@@ -262,5 +262,75 @@
   "semantics_source": {
     "notes": "This document is the output contract only: file paths, schemas, required fields, repair tokens, digest payloads and checksum serialization. It does NOT define how values are derived.",
     "authority": "Canonicalization, dedupe tie-breaks, window merging, the freeze/reopen/rotation/defer attenuation layers and their scope rules, probe scoring, the risk ledger, IAM trust traversal, queue admission, priority rules and queue ordering were settled by the firewall governance board; the authoritative record is /app/incident/enforcement_review_log.md. Where an early draft proposal conflicts with a later governance decision, the later decision wins."
+  },
+  "governing_entry_index": {
+    "_note": "Navigation aid only. It records WHICH review entries carry the governing rule for each stage; it does not restate any rule, value, divisor, threshold or rounding direction.",
+    "stages": {
+      "canonicalization": [
+        "#FW-5301"
+      ],
+      "deduplication": [
+        "#FW-5302",
+        "#FW-5366"
+      ],
+      "window_construction": [
+        "#FW-5304",
+        "#FW-5370"
+      ],
+      "freeze_layer": [
+        "#FW-5305"
+      ],
+      "reopen_layer": [
+        "#FW-5307"
+      ],
+      "rotation_layer": [
+        "#FW-5308",
+        "#FW-5354"
+      ],
+      "defer_layer": [
+        "#FW-5310"
+      ],
+      "layer_interaction": [
+        "#FW-5354"
+      ],
+      "probe_scoring": [
+        "#FW-5311"
+      ],
+      "risk_ledger": [
+        "#FW-5313",
+        "#FW-5314",
+        "#FW-5327",
+        "#FW-5368"
+      ],
+      "trust_graph": [
+        "#FW-5316",
+        "#FW-5317",
+        "#FW-5319",
+        "#FW-5320"
+      ],
+      "queue_admission": [
+        "#FW-5322"
+      ],
+      "priority_assignment": [
+        "#FW-5323",
+        "#FW-5372"
+      ],
+      "queue_ordering": [
+        "#FW-5325"
+      ],
+      "queue_capacity": [
+        "#FW-5356"
+      ],
+      "other_governing": [
+        "#FW-5331",
+        "#FW-5330",
+        "#FW-5333",
+        "#FW-5336",
+        "#FW-5339"
+      ]
+    },
+    "rounding_warning": "Rounding direction is not uniform and is not inferable from any neighbouring divisor, including between the two halves of the same probe score.",
+    "reversal_warning": "At least one stage has had the DIRECTION of a comparison reversed by a later entry.",
+    "interaction_warning": "The scoped attenuation layers are NOT independent. One layer pair has a precedence rule assigning their shared time to a single layer; a third layer is excluded. That rule is #FW-5354, listed under layer_interaction."
   }
 }

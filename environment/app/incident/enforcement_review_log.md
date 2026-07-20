@@ -508,6 +508,8 @@ Shift lead logged a routine enforcement observation for edge (central) during re
 Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
 > **Governance decision (2026-05-02 - #FW-5301)** Yusuf: canonicalization: env — normalize env via str(...).strip().lower(); severity — normalize severity via str(...).strip().lower(), then if the normalized value is not one of p1, p2, p3, p4 it falls back to p4 (unrecognized severities are treated as p4, the lowest tier); signature — collapse internal whitespace for signature; end_ms — coerce end_ms to int after trim; invalid -> 0, and the row is KEPT, not dropped (supersedes #FW-4812); muted — booleans unchanged; strings true/1/yes => true, all other strings => false; non-string/non-bool use Python bool(value).
 
+> **Governance decision (2026-05-21 - #FW-5366)** Yusuf: duplicate-severity precedence is REVERSED. Firewall-drift duplicates are mostly re-emissions from the enforcement watchdog, which escalates a repeated alert before an operator confirms it, so keeping the highest severity was over-escalating the queue. Where two rows share an `alert_id` and tie on `end_ms`, the row with the LOWER severity rank is kept: p4 beats p3, p3 beats p2, p2 beats p1. Only this comparison changes; the rest of the chain runs unchanged after it.
+
 ### Review entry 0116 — core lane
 Shift lead logged a routine enforcement observation for core (east) during review window 0116. Noise review: repeated drift alerts traced to a flapping policy probe, muted at the source.
 Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
@@ -677,6 +679,8 @@ Historical CSV exports remain archived and non-authoritative for the JSON reconc
 Shift lead logged a routine enforcement observation for dmz (west) during review window 0157. Quarterly access recertification touched this lane; no compile-relevant configuration changed.
 Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
 > **Governance decision (2026-05-03 - #FW-5304)** Lena: drift windows group by normalized env; merge condition: next.start_ms <= current.end_ms + 45. Muted alerts are excluded from window construction. This supersedes #FW-4819 and revises the +30 stitch in #FW-5211.
+
+> **Governance decision (2026-05-21 - #FW-5370)** Lena: drift-window stitch threshold retuned to 100 ms. Enforcement drift re-emerges further apart than the original 45 ms allowance assumed. The merge condition becomes `next.start_ms <= current.end_ms + 100`, inclusive, so a gap of exactly 100 ms merges and 101 does not.
 
 ### Review entry 0158 — vault lane
 Shift lead logged a routine enforcement observation for vault (north) during review window 0158. Vendor ticket on webhook retries closed; delivery within contractual budget.
@@ -933,6 +937,8 @@ Shift lead logged a routine enforcement observation for core (east) during revie
 Historical CSV exports remain archived and non-authoritative for the JSON reconciler acceptance.
 > **Governance decision (2026-05-04 - #FW-5308)** Priya: rotation layer: scope allowlist ['all', 'p1', 'p2']; normalize env/scope/start/end, keep rows whose severity_scope is in scope_values, drop end<=start, compact overlap/touch intervals per (env,severity_scope). Matching scopes: {all,max_severity} for each window; if max_severity is p2 and (env,p2) has no compacted intervals, borrow (env,p1) as the severity scope fallback. Union: collect overlap segments from matching scopes then compact/union those segments to compute rotation_overlap_ms and rotation_segment_count. dispatchable_duration_ms = max(risk_adjusted_duration_ms - (rotation_overlap_ms // 3), 0) — the //3 divisor is final and revises #FW-5217. volatility_index (final, revising #FW-5208 which dropped the probe terms): stability_pressure_score + (all_rotation_probe_ms//24) + (severity_rotation_probe_ms//16) + (rotation_segment_count*2) where probe is [end_ms-240,end_ms+1).
 
+> **Governance decision (2026-05-23 - #FW-5354)** Nadia: reopen/rotation precedence. The two scoped layers were being charged independently, so an instant covered by both an approved reopen window and an approved rotation window attenuated the drift twice. Compute each layer's half-open scoped segments and compact them as before, then assign the intersection to REOPEN: `reopen_overlap_ms` keeps its full compacted union, and `rotation_overlap_ms` is its own compacted union MINUS the duration of the reopen/rotation intersection, floored at zero. The defer layer is not part of this rule and keeps its independent union, so the three layers must not be assumed to interact alike.
+
 ### Review entry 0221 — dmz lane
 Shift lead logged a routine enforcement observation for dmz (west) during review window 0221. Dashboard tiles for drift volume lagged during rule refresh; attributed to cache staleness, not the reconciler.
 Reviewers should reconcile behavior questions against #FW governance decisions rather than chat excerpts.
@@ -1187,6 +1193,8 @@ No reconciler semantics changed in this entry; parameters remain as approved by 
 Shift lead logged a routine enforcement observation for edge (central) during review window 0283. IAM trust edge audit sampled cross-account roles; no reconciler-relevant findings for this lane.
 Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
 > **Governance decision (2026-05-06 - #FW-5313)** Yusuf: risk ledger: state is independent per normalized env; process each env's merged windows in start_ms ascending order after all four attenuation layers are complete. First window: idle_gap_ms=0, carry_in_ms=0. idle_gap_ms: for later windows max(current.start_ms-previous.end_ms,0). carry_in_ms = max(previous.carry_out_ms-(idle_gap_ms//2),0). ledger_adjusted_actionable_ms = actionable_duration_ms+(carry_in_ms//4). carry_out_ms = min(carry_in_ms+actionable_duration_ms+(rotation_segment_count*15)+(defer_segment_count*10),2000). finalize carry_out_ms for one window before evaluating the next window in the same env. The //2 idle decay and the 2000 cap are final and revise #FW-5224. This supersedes #FW-4835.
+
+> **Governance decision (2026-05-21 - #FW-5368)** Yusuf: risk-ledger carry-out cap retuned to 900 ms. The previous 2000 ms cap never bound. The cap is applied after the computed value, so a window whose computed carry is exactly 900 is unaffected and one above it clamps to 900.
 
 ### Review entry 0284 — core lane
 Shift lead logged a routine enforcement observation for core (east) during review window 0284. Synthetic drift injection verified pager delivery to the containment rotation for this region.
@@ -1784,6 +1792,8 @@ Shift lead logged a routine enforcement observation for vault (north) during rev
 No reconciler semantics changed in this entry; parameters remain as approved by the governance board.
 > **Governance decision (2026-05-09 - #FW-5323)** Marek: priority rules: critical — max_severity == p1 and ledger_adjusted_actionable_ms >= 235, or ledger_adjusted_actionable_ms >= 500, or stability_index >= 20, or trust_exposure_score >= 24. high — ledger_adjusted_actionable_ms >= 265, or alert_count >= 3 with max_severity in {p1,p2}, or rotation_segment_count == 0 with risk_adjusted_duration_ms >= 340, or defer_pressure_score > 0 with dispatchable_duration_ms >= 320, or reopen_segment_count == 0 with duration_ms >= 420, or trust_exposure_score >= 12. Otherwise otherwise.
 
+> **Governance decision (2026-05-22 - #FW-5372)** Marek: priority thresholds retuned. Critical now requires: max_severity == p1 with ledger_adjusted_actionable_ms >= 454; or ledger_adjusted_actionable_ms >= 600; or stability_index >= 40; or trust_exposure_score >= 76. High, evaluated only when critical does not hold, requires: ledger_adjusted_actionable_ms >= 330; or alert_count >= 2 with max_severity in {p1, p2}; or rotation_segment_count == 0 with risk_adjusted_duration_ms >= 340; or defer_pressure_score > 0 with dispatchable_duration_ms >= 320; or reopen_segment_count == 0 with duration_ms >= 420; or trust_exposure_score >= 30. Otherwise medium.
+
 ### Review entry 0431 — fabric lane
 Shift lead logged a routine enforcement observation for fabric (central) during review window 0431. Dashboard tiles for drift volume lagged during rule refresh; attributed to cache staleness, not the reconciler.
 Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
@@ -1868,6 +1878,8 @@ No reconciler semantics changed in this entry; parameters remain as approved by 
 Shift lead logged a routine enforcement observation for edge (central) during review window 0451. Dashboard tiles for drift volume lagged during rule refresh; attributed to cache staleness, not the reconciler.
 Thread archived; see the #FW decision entries for anything affecting reconciler behavior.
 > **Governance decision (2026-05-10 - #FW-5325)** Yusuf: final queue ordering, applied strictly in sequence: priority rank critical>high>medium; then ledger_adjusted_actionable_ms desc; then actionable_duration_ms desc; then stability_index desc; then trust_exposure_score desc; then defer_pressure_score desc; then volatility_index desc; then dispatchable_duration_ms desc; then risk_adjusted_duration_ms desc; then freeze_segment_count desc; then alert_count desc; then env asc; then start_ms asc.
+
+> **Governance decision (2026-05-24 - #FW-5356)** Marek: responder capacity cap. The queue is capped at THREE rows per normalized env. The cap is applied as a final pass over the fully ordered queue, not during admission and not per env before ordering: build, admit, prioritise and order every window as before, then walk the ordered queue from the top keeping the first three rows of each env and discarding the rest. Which rows survive therefore depends on the global order.
 
 ### Review entry 0452 — core lane
 Shift lead logged a routine enforcement observation for core (east) during review window 0452. Change-board reviewed stale exception approvals; owners pinged before the next enforcement cycle.
