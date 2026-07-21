@@ -220,5 +220,197 @@
     "severity_scope": "all",
     "start_ms": 2010001204179,
     "end_ms": 2010001204269
+  },
+  {
+    "env": "core",
+    "severity_scope": "p1",
+    "start_ms": 2010000804288,
+    "end_ms": 2010000804335
+  },
+  {
+    "env": "core",
+    "severity_scope": "p1",
+    "start_ms": 2010000804706,
+    "end_ms": 2010000804739
+  },
+  {
+    "env": "core",
+    "severity_scope": "p1",
+    "start_ms": 2010000805158,
+    "end_ms": 2010000805249
+  },
+  {
+    "env": "core",
+    "severity_scope": "p1",
+    "start_ms": 2010000805572,
+    "end_ms": 2010000805643
+  },
+  {
+    "env": "dmz",
+    "severity_scope": "p1",
+    "start_ms": 2010000204786,
+    "end_ms": 2010000204839
+  },
+  {
+    "env": "dmz",
+    "severity_scope": "p1",
+    "start_ms": 2010000205204,
+    "end_ms": 2010000205251
+  },
+  {
+    "env": "dmz",
+    "severity_scope": "p1",
+    "start_ms": 2010000205656,
+    "end_ms": 2010000205689
+  },
+  {
+    "env": "dmz",
+    "severity_scope": "p1",
+    "start_ms": 2010000206070,
+    "end_ms": 2010000206161
+  },
+  {
+    "env": "dns",
+    "severity_scope": "p1",
+    "start_ms": 2010001004526,
+    "end_ms": 2010001004597
+  },
+  {
+    "env": "dns",
+    "severity_scope": "p1",
+    "start_ms": 2010001004944,
+    "end_ms": 2010001004997
+  },
+  {
+    "env": "dns",
+    "severity_scope": "p1",
+    "start_ms": 2010001005396,
+    "end_ms": 2010001005443
+  },
+  {
+    "env": "dns",
+    "severity_scope": "p1",
+    "start_ms": 2010001005810,
+    "end_ms": 2010001005843
+  },
+  {
+    "env": "edge",
+    "severity_scope": "p1",
+    "start_ms": 2010000404210,
+    "end_ms": 2010000404301
+  },
+  {
+    "env": "edge",
+    "severity_scope": "p1",
+    "start_ms": 2010000404628,
+    "end_ms": 2010000404699
+  },
+  {
+    "env": "edge",
+    "severity_scope": "p1",
+    "start_ms": 2010000405080,
+    "end_ms": 2010000405133
+  },
+  {
+    "env": "edge",
+    "severity_scope": "p1",
+    "start_ms": 2010000405494,
+    "end_ms": 2010000405541
+  },
+  {
+    "env": "mesh",
+    "severity_scope": "p1",
+    "start_ms": 2010001403016,
+    "end_ms": 2010001403049
+  },
+  {
+    "env": "mesh",
+    "severity_scope": "p1",
+    "start_ms": 2010001403434,
+    "end_ms": 2010001403525
+  },
+  {
+    "env": "mesh",
+    "severity_scope": "p1",
+    "start_ms": 2010001403886,
+    "end_ms": 2010001403957
+  },
+  {
+    "env": "mesh",
+    "severity_scope": "p1",
+    "start_ms": 2010001404300,
+    "end_ms": 2010001404353
+  },
+  {
+    "env": "prod",
+    "severity_scope": "p1",
+    "start_ms": 2010000005815,
+    "end_ms": 2010000005862
+  },
+  {
+    "env": "prod",
+    "severity_scope": "p1",
+    "start_ms": 2010000006233,
+    "end_ms": 2010000006266
+  },
+  {
+    "env": "prod",
+    "severity_scope": "p1",
+    "start_ms": 2010000006685,
+    "end_ms": 2010000006776
+  },
+  {
+    "env": "prod",
+    "severity_scope": "p1",
+    "start_ms": 2010000007099,
+    "end_ms": 2010000007170
+  },
+  {
+    "env": "vault",
+    "severity_scope": "p1",
+    "start_ms": 2010000604458,
+    "end_ms": 2010000604511
+  },
+  {
+    "env": "vault",
+    "severity_scope": "p1",
+    "start_ms": 2010000604876,
+    "end_ms": 2010000604923
+  },
+  {
+    "env": "vault",
+    "severity_scope": "p1",
+    "start_ms": 2010000605328,
+    "end_ms": 2010000605361
+  },
+  {
+    "env": "vault",
+    "severity_scope": "p1",
+    "start_ms": 2010000605742,
+    "end_ms": 2010000605833
+  },
+  {
+    "env": "zone",
+    "severity_scope": "p1",
+    "start_ms": 2010001203899,
+    "end_ms": 2010001203970
+  },
+  {
+    "env": "zone",
+    "severity_scope": "p1",
+    "start_ms": 2010001204317,
+    "end_ms": 2010001204370
+  },
+  {
+    "env": "zone",
+    "severity_scope": "p1",
+    "start_ms": 2010001204769,
+    "end_ms": 2010001204816
+  },
+  {
+    "env": "zone",
+    "severity_scope": "p1",
+    "start_ms": 2010001205183,
+    "end_ms": 2010001205216
   }
 ]
