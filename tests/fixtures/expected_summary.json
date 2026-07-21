@@ -61,15 +61,15 @@
       "max_carry_out_ms": 900,
       "max_stability_index": 54,
       "canonical_alert_checksum": "c95444efaaeb892edce4fb2725b2052692bee2c54a5e5e3454d1c4148d260078",
-      "queue_hash_checksum": "51c9373acbd6fbccaca94cc9bc291b762edf10bea973959011d63c9a8778ef2e",
+      "queue_hash_checksum": "61e6c9d8fc802a48113a699b774107eca2f3b2cdc82b260ec22e4bb29f5fdc34",
       "freeze_compaction_checksum": "6816c7ef36f0a29dfb6ef5f2bf1019b3be489243b02e46f0430c5ae088394730",
       "reopen_compaction_checksum": "fee201f823e1f7923f1cdb76553ba70c0576d7711f6f4b724c965846ac6dba3a",
       "rotation_compaction_checksum": "8a16c58e5bd0fa433166683a2fdf6347b1e67ba19604d4fff980ab0127e69ca2",
       "defer_compaction_checksum": "e49c3c1b2e9923491ef57a4df65897582ade55145d03e05dc397813d8d32a675",
       "trust_edge_checksum": "9e21caca5a5a1ec1e5e26420bd0acd2cfc3037fc6738d97f5e6ac48042826f19",
-      "window_digest_checksum": "b1a3504dc44acd0be48e4fa70afab1b2d00a850b9f7c522f7cbb588c002fece3",
+      "window_digest_checksum": "655e0c01c2d7a60215180779ef67d7ac14caaea069788502c112a4c9a873f8d5",
       "ledger_checksum": "5dea78a5d25b249289b65273f7a6aafcc1d9b73fa9f228043e130192389358fa",
-      "trust_path_digest_checksum": "f14f87bec38b1d666b3223893833936788ab12f26214038249c761e73b23486e"
+      "trust_path_digest_checksum": "bcfd449d3277288b5d1361da9b94dbe8753248a26c5f2140a64af54b7248c0ac"
     },
     "windows": {
       "core": [
@@ -1791,6 +1791,53 @@
         "window_digest": "1bcf10bf9b"
       },
       {
+        "ticket_id": "vault:2010000603800-2010000604118",
+        "env": "vault",
+        "start_ms": 2010000603800,
+        "end_ms": 2010000604118,
+        "duration_ms": 318,
+        "freeze_overlap_ms": 37,
+        "freeze_segment_count": 1,
+        "effective_duration_ms": 281,
+        "reopen_overlap_ms": 0,
+        "reopen_segment_count": 0,
+        "risk_adjusted_duration_ms": 281,
+        "rotation_overlap_ms": 0,
+        "rotation_segment_count": 0,
+        "dispatchable_duration_ms": 281,
+        "defer_overlap_ms": 0,
+        "defer_segment_count": 0,
+        "actionable_duration_ms": 281,
+        "idle_gap_ms": 923,
+        "carry_in_ms": 183,
+        "carry_out_ms": 472,
+        "ledger_adjusted_actionable_ms": 326,
+        "trust_reachable_envs": [
+          "mesh",
+          "zone"
+        ],
+        "trust_exposure_score": 13,
+        "trust_strongest_path": [
+          "vault",
+          "zone",
+          "mesh"
+        ],
+        "trust_path_digest": "c438527b0401",
+        "alert_count": 1,
+        "source_alert_ids": [
+          "v1019"
+        ],
+        "max_severity": "p1",
+        "stability_pressure_score": 0,
+        "volatility_index": 0,
+        "defer_pressure_score": 0,
+        "ledger_pressure_score": 8,
+        "stability_index": 14,
+        "priority": "high",
+        "queue_hash": "d59e2dfc1eac",
+        "window_digest": "efac28cf71"
+      },
+      {
         "ticket_id": "core:2010000801000-2010000801307",
         "env": "core",
         "start_ms": 2010000801000,
@@ -1839,6 +1886,51 @@
         "priority": "high",
         "queue_hash": "6bcc15c3b99a",
         "window_digest": "666d8626ae"
+      },
+      {
+        "ticket_id": "mesh:2010001402400-2010001402676",
+        "env": "mesh",
+        "start_ms": 2010001402400,
+        "end_ms": 2010001402676,
+        "duration_ms": 276,
+        "freeze_overlap_ms": 37,
+        "freeze_segment_count": 1,
+        "effective_duration_ms": 239,
+        "reopen_overlap_ms": 0,
+        "reopen_segment_count": 0,
+        "risk_adjusted_duration_ms": 239,
+        "rotation_overlap_ms": 0,
+        "rotation_segment_count": 0,
+        "dispatchable_duration_ms": 239,
+        "defer_overlap_ms": 0,
+        "defer_segment_count": 0,
+        "actionable_duration_ms": 239,
+        "idle_gap_ms": 876,
+        "carry_in_ms": 72,
+        "carry_out_ms": 319,
+        "ledger_adjusted_actionable_ms": 257,
+        "trust_reachable_envs": [
+          "zone"
+        ],
+        "trust_exposure_score": 4,
+        "trust_strongest_path": [
+          "mesh",
+          "zone"
+        ],
+        "trust_path_digest": "7ec210aa569b",
+        "alert_count": 1,
+        "source_alert_ids": [
+          "m1033"
+        ],
+        "max_severity": "p2",
+        "stability_pressure_score": 0,
+        "volatility_index": 0,
+        "defer_pressure_score": 0,
+        "ledger_pressure_score": 5,
+        "stability_index": 7,
+        "priority": "high",
+        "queue_hash": "265355acdbff",
+        "window_digest": "b67b2604aa"
       },
       {
         "ticket_id": "edge:2010000403600-2010000403870",
@@ -1891,6 +1983,96 @@
         "window_digest": "0309573eb4"
       },
       {
+        "ticket_id": "zone:2010001202100-2010001202422",
+        "env": "zone",
+        "start_ms": 2010001202100,
+        "end_ms": 2010001202422,
+        "duration_ms": 322,
+        "freeze_overlap_ms": 0,
+        "freeze_segment_count": 0,
+        "effective_duration_ms": 322,
+        "reopen_overlap_ms": 61,
+        "reopen_segment_count": 1,
+        "risk_adjusted_duration_ms": 291,
+        "rotation_overlap_ms": 77,
+        "rotation_segment_count": 1,
+        "dispatchable_duration_ms": 265,
+        "defer_overlap_ms": 53,
+        "defer_segment_count": 1,
+        "actionable_duration_ms": 251,
+        "idle_gap_ms": 805,
+        "carry_in_ms": 0,
+        "carry_out_ms": 276,
+        "ledger_adjusted_actionable_ms": 251,
+        "trust_reachable_envs": [
+          "mesh"
+        ],
+        "trust_exposure_score": 3,
+        "trust_strongest_path": [
+          "zone",
+          "mesh"
+        ],
+        "trust_path_digest": "9a5f8215c6e3",
+        "alert_count": 1,
+        "source_alert_ids": [
+          "z1029"
+        ],
+        "max_severity": "p1",
+        "stability_pressure_score": 2,
+        "volatility_index": 9,
+        "defer_pressure_score": 3,
+        "ledger_pressure_score": 4,
+        "stability_index": 17,
+        "priority": "high",
+        "queue_hash": "6a0bcf98b58c",
+        "window_digest": "7919b2ce74"
+      },
+      {
+        "ticket_id": "zone:2010001201000-2010001201295",
+        "env": "zone",
+        "start_ms": 2010001201000,
+        "end_ms": 2010001201295,
+        "duration_ms": 295,
+        "freeze_overlap_ms": 23,
+        "freeze_segment_count": 1,
+        "effective_duration_ms": 272,
+        "reopen_overlap_ms": 0,
+        "reopen_segment_count": 0,
+        "risk_adjusted_duration_ms": 272,
+        "rotation_overlap_ms": 91,
+        "rotation_segment_count": 1,
+        "dispatchable_duration_ms": 241,
+        "defer_overlap_ms": 0,
+        "defer_segment_count": 0,
+        "actionable_duration_ms": 241,
+        "idle_gap_ms": 0,
+        "carry_in_ms": 0,
+        "carry_out_ms": 264,
+        "ledger_adjusted_actionable_ms": 241,
+        "trust_reachable_envs": [
+          "mesh"
+        ],
+        "trust_exposure_score": 3,
+        "trust_strongest_path": [
+          "zone",
+          "mesh"
+        ],
+        "trust_path_digest": "9a5f8215c6e3",
+        "alert_count": 1,
+        "source_alert_ids": [
+          "z1028"
+        ],
+        "max_severity": "p2",
+        "stability_pressure_score": 0,
+        "volatility_index": 5,
+        "defer_pressure_score": 0,
+        "ledger_pressure_score": 4,
+        "stability_index": 10,
+        "priority": "high",
+        "queue_hash": "4baebeee1679",
+        "window_digest": "ae2e7f9b27"
+      },
+      {
         "ticket_id": "dmz:2010000203200-2010000203530",
         "env": "dmz",
         "start_ms": 2010000203200,
@@ -1940,6 +2122,53 @@
         "priority": "high",
         "queue_hash": "c153edcfe968",
         "window_digest": "d1a39143c7"
+      },
+      {
+        "ticket_id": "dns:2010001001000-2010001001330",
+        "env": "dns",
+        "start_ms": 2010001001000,
+        "end_ms": 2010001001330,
+        "duration_ms": 330,
+        "freeze_overlap_ms": 0,
+        "freeze_segment_count": 0,
+        "effective_duration_ms": 330,
+        "reopen_overlap_ms": 95,
+        "reopen_segment_count": 1,
+        "risk_adjusted_duration_ms": 282,
+        "rotation_overlap_ms": 52,
+        "rotation_segment_count": 1,
+        "dispatchable_duration_ms": 264,
+        "defer_overlap_ms": 94,
+        "defer_segment_count": 1,
+        "actionable_duration_ms": 240,
+        "idle_gap_ms": 190500,
+        "carry_in_ms": 0,
+        "carry_out_ms": 265,
+        "ledger_adjusted_actionable_ms": 240,
+        "trust_reachable_envs": [
+          "mesh",
+          "zone"
+        ],
+        "trust_exposure_score": 15,
+        "trust_strongest_path": [
+          "dns",
+          "zone",
+          "mesh"
+        ],
+        "trust_path_digest": "c8fce2fa6291",
+        "alert_count": 1,
+        "source_alert_ids": [
+          "d1024"
+        ],
+        "max_severity": "p1",
+        "stability_pressure_score": 0,
+        "volatility_index": 5,
+        "defer_pressure_score": 4,
+        "ledger_pressure_score": 4,
+        "stability_index": 20,
+        "priority": "high",
+        "queue_hash": "28d9be664088",
+        "window_digest": "f1520a6de6"
       },
       {
         "ticket_id": "core:2010000802800-2010000803070",
@@ -2042,235 +2271,6 @@
         "priority": "high",
         "queue_hash": "eb955fbd3bec",
         "window_digest": "bd7f6cba6a"
-      },
-      {
-        "ticket_id": "vault:2010000603800-2010000604118",
-        "env": "vault",
-        "start_ms": 2010000603800,
-        "end_ms": 2010000604118,
-        "duration_ms": 318,
-        "freeze_overlap_ms": 37,
-        "freeze_segment_count": 1,
-        "effective_duration_ms": 281,
-        "reopen_overlap_ms": 0,
-        "reopen_segment_count": 0,
-        "risk_adjusted_duration_ms": 281,
-        "rotation_overlap_ms": 0,
-        "rotation_segment_count": 0,
-        "dispatchable_duration_ms": 281,
-        "defer_overlap_ms": 0,
-        "defer_segment_count": 0,
-        "actionable_duration_ms": 281,
-        "idle_gap_ms": 923,
-        "carry_in_ms": 183,
-        "carry_out_ms": 472,
-        "ledger_adjusted_actionable_ms": 326,
-        "trust_reachable_envs": [
-          "mesh",
-          "zone"
-        ],
-        "trust_exposure_score": 13,
-        "trust_strongest_path": [
-          "vault",
-          "zone",
-          "mesh"
-        ],
-        "trust_path_digest": "c438527b0401",
-        "alert_count": 1,
-        "source_alert_ids": [
-          "v1019"
-        ],
-        "max_severity": "p1",
-        "stability_pressure_score": 0,
-        "volatility_index": 0,
-        "defer_pressure_score": 0,
-        "ledger_pressure_score": 8,
-        "stability_index": 14,
-        "priority": "medium",
-        "queue_hash": "d59e2dfc1eac",
-        "window_digest": "2ddb770348"
-      },
-      {
-        "ticket_id": "mesh:2010001402400-2010001402676",
-        "env": "mesh",
-        "start_ms": 2010001402400,
-        "end_ms": 2010001402676,
-        "duration_ms": 276,
-        "freeze_overlap_ms": 37,
-        "freeze_segment_count": 1,
-        "effective_duration_ms": 239,
-        "reopen_overlap_ms": 0,
-        "reopen_segment_count": 0,
-        "risk_adjusted_duration_ms": 239,
-        "rotation_overlap_ms": 0,
-        "rotation_segment_count": 0,
-        "dispatchable_duration_ms": 239,
-        "defer_overlap_ms": 0,
-        "defer_segment_count": 0,
-        "actionable_duration_ms": 239,
-        "idle_gap_ms": 876,
-        "carry_in_ms": 72,
-        "carry_out_ms": 319,
-        "ledger_adjusted_actionable_ms": 257,
-        "trust_reachable_envs": [
-          "zone"
-        ],
-        "trust_exposure_score": 4,
-        "trust_strongest_path": [
-          "mesh",
-          "zone"
-        ],
-        "trust_path_digest": "7ec210aa569b",
-        "alert_count": 1,
-        "source_alert_ids": [
-          "m1033"
-        ],
-        "max_severity": "p2",
-        "stability_pressure_score": 0,
-        "volatility_index": 0,
-        "defer_pressure_score": 0,
-        "ledger_pressure_score": 5,
-        "stability_index": 7,
-        "priority": "medium",
-        "queue_hash": "265355acdbff",
-        "window_digest": "4c942df24c"
-      },
-      {
-        "ticket_id": "zone:2010001202100-2010001202422",
-        "env": "zone",
-        "start_ms": 2010001202100,
-        "end_ms": 2010001202422,
-        "duration_ms": 322,
-        "freeze_overlap_ms": 0,
-        "freeze_segment_count": 0,
-        "effective_duration_ms": 322,
-        "reopen_overlap_ms": 61,
-        "reopen_segment_count": 1,
-        "risk_adjusted_duration_ms": 291,
-        "rotation_overlap_ms": 77,
-        "rotation_segment_count": 1,
-        "dispatchable_duration_ms": 265,
-        "defer_overlap_ms": 53,
-        "defer_segment_count": 1,
-        "actionable_duration_ms": 251,
-        "idle_gap_ms": 805,
-        "carry_in_ms": 0,
-        "carry_out_ms": 276,
-        "ledger_adjusted_actionable_ms": 251,
-        "trust_reachable_envs": [
-          "mesh"
-        ],
-        "trust_exposure_score": 3,
-        "trust_strongest_path": [
-          "zone",
-          "mesh"
-        ],
-        "trust_path_digest": "9a5f8215c6e3",
-        "alert_count": 1,
-        "source_alert_ids": [
-          "z1029"
-        ],
-        "max_severity": "p1",
-        "stability_pressure_score": 2,
-        "volatility_index": 9,
-        "defer_pressure_score": 3,
-        "ledger_pressure_score": 4,
-        "stability_index": 17,
-        "priority": "medium",
-        "queue_hash": "6a0bcf98b58c",
-        "window_digest": "7f5af9dba3"
-      },
-      {
-        "ticket_id": "zone:2010001201000-2010001201295",
-        "env": "zone",
-        "start_ms": 2010001201000,
-        "end_ms": 2010001201295,
-        "duration_ms": 295,
-        "freeze_overlap_ms": 23,
-        "freeze_segment_count": 1,
-        "effective_duration_ms": 272,
-        "reopen_overlap_ms": 0,
-        "reopen_segment_count": 0,
-        "risk_adjusted_duration_ms": 272,
-        "rotation_overlap_ms": 91,
-        "rotation_segment_count": 1,
-        "dispatchable_duration_ms": 241,
-        "defer_overlap_ms": 0,
-        "defer_segment_count": 0,
-        "actionable_duration_ms": 241,
-        "idle_gap_ms": 0,
-        "carry_in_ms": 0,
-        "carry_out_ms": 264,
-        "ledger_adjusted_actionable_ms": 241,
-        "trust_reachable_envs": [
-          "mesh"
-        ],
-        "trust_exposure_score": 3,
-        "trust_strongest_path": [
-          "zone",
-          "mesh"
-        ],
-        "trust_path_digest": "9a5f8215c6e3",
-        "alert_count": 1,
-        "source_alert_ids": [
-          "z1028"
-        ],
-        "max_severity": "p2",
-        "stability_pressure_score": 0,
-        "volatility_index": 5,
-        "defer_pressure_score": 0,
-        "ledger_pressure_score": 4,
-        "stability_index": 10,
-        "priority": "medium",
-        "queue_hash": "4baebeee1679",
-        "window_digest": "fa6cb31d8e"
-      },
-      {
-        "ticket_id": "dns:2010001001000-2010001001330",
-        "env": "dns",
-        "start_ms": 2010001001000,
-        "end_ms": 2010001001330,
-        "duration_ms": 330,
-        "freeze_overlap_ms": 0,
-        "freeze_segment_count": 0,
-        "effective_duration_ms": 330,
-        "reopen_overlap_ms": 95,
-        "reopen_segment_count": 1,
-        "risk_adjusted_duration_ms": 282,
-        "rotation_overlap_ms": 52,
-        "rotation_segment_count": 1,
-        "dispatchable_duration_ms": 264,
-        "defer_overlap_ms": 94,
-        "defer_segment_count": 1,
-        "actionable_duration_ms": 240,
-        "idle_gap_ms": 190500,
-        "carry_in_ms": 0,
-        "carry_out_ms": 265,
-        "ledger_adjusted_actionable_ms": 240,
-        "trust_reachable_envs": [
-          "mesh",
-          "zone"
-        ],
-        "trust_exposure_score": 15,
-        "trust_strongest_path": [
-          "dns",
-          "zone",
-          "mesh"
-        ],
-        "trust_path_digest": "c8fce2fa6291",
-        "alert_count": 1,
-        "source_alert_ids": [
-          "d1024"
-        ],
-        "max_severity": "p1",
-        "stability_pressure_score": 0,
-        "volatility_index": 5,
-        "defer_pressure_score": 4,
-        "ledger_pressure_score": 4,
-        "stability_index": 20,
-        "priority": "medium",
-        "queue_hash": "28d9be664088",
-        "window_digest": "749d99b6d1"
       }
     ]
   },
@@ -2312,15 +2312,15 @@
       "max_carry_out_ms": 500,
       "max_stability_index": 43,
       "canonical_alert_checksum": "61214641d07983ef5856e66f7eec35d895661c2ac94def099b064b6b65e2555a",
-      "queue_hash_checksum": "b5e848a994ba39cd7d6d211aa786ab1bca8d73896cd3b9b419c6f7c970f78b25",
+      "queue_hash_checksum": "d8b942b7b7afb8464c73e49b8113747970458c78788fa2f396e5f1024c47ed39",
       "freeze_compaction_checksum": "6816c7ef36f0a29dfb6ef5f2bf1019b3be489243b02e46f0430c5ae088394730",
       "reopen_compaction_checksum": "fee201f823e1f7923f1cdb76553ba70c0576d7711f6f4b724c965846ac6dba3a",
       "rotation_compaction_checksum": "8a16c58e5bd0fa433166683a2fdf6347b1e67ba19604d4fff980ab0127e69ca2",
       "defer_compaction_checksum": "e49c3c1b2e9923491ef57a4df65897582ade55145d03e05dc397813d8d32a675",
       "trust_edge_checksum": "9e21caca5a5a1ec1e5e26420bd0acd2cfc3037fc6738d97f5e6ac48042826f19",
-      "window_digest_checksum": "5524d7fa2b545339f0287949d2144ff77b972043e7f4ec6247d2b088a5d0abe3",
+      "window_digest_checksum": "c42f52e9630f0bf04daeac0b7e851eba8a37d6d63efb7e7e445ebcfb8f939740",
       "ledger_checksum": "04e8735cfcac3d36b799c4a3f31271ff6fe3a11bad92b14c031427f52d01cd55",
-      "trust_path_digest_checksum": "dc0a6868092cc6b2128ed8ba810f5dbf03acc8b650d3d921a0e9b7f349d269ea"
+      "trust_path_digest_checksum": "1f71f05d2fe975408abba7ee90f1bda7255a19b8e6c744610ded3f65c38f0758"
     },
     "windows": {
       "core": [
@@ -3086,6 +3086,53 @@
         "window_digest": "af19965c71"
       },
       {
+        "ticket_id": "vault:2010000601000-2010000601369",
+        "env": "vault",
+        "start_ms": 2010000601000,
+        "end_ms": 2010000601369,
+        "duration_ms": 369,
+        "freeze_overlap_ms": 43,
+        "freeze_segment_count": 1,
+        "effective_duration_ms": 326,
+        "reopen_overlap_ms": 0,
+        "reopen_segment_count": 0,
+        "risk_adjusted_duration_ms": 326,
+        "rotation_overlap_ms": 0,
+        "rotation_segment_count": 0,
+        "dispatchable_duration_ms": 326,
+        "defer_overlap_ms": 0,
+        "defer_segment_count": 0,
+        "actionable_duration_ms": 326,
+        "idle_gap_ms": 200300,
+        "carry_in_ms": 0,
+        "carry_out_ms": 334,
+        "ledger_adjusted_actionable_ms": 326,
+        "trust_reachable_envs": [
+          "mesh",
+          "zone"
+        ],
+        "trust_exposure_score": 13,
+        "trust_strongest_path": [
+          "vault",
+          "zone",
+          "mesh"
+        ],
+        "trust_path_digest": "c438527b0401",
+        "alert_count": 1,
+        "source_alert_ids": [
+          "v5010"
+        ],
+        "max_severity": "p1",
+        "stability_pressure_score": 0,
+        "volatility_index": 0,
+        "defer_pressure_score": 0,
+        "ledger_pressure_score": 5,
+        "stability_index": 11,
+        "priority": "high",
+        "queue_hash": "03353189dab4",
+        "window_digest": "5dd034bf29"
+      },
+      {
         "ticket_id": "core:2010000401000-2010000401310",
         "env": "core",
         "start_ms": 2010000401000,
@@ -3236,53 +3283,6 @@
         "window_digest": "95b2493cfd"
       },
       {
-        "ticket_id": "vault:2010000601000-2010000601369",
-        "env": "vault",
-        "start_ms": 2010000601000,
-        "end_ms": 2010000601369,
-        "duration_ms": 369,
-        "freeze_overlap_ms": 43,
-        "freeze_segment_count": 1,
-        "effective_duration_ms": 326,
-        "reopen_overlap_ms": 0,
-        "reopen_segment_count": 0,
-        "risk_adjusted_duration_ms": 326,
-        "rotation_overlap_ms": 0,
-        "rotation_segment_count": 0,
-        "dispatchable_duration_ms": 326,
-        "defer_overlap_ms": 0,
-        "defer_segment_count": 0,
-        "actionable_duration_ms": 326,
-        "idle_gap_ms": 200300,
-        "carry_in_ms": 0,
-        "carry_out_ms": 334,
-        "ledger_adjusted_actionable_ms": 326,
-        "trust_reachable_envs": [
-          "mesh",
-          "zone"
-        ],
-        "trust_exposure_score": 13,
-        "trust_strongest_path": [
-          "vault",
-          "zone",
-          "mesh"
-        ],
-        "trust_path_digest": "c438527b0401",
-        "alert_count": 1,
-        "source_alert_ids": [
-          "v5010"
-        ],
-        "max_severity": "p1",
-        "stability_pressure_score": 0,
-        "volatility_index": 0,
-        "defer_pressure_score": 0,
-        "ledger_pressure_score": 5,
-        "stability_index": 11,
-        "priority": "medium",
-        "queue_hash": "03353189dab4",
-        "window_digest": "070b04f301"
-      },
-      {
         "ticket_id": "vault:2010000602600-2010000602854",
         "env": "vault",
         "start_ms": 2010000602600,
@@ -3325,9 +3325,9 @@
         "defer_pressure_score": 0,
         "ledger_pressure_score": 4,
         "stability_index": 10,
-        "priority": "medium",
+        "priority": "high",
         "queue_hash": "9e021edd9596",
-        "window_digest": "9f1979e5ce"
+        "window_digest": "61b5511f23"
       }
     ]
   }
