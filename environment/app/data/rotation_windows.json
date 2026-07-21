@@ -124,5 +124,101 @@
     "severity_scope": "all",
     "start_ms": 2010001001095,
     "end_ms": 2010001001184
+  },
+  {
+    "env": "core",
+    "severity_scope": "all",
+    "start_ms": 2010000804178,
+    "end_ms": 2010000804288
+  },
+  {
+    "env": "core",
+    "severity_scope": "p1",
+    "start_ms": 2010000804608,
+    "end_ms": 2010000804708
+  },
+  {
+    "env": "dmz",
+    "severity_scope": "all",
+    "start_ms": 2010000204676,
+    "end_ms": 2010000204786
+  },
+  {
+    "env": "dmz",
+    "severity_scope": "p1",
+    "start_ms": 2010000205106,
+    "end_ms": 2010000205206
+  },
+  {
+    "env": "dns",
+    "severity_scope": "all",
+    "start_ms": 2010001004416,
+    "end_ms": 2010001004526
+  },
+  {
+    "env": "dns",
+    "severity_scope": "p1",
+    "start_ms": 2010001004846,
+    "end_ms": 2010001004946
+  },
+  {
+    "env": "edge",
+    "severity_scope": "all",
+    "start_ms": 2010000404100,
+    "end_ms": 2010000404210
+  },
+  {
+    "env": "edge",
+    "severity_scope": "p1",
+    "start_ms": 2010000404530,
+    "end_ms": 2010000404630
+  },
+  {
+    "env": "mesh",
+    "severity_scope": "all",
+    "start_ms": 2010001402906,
+    "end_ms": 2010001403016
+  },
+  {
+    "env": "mesh",
+    "severity_scope": "p1",
+    "start_ms": 2010001403336,
+    "end_ms": 2010001403436
+  },
+  {
+    "env": "prod",
+    "severity_scope": "all",
+    "start_ms": 2010000005705,
+    "end_ms": 2010000005815
+  },
+  {
+    "env": "prod",
+    "severity_scope": "p1",
+    "start_ms": 2010000006135,
+    "end_ms": 2010000006235
+  },
+  {
+    "env": "vault",
+    "severity_scope": "all",
+    "start_ms": 2010000604348,
+    "end_ms": 2010000604458
+  },
+  {
+    "env": "vault",
+    "severity_scope": "p1",
+    "start_ms": 2010000604778,
+    "end_ms": 2010000604878
+  },
+  {
+    "env": "zone",
+    "severity_scope": "all",
+    "start_ms": 2010001203789,
+    "end_ms": 2010001203899
+  },
+  {
+    "env": "zone",
+    "severity_scope": "p1",
+    "start_ms": 2010001204219,
+    "end_ms": 2010001204319
   }
 ]

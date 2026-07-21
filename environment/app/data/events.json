@@ -367,5 +367,293 @@
     "env": "dns",
     "signature": "dup d",
     "muted": false
+  },
+  {
+    "alert_id": "x9001",
+    "start_ms": 2010000804088,
+    "end_ms": 2010000804388,
+    "severity": "p1",
+    "env": "core",
+    "signature": "stale access key",
+    "muted": false
+  },
+  {
+    "alert_id": "x9002",
+    "start_ms": 2010000804538,
+    "end_ms": 2010000804806,
+    "severity": "p2",
+    "env": "core",
+    "signature": "dangling role binding",
+    "muted": false
+  },
+  {
+    "alert_id": "x9003",
+    "start_ms": 2010000804936,
+    "end_ms": 2010000805258,
+    "severity": "p1",
+    "env": "core",
+    "signature": "unrevoked session token",
+    "muted": false
+  },
+  {
+    "alert_id": "x9004",
+    "start_ms": 2010000805418,
+    "end_ms": 2010000805672,
+    "severity": "p2",
+    "env": "core",
+    "signature": "stale access key",
+    "muted": false
+  },
+  {
+    "alert_id": "x9005",
+    "start_ms": 2010000204586,
+    "end_ms": 2010000204886,
+    "severity": "p1",
+    "env": "dmz",
+    "signature": "unrevoked session token",
+    "muted": false
+  },
+  {
+    "alert_id": "x9006",
+    "start_ms": 2010000205036,
+    "end_ms": 2010000205304,
+    "severity": "p2",
+    "env": "dmz",
+    "signature": "stale access key",
+    "muted": false
+  },
+  {
+    "alert_id": "x9007",
+    "start_ms": 2010000205434,
+    "end_ms": 2010000205756,
+    "severity": "p1",
+    "env": "dmz",
+    "signature": "dangling role binding",
+    "muted": false
+  },
+  {
+    "alert_id": "x9008",
+    "start_ms": 2010000205916,
+    "end_ms": 2010000206170,
+    "severity": "p2",
+    "env": "dmz",
+    "signature": "unrevoked session token",
+    "muted": false
+  },
+  {
+    "alert_id": "x9009",
+    "start_ms": 2010001004326,
+    "end_ms": 2010001004626,
+    "severity": "p1",
+    "env": "dns",
+    "signature": "dangling role binding",
+    "muted": false
+  },
+  {
+    "alert_id": "x9010",
+    "start_ms": 2010001004776,
+    "end_ms": 2010001005044,
+    "severity": "p2",
+    "env": "dns",
+    "signature": "unrevoked session token",
+    "muted": false
+  },
+  {
+    "alert_id": "x9011",
+    "start_ms": 2010001005174,
+    "end_ms": 2010001005496,
+    "severity": "p1",
+    "env": "dns",
+    "signature": "stale access key",
+    "muted": false
+  },
+  {
+    "alert_id": "x9012",
+    "start_ms": 2010001005656,
+    "end_ms": 2010001005910,
+    "severity": "p2",
+    "env": "dns",
+    "signature": "dangling role binding",
+    "muted": false
+  },
+  {
+    "alert_id": "x9013",
+    "start_ms": 2010000404010,
+    "end_ms": 2010000404310,
+    "severity": "p1",
+    "env": "edge",
+    "signature": "stale access key",
+    "muted": false
+  },
+  {
+    "alert_id": "x9014",
+    "start_ms": 2010000404460,
+    "end_ms": 2010000404728,
+    "severity": "p2",
+    "env": "edge",
+    "signature": "dangling role binding",
+    "muted": false
+  },
+  {
+    "alert_id": "x9015",
+    "start_ms": 2010000404858,
+    "end_ms": 2010000405180,
+    "severity": "p1",
+    "env": "edge",
+    "signature": "unrevoked session token",
+    "muted": false
+  },
+  {
+    "alert_id": "x9016",
+    "start_ms": 2010000405340,
+    "end_ms": 2010000405594,
+    "severity": "p2",
+    "env": "edge",
+    "signature": "stale access key",
+    "muted": false
+  },
+  {
+    "alert_id": "x9017",
+    "start_ms": 2010001402816,
+    "end_ms": 2010001403116,
+    "severity": "p1",
+    "env": "mesh",
+    "signature": "unrevoked session token",
+    "muted": false
+  },
+  {
+    "alert_id": "x9018",
+    "start_ms": 2010001403266,
+    "end_ms": 2010001403534,
+    "severity": "p2",
+    "env": "mesh",
+    "signature": "stale access key",
+    "muted": false
+  },
+  {
+    "alert_id": "x9019",
+    "start_ms": 2010001403664,
+    "end_ms": 2010001403986,
+    "severity": "p1",
+    "env": "mesh",
+    "signature": "dangling role binding",
+    "muted": false
+  },
+  {
+    "alert_id": "x9020",
+    "start_ms": 2010001404146,
+    "end_ms": 2010001404400,
+    "severity": "p2",
+    "env": "mesh",
+    "signature": "unrevoked session token",
+    "muted": false
+  },
+  {
+    "alert_id": "x9021",
+    "start_ms": 2010000005615,
+    "end_ms": 2010000005915,
+    "severity": "p1",
+    "env": "prod",
+    "signature": "dangling role binding",
+    "muted": false
+  },
+  {
+    "alert_id": "x9022",
+    "start_ms": 2010000006065,
+    "end_ms": 2010000006333,
+    "severity": "p2",
+    "env": "prod",
+    "signature": "unrevoked session token",
+    "muted": false
+  },
+  {
+    "alert_id": "x9023",
+    "start_ms": 2010000006463,
+    "end_ms": 2010000006785,
+    "severity": "p1",
+    "env": "prod",
+    "signature": "stale access key",
+    "muted": false
+  },
+  {
+    "alert_id": "x9024",
+    "start_ms": 2010000006945,
+    "end_ms": 2010000007199,
+    "severity": "p2",
+    "env": "prod",
+    "signature": "dangling role binding",
+    "muted": false
+  },
+  {
+    "alert_id": "x9025",
+    "start_ms": 2010000604258,
+    "end_ms": 2010000604558,
+    "severity": "p1",
+    "env": "vault",
+    "signature": "stale access key",
+    "muted": false
+  },
+  {
+    "alert_id": "x9026",
+    "start_ms": 2010000604708,
+    "end_ms": 2010000604976,
+    "severity": "p2",
+    "env": "vault",
+    "signature": "dangling role binding",
+    "muted": false
+  },
+  {
+    "alert_id": "x9027",
+    "start_ms": 2010000605106,
+    "end_ms": 2010000605428,
+    "severity": "p1",
+    "env": "vault",
+    "signature": "unrevoked session token",
+    "muted": false
+  },
+  {
+    "alert_id": "x9028",
+    "start_ms": 2010000605588,
+    "end_ms": 2010000605842,
+    "severity": "p2",
+    "env": "vault",
+    "signature": "stale access key",
+    "muted": false
+  },
+  {
+    "alert_id": "x9029",
+    "start_ms": 2010001203699,
+    "end_ms": 2010001203999,
+    "severity": "p1",
+    "env": "zone",
+    "signature": "unrevoked session token",
+    "muted": false
+  },
+  {
+    "alert_id": "x9030",
+    "start_ms": 2010001204149,
+    "end_ms": 2010001204417,
+    "severity": "p2",
+    "env": "zone",
+    "signature": "stale access key",
+    "muted": false
+  },
+  {
+    "alert_id": "x9031",
+    "start_ms": 2010001204547,
+    "end_ms": 2010001204869,
+    "severity": "p1",
+    "env": "zone",
+    "signature": "dangling role binding",
+    "muted": false
+  },
+  {
+    "alert_id": "x9032",
+    "start_ms": 2010001205029,
+    "end_ms": 2010001205283,
+    "severity": "p2",
+    "env": "zone",
+    "signature": "unrevoked session token",
+    "muted": false
   }
 ]
