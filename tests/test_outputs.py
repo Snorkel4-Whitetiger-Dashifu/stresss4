@@ -217,7 +217,7 @@ def test_windows_schema_and_sorting(primary_outputs):
                 row["dispatchable_duration_ms"] - (-(-row["defer_overlap_ms"] // 4)), 0
             )
             assert row["ledger_adjusted_actionable_ms"] == (
-                row["actionable_duration_ms"] + min(row["carry_in_ms"] // 4, 120)
+                row["actionable_duration_ms"] + min(-(-row["carry_in_ms"] // 4), 120)
             )
             assert row["source_alert_ids"] == sorted(row["source_alert_ids"])
             assert row["trust_reachable_envs"] == sorted(row["trust_reachable_envs"])

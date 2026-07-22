@@ -448,7 +448,7 @@ def build_drift_windows(
             )
             carry_in_ms = max(previous_carry_out_ms - (-(-idle_gap_ms // 2)), 0)
             ledger_adjusted_actionable_ms = (
-                window["actionable_duration_ms"] + min(carry_in_ms // 4, 120)
+                window["actionable_duration_ms"] + min(-(-carry_in_ms // 4), 120)
             )
             carry_out_ms = min(
                 carry_in_ms
