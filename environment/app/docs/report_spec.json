@@ -340,8 +340,9 @@
         "#FW-5339"
       ]
     },
-    "rounding_warning": "Rounding direction is not uniform and is not inferable from any neighbouring divisor, including between the two halves of the same probe score.",
+    "rounding_warning": "Rounding direction is not uniform across the pipeline and is not inferable from any neighbouring divisor, including between siblings in the same family. Each divisor's direction is fixed by its own entry, and several directions were FLIPPED by later dated rulings that revise an earlier entry on that point only - see supersession_convention above. Take each direction from the latest dated ruling that names that divisor, not from the first entry you find it in.",
     "reversal_warning": "At least one stage has had the DIRECTION of a comparison reversed by a later entry.",
-    "interaction_warning": "The scoped attenuation layers are NOT independent. One layer pair has a precedence rule assigning their shared time to a single layer; a third layer is excluded. That rule is #FW-5354, listed under layer_interaction."
+    "interaction_warning": "The scoped attenuation layers are NOT independent. One layer pair has a precedence rule assigning their shared time to a single layer; a third layer is excluded. That rule is #FW-5354, listed under layer_interaction.",
+    "supersession_convention": "HOW TO RESOLVE AN APPARENT CONFLICT. A later dated ruling always wins over an earlier one on the specific point it names, and it says so in its own text. Two different forms appear in the review log: an entry replaced in full carries an inline marker such as '(Revised - see the 2026-05 governance review.)', while an entry revised on only ONE point carries no marker at all, because it continues to govern every other point in its stage. The absence of a marker therefore does NOT mean an entry is current in every respect. Never take a formula, divisor or rounding direction from an entry without first checking whether a later dated entry names that same point - several do, including rounding directions that a later ruling flips. Read every entry listed for a stage and apply the latest dated ruling on each individual point."
   }
 }
