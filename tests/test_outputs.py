@@ -282,7 +282,7 @@ def test_priority_rules(primary_outputs):
         ) or (
             row["ledger_adjusted_actionable_ms"] >= 600
             or row["stability_index"] >= 40
-            or row["trust_exposure_score"] >= 76
+            or row["trust_exposure_score"] >= 30
         ):
             assert row["priority"] == "critical"
         elif row["ledger_adjusted_actionable_ms"] >= 236 or (
@@ -295,7 +295,7 @@ def test_priority_rules(primary_outputs):
             and row["dispatchable_duration_ms"] >= 320
         ) or (
             row["reopen_segment_count"] == 0 and row["duration_ms"] >= 420
-        ) or row["trust_exposure_score"] >= 30:
+        ) or row["trust_exposure_score"] >= 16:
             assert row["priority"] == "high"
         else:
             assert row["priority"] == "medium"
@@ -543,7 +543,13 @@ def test_trust_edge_source_path_affects_output(tmp_path: Path):
 
 
 def test_trust_exposure_uses_strongest_bounded_simple_paths(tmp_path: Path):
-    """Trust exposure scores come from the strongest bounded simple directed paths through the edge graph."""
+    """Trust exposure is the node-disjoint packing of bounded simple directed paths.
+
+    On the synthetic graph the per-target sum is 33 while the max-weight packing is 18
+    (lab>a>deep>vault plus lab>b>target, node-disjoint), so an implementation that sums
+    each target's strongest path is separated from the packing by the score alone. The
+    per-target strongest paths still drive the reachable set, strongest path and digest.
+    """
     original = TRUST_EDGES_PATH.read_text(encoding="utf-8")
     try:
         edges = [
@@ -584,16 +590,16 @@ def test_trust_exposure_uses_strongest_bounded_simple_paths(tmp_path: Path):
             "target",
             "vault",
         ]
-        assert window["trust_exposure_score"] == 33
+        assert window["trust_exposure_score"] == 18
         assert window["trust_strongest_path"] == ["lab", "a", "deep", "vault"]
         digest_payload = (
-            "lab|33|a:4:lab>a;b:4:lab>b;deep:7:lab>a>deep;"
+            "lab|18|a:4:lab>a;b:4:lab>b;deep:7:lab>a>deep;"
             "target:9:lab>a>target;vault:9:lab>a>deep>vault"
         )
         assert window["trust_path_digest"] == hashlib.sha256(
             digest_payload.encode("utf-8")
         ).hexdigest()[:12]
-        assert queue[0]["trust_exposure_score"] == 33
+        assert queue[0]["trust_exposure_score"] == 18
         assert queue[0]["priority"] == "critical"
         trust_payload = (
             "a|deep|3\na|target|5\nb|target|5\ndeep|vault|2\n"

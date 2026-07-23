@@ -318,14 +318,16 @@
         "#FW-5316",
         "#FW-5317",
         "#FW-5319",
-        "#FW-5320"
+        "#FW-5320",
+        "#FW-5394"
       ],
       "queue_admission": [
         "#FW-5322"
       ],
       "priority_assignment": [
         "#FW-5323",
-        "#FW-5372"
+        "#FW-5372",
+        "#FW-5394"
       ],
       "queue_ordering": [
         "#FW-5325"

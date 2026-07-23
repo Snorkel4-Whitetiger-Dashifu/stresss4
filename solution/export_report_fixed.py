@@ -226,11 +226,40 @@ def canonicalize_trust_edges(rows: list[dict]) -> dict[str, dict[str, int]]:
     }
 
 
+def _max_disjoint_trust_packing(paths: list[tuple[int, frozenset[str]]]) -> int:
+    """Maximum total path_score over a set of paths sharing no non-origin env.
+
+    #FW-5394: a max-weight node-disjoint packing. Two paths that reuse any target
+    env cannot both be counted, so an env reachable only through an already-spent
+    intermediate contributes nothing further. This is deliberately NOT the sum of
+    each target's strongest path, and a greedy heaviest-first selection can also
+    fall short of the optimum.
+    """
+    best_total = 0
+
+    def pack(index: int, used: frozenset[str], total: int) -> None:
+        nonlocal best_total
+        if total > best_total:
+            best_total = total
+        if index >= len(paths):
+            return
+        pack(index + 1, used, total)
+        score, nodes = paths[index]
+        if not (nodes & used):
+            pack(index + 1, used | nodes, total + score)
+
+    pack(0, frozenset(), 0)
+    return best_total
+
+
 def strongest_trust_exposure(
     origin: str,
     trust_edges: dict[str, dict[str, int]],
 ) -> dict:
     best: dict[str, tuple[int, tuple[str, ...]]] = {}
+    # Every enumerated simple path, kept for the packing; each entry is
+    # (path_score, frozenset of the path's non-origin nodes).
+    all_paths: list[tuple[int, frozenset[str]]] = []
 
     def visit(node: str, score: int, path: tuple[str, ...]) -> None:
         if len(path) - 1 >= 3:
@@ -240,6 +269,7 @@ def strongest_trust_exposure(
                 continue
             next_path = path + (target,)
             next_score = score + weight
+            all_paths.append((next_score, frozenset(next_path[1:])))
             current = best.get(target)
             if (
                 current is None
@@ -251,7 +281,11 @@ def strongest_trust_exposure(
 
     visit(origin, 0, (origin,))
     reachable = sorted(best)
-    exposure_score = sum(best[target][0] for target in reachable)
+    # #FW-5394: the exposure score is the maximum-weight node-disjoint packing of
+    # these paths (paths sharing any non-origin env cannot both be counted), NOT
+    # the sum of each target's strongest path. The per-target strongest paths above
+    # still drive the digest, the reachable set and the strongest-path field.
+    exposure_score = _max_disjoint_trust_packing(all_paths)
     strongest_path: tuple[str, ...] = (origin,)
     strongest_score = 0
     for target in reachable:
@@ -560,7 +594,7 @@ def build_response_queue(
             ) or (
                 window["ledger_adjusted_actionable_ms"] >= 600
                 or stability_index >= 40
-                or window["trust_exposure_score"] >= 76
+                or window["trust_exposure_score"] >= 30
             ):
                 priority = "critical"
             elif window["ledger_adjusted_actionable_ms"] >= 236 or (
@@ -573,7 +607,7 @@ def build_response_queue(
             ) or (
                 window["reopen_segment_count"] == 0 and window["duration_ms"] >= 420
             ) or (
-                window["trust_exposure_score"] >= 30
+                window["trust_exposure_score"] >= 16
             ):
                 priority = "high"
             else:
