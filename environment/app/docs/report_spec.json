@@ -291,13 +291,15 @@
       "rotation_layer": [
         "#FW-5308",
         "#FW-5354",
-        "#FW-5374"
+        "#FW-5374",
+        "#FW-5396"
       ],
       "defer_layer": [
         "#FW-5310"
       ],
       "layer_interaction": [
-        "#FW-5354"
+        "#FW-5354",
+        "#FW-5396"
       ],
       "probe_scoring": [
         "#FW-5311",

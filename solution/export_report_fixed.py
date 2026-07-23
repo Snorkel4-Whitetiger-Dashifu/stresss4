@@ -430,6 +430,19 @@ def build_drift_windows(
                         0, min(rot_end, rep_end) - max(rot_start, rep_start)
                     )
             rotation_overlap = max(rotation_overlap - shared_reopen_rotation_ms, 0)
+            # #FW-5396: the same reopen precedence now also decides which rotation
+            # segments still COUNT. A rotation segment ENTIRELY covered by reopen
+            # coverage is ceded to reopen and drops out of rotation_segment_count; a
+            # segment reopen covers only partially is retained in full (rotation still
+            # owns its uncovered remainder). Count only the not-fully-covered segments.
+            surviving_rotation_segments = 0
+            for rot_start, rot_end in compacted_rotation_segments:
+                covered = 0
+                for rep_start, rep_end in compacted_reopen_segments:
+                    covered += max(0, min(rot_end, rep_end) - max(rot_start, rep_start))
+                if covered < rot_end - rot_start:
+                    surviving_rotation_segments += 1
+            rotation_segment_count = surviving_rotation_segments
             dispatchable_duration = max(risk_adjusted_duration - (-(-rotation_overlap // 3)), 0)
             defer_all, defer_severity = _scope_intervals_for_window(
                 defer_map, env, window["max_severity"]
@@ -460,7 +473,7 @@ def build_drift_windows(
                     "reopen_segment_count": len(compacted_reopen_segments),
                     "risk_adjusted_duration_ms": risk_adjusted_duration,
                     "rotation_overlap_ms": rotation_overlap,
-                    "rotation_segment_count": len(compacted_rotation_segments),
+                    "rotation_segment_count": rotation_segment_count,
                     "dispatchable_duration_ms": dispatchable_duration,
                     "defer_overlap_ms": defer_overlap,
                     "defer_segment_count": len(compacted_defer_segments),
