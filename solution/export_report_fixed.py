@@ -252,9 +252,36 @@ def _max_disjoint_trust_packing(paths: list[tuple[int, frozenset[str]]]) -> int:
     return best_total
 
 
+def _trust_target_scores(
+    origin: str,
+    trust_edges: dict[str, dict[str, int]],
+) -> dict[str, int]:
+    """Strongest bounded simple-path score from origin to each reachable target.
+
+    #FW-5398 attributes a contended target by this per-target score, which is
+    deliberately not the origin's overall packed trust_exposure_score.
+    """
+    best: dict[str, int] = {}
+
+    def visit(node: str, score: int, path: tuple[str, ...]) -> None:
+        if len(path) - 1 >= 3:
+            return
+        for target, weight in trust_edges.get(node, {}).items():
+            if target in path:
+                continue
+            next_score = score + weight
+            if target not in best or next_score > best[target]:
+                best[target] = next_score
+            visit(target, next_score, path + (target,))
+
+    visit(origin, 0, (origin,))
+    return best
+
+
 def strongest_trust_exposure(
     origin: str,
     trust_edges: dict[str, dict[str, int]],
+    contention_bonus: int = 0,
 ) -> dict:
     best: dict[str, tuple[int, tuple[str, ...]]] = {}
     # Every enumerated simple path, kept for the packing; each entry is
@@ -285,7 +312,9 @@ def strongest_trust_exposure(
     # these paths (paths sharing any non-origin env cannot both be counted), NOT
     # the sum of each target's strongest path. The per-target strongest paths above
     # still drive the digest, the reachable set and the strongest-path field.
-    exposure_score = _max_disjoint_trust_packing(all_paths)
+    # #FW-5398: the trust-contention bonus (a per-target score this origin OWNS) is
+    # folded in here, BEFORE the digest, so the digest commits to the attributed score.
+    exposure_score = _max_disjoint_trust_packing(all_paths) + contention_bonus
     strongest_path: tuple[str, ...] = (origin,)
     strongest_score = 0
     for target in reachable:
@@ -349,6 +378,26 @@ def build_drift_windows(
     rotation_map = rotation_by_scope(rotation_rows)
     defer_map = defer_by_scope(defer_rows)
     trust_edges = canonicalize_trust_edges(trust_edge_rows)
+    # #FW-5398: trust contention. A target env reachable from more than one origin env
+    # is charged to exactly ONE of them — the claimant whose strongest bounded simple
+    # path score TO THAT TARGET is highest (ties by lexicographically smallest origin).
+    # The owner adds that per-target score to its own trust_exposure_score; other
+    # claimants add nothing. Origins are the envs carrying drift windows.
+    trust_target_scores = {
+        env: _trust_target_scores(env, trust_edges) for env in sorted(grouped)
+    }
+    trust_claimants: dict[str, list[str]] = {}
+    for origin in sorted(grouped):
+        for target in trust_target_scores[origin]:
+            trust_claimants.setdefault(target, []).append(origin)
+    trust_contention_bonus: dict[str, int] = {}
+    for target, origins in trust_claimants.items():
+        if len(origins) < 2:
+            continue
+        owner = min(origins, key=lambda o: (-trust_target_scores[o][target], o))
+        trust_contention_bonus[owner] = (
+            trust_contention_bonus.get(owner, 0) + trust_target_scores[owner][target]
+        )
     result: dict[str, list[dict]] = {}
     for env, alerts in grouped.items():
         alerts.sort(key=lambda row: (row["start_ms"], row["end_ms"], row["alert_id"]))
@@ -486,7 +535,9 @@ def build_drift_windows(
         normalized_windows.sort(key=lambda row: row["start_ms"])
         previous_end_ms: int | None = None
         previous_carry_out_ms = 0
-        trust_exposure = strongest_trust_exposure(env, trust_edges)
+        trust_exposure = strongest_trust_exposure(
+            env, trust_edges, trust_contention_bonus.get(env, 0)
+        )
         for window in normalized_windows:
             idle_gap_ms = (
                 0

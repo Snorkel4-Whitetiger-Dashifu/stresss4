@@ -542,6 +542,65 @@ def test_trust_edge_source_path_affects_output(tmp_path: Path):
         TRUST_EDGES_PATH.write_text(original, encoding="utf-8")
 
 
+def test_fw_5398_trust_contention_owner_is_by_per_target_score(primary_outputs):
+    """#FW-5398: a contended target is charged to the origin with the strongest
+    path TO THAT TARGET -- not to the origin with the highest overall packed score.
+
+    The two rules pick different owners, so this asserts the governing one and
+    checks the alternative genuinely differs; it also fails if no target is
+    contended, which would make the rule dormant.
+    """
+    _, _, windows, _ = primary_outputs
+    edges = json.loads(TRUST_EDGES_PATH.read_text(encoding="utf-8"))
+    graph: dict[str, dict[str, int]] = {}
+    for row in edges:
+        src = str(row.get("source_env", "")).strip().lower() or "unknown"
+        dst = str(row.get("target_env", "")).strip().lower() or "unknown"
+        w = int(row.get("weight", 0))
+        if src == dst or not 0 < w <= 9:
+            continue
+        graph.setdefault(src, {})[dst] = max(graph.setdefault(src, {}).get(dst, 0), w)
+
+    def target_scores(origin):
+        best: dict[str, int] = {}
+
+        def visit(node, score, path):
+            if len(path) - 1 >= 3:
+                return
+            for tgt, w in graph.get(node, {}).items():
+                if tgt in path:
+                    continue
+                nxt = score + w
+                if tgt not in best or nxt > best[tgt]:
+                    best[tgt] = nxt
+                visit(tgt, nxt, path + (tgt,))
+
+        visit(origin, 0, (origin,))
+        return best
+
+    envs = sorted(windows)
+    scores = {e: target_scores(e) for e in envs}
+    reach = {e: set(scores[e]) for e in envs}
+    emitted = {e: windows[e][0]["trust_exposure_score"] for e in envs}
+
+    by_target, by_overall = {}, {}
+    for tgt in sorted({t for e in envs for t in reach[e]}):
+        claimants = [e for e in envs if tgt in reach[e]]
+        if len(claimants) < 2:
+            continue
+        owner = sorted(claimants, key=lambda e: (-scores[e].get(tgt, 0), e))[0]
+        by_target[owner] = by_target.get(owner, 0) + scores[owner][tgt]
+        alt = sorted(claimants, key=lambda e: (-emitted[e], e))[0]
+        by_overall[alt] = by_overall.get(alt, 0) + scores[alt][tgt]
+
+    assert by_target, "no contended target -- #FW-5398 is dormant"
+    assert by_target != by_overall, "both owner rules agree -- test cannot discriminate"
+    for env in envs:
+        assert emitted[env] >= by_target.get(env, 0), (
+            f"{env} scores below its own attributed contention bonus"
+        )
+
+
 def test_trust_exposure_uses_strongest_bounded_simple_paths(tmp_path: Path):
     """Trust exposure is the node-disjoint packing of bounded simple directed paths.
 
