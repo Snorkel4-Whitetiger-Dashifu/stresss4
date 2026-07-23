@@ -1,659 +1,226 @@
 [
   {
-    "alert_id": "p1001",
-    "start_ms": 2010000001000,
-    "end_ms": 2010000001322,
-    "severity": "p1",
-    "env": "prod",
-    "signature": "orphaned service principal",
-    "muted": false
+    "build_id": "bd-501",
+    "occurred_ms": 8520000000000,
+    "severity": "critical",
+    "pipeline": "frontend-ci",
+    "detector": "dependency confusion pull",
+    "dismissed": false
+  },
+  {
+    "build_id": "bd-502",
+    "occurred_ms": 8520000000250,
+    "severity": "Critical",
+    "pipeline": "frontend-ci",
+    "detector": "malicious build step",
+    "dismissed": false
+  },
+  {
+    "build_id": "bd-503",
+    "occurred_ms": 8520000000800,
+    "severity": "high",
+    "pipeline": "frontend-ci",
+    "detector": "tampered lockfile",
+    "dismissed": false
+  },
+  {
+    "build_id": "bd-510",
+    "occurred_ms": 8520000001100,
+    "severity": "HIGH ",
+    "pipeline": "backend-ci",
+    "detector": "secret exfil in log",
+    "dismissed": false
+  },
+  {
+    "build_id": "bd-511",
+    "occurred_ms": 8520000001500,
+    "severity": "high",
+    "pipeline": "backend-ci",
+    "detector": "reverse shell in step",
+    "dismissed": false
+  },
+  {
+    "build_id": "bd-520",
+    "occurred_ms": 8520000002000,
+    "severity": "high",
+    "pipeline": "infra-deploy",
+    "detector": "privileged job escalation",
+    "dismissed": false
+  },
+  {
+    "build_id": "bd-504",
+    "occurred_ms": 8520000003000,
+    "severity": "high",
+    "pipeline": "frontend-ci",
+    "detector": "cache poisoning attack",
+    "dismissed": false
+  },
+  {
+    "build_id": "bd-505",
+    "occurred_ms": 8520000003150,
+    "severity": "critical",
+    "pipeline": "frontend-ci",
+    "detector": "runner credential theft",
+    "dismissed": false
+  },
+  {
+    "build_id": "bd-530",
+    "occurred_ms": 8520000003400,
+    "severity": "critical",
+    "pipeline": "mobile-build",
+    "detector": "dependency confusion pull",
+    "dismissed": false
+  },
+  {
+    "build_id": "bd-531",
+    "occurred_ms": 8520000003700,
+    "severity": "critical",
+    "pipeline": "data-etl",
+    "detector": "dependency confusion pull",
+    "dismissed": false
+  },
+  {
+    "build_id": "bd-540",
+    "occurred_ms": 8520000003900,
+    "severity": "high",
+    "pipeline": "release-prod",
+    "detector": "unsigned artifact push",
+    "dismissed": false
+  },
+  {
+    "build_id": "bd-541",
+    "occurred_ms": 8520000005200,
+    "severity": "high",
+    "pipeline": "frontend-ci",
+    "detector": "privileged scope grant",
+    "dismissed": false
+  },
+  {
+    "build_id": "bd-542",
+    "occurred_ms": 8520000005400,
+    "severity": "medium",
+    "pipeline": "backend-ci",
+    "detector": "unfamiliar runner fingerprint",
+    "dismissed": false
   },
   {
-    "alert_id": "p1002",
-    "start_ms": 2010000001352,
-    "end_ms": 2010000001455,
-    "severity": "p2",
-    "env": "PROD",
-    "signature": "cross-account trust widening",
-    "muted": false
+    "build_id": "bd-543",
+    "occurred_ms": 8520000005500,
+    "severity": "low",
+    "pipeline": "infra-deploy",
+    "detector": "stale cache reuse",
+    "dismissed": false
   },
   {
-    "alert_id": "p1003",
-    "start_ms": 2010000002200,
-    "end_ms": 2010000002489,
-    "severity": "p2",
-    "env": "Prod ",
-    "signature": "mfa bypass on break-glass",
-    "muted": false
+    "build_id": "bd-544",
+    "occurred_ms": 8520000005600,
+    "severity": "medium",
+    "pipeline": "release-prod",
+    "detector": "pull from vpn exit",
+    "dismissed": false
   },
   {
-    "alert_id": "p1004",
-    "start_ms": 2010000003400,
-    "end_ms": 2010000003761,
-    "severity": "p1",
-    "env": "prod",
-    "signature": "stale access key active",
-    "muted": false
-  },
-  {
-    "alert_id": "p1005",
-    "start_ms": 2010000003791,
-    "end_ms": 2010000003870,
-    "severity": "p3",
-    "env": "PROD",
-    "signature": "wildcard permission grant",
-    "muted": false
-  },
-  {
-    "alert_id": "p1006",
-    "start_ms": 2010000005200,
-    "end_ms": 2010000005475,
-    "severity": "p1",
-    "env": "Prod ",
-    "signature": "role assumption loop",
-    "muted": false
-  },
-  {
-    "alert_id": "d1007",
-    "start_ms": 2010000201000,
-    "end_ms": 2010000201358,
-    "severity": "p1",
-    "env": "dmz",
-    "signature": "escalation via passrole",
-    "muted": false
-  },
-  {
-    "alert_id": "d1008",
-    "start_ms": 2010000202000,
-    "end_ms": 2010000202270,
-    "severity": "p2",
-    "env": "DMZ",
-    "signature": "admin role takeover",
-    "muted": false
-  },
-  {
-    "alert_id": "d1009",
-    "start_ms": 2010000202300,
-    "end_ms": 2010000202392,
-    "severity": "p2",
-    "env": "Dmz ",
-    "signature": "policy drift on privileged group",
-    "muted": false
-  },
-  {
-    "alert_id": "d1010",
-    "start_ms": 2010000203200,
-    "end_ms": 2010000203530,
-    "severity": "p1",
-    "env": "dmz",
-    "signature": "orphaned service principal",
-    "muted": false
-  },
-  {
-    "alert_id": "d1011",
-    "start_ms": 2010000204200,
-    "end_ms": 2010000204446,
-    "severity": "p2",
-    "env": "DMZ",
-    "signature": "cross-account trust widening",
-    "muted": false
-  },
-  {
-    "alert_id": "e1012",
-    "start_ms": 2010000401000,
-    "end_ms": 2010000401287,
-    "severity": "p2",
-    "env": "edge",
-    "signature": "mfa bypass on break-glass",
-    "muted": false
-  },
-  {
-    "alert_id": "e1013",
-    "start_ms": 2010000401317,
-    "end_ms": 2010000401436,
-    "severity": "p1",
-    "env": "EDGE ",
-    "signature": "stale access key active",
-    "muted": false
-  },
-  {
-    "alert_id": "e1014",
-    "start_ms": 2010000402400,
-    "end_ms": 2010000402706,
-    "severity": "p1",
-    "env": "edge",
-    "signature": "wildcard permission grant",
-    "muted": false
-  },
-  {
-    "alert_id": "e1015",
-    "start_ms": 2010000403600,
-    "end_ms": 2010000403870,
-    "severity": "p2",
-    "env": "EDGE ",
-    "signature": "role assumption loop",
-    "muted": false
-  },
-  {
-    "alert_id": "v1016",
-    "start_ms": 2010000601000,
-    "end_ms": 2010000601394,
-    "severity": "p1",
-    "env": "vault",
-    "signature": "escalation via passrole",
-    "muted": false
-  },
-  {
-    "alert_id": "v1017",
-    "start_ms": 2010000601424,
-    "end_ms": 2010000601536,
-    "severity": "p2",
-    "env": "Vault ",
-    "signature": "admin role takeover",
-    "muted": false
-  },
-  {
-    "alert_id": "v1018",
-    "start_ms": 2010000602600,
-    "end_ms": 2010000602877,
-    "severity": "p2",
-    "env": "vault",
-    "signature": "policy drift on privileged group",
-    "muted": false
-  },
-  {
-    "alert_id": "v1019",
-    "start_ms": 2010000603800,
-    "end_ms": 2010000604118,
-    "severity": "p1",
-    "env": "Vault ",
-    "signature": "orphaned service principal",
-    "muted": false
-  },
-  {
-    "alert_id": "c1020",
-    "start_ms": 2010000801000,
-    "end_ms": 2010000801307,
-    "severity": "p1",
-    "env": "core",
-    "signature": "cross-account trust widening",
-    "muted": false
-  },
-  {
-    "alert_id": "c1021",
-    "start_ms": 2010000801900,
-    "end_ms": 2010000802185,
-    "severity": "p2",
-    "env": "CORE ",
-    "signature": "mfa bypass on break-glass",
-    "muted": false
-  },
-  {
-    "alert_id": "c1022",
-    "start_ms": 2010000802800,
-    "end_ms": 2010000803070,
-    "severity": "p1",
-    "env": "core",
-    "signature": "stale access key active",
-    "muted": false
-  },
-  {
-    "alert_id": "c1023",
-    "start_ms": 2010000803700,
-    "end_ms": 2010000803948,
-    "severity": "p2",
-    "env": "CORE ",
-    "signature": "wildcard permission grant",
-    "muted": false
-  },
-  {
-    "alert_id": "d1024",
-    "start_ms": 2010001001000,
-    "end_ms": 2010001001330,
-    "severity": "p1",
-    "env": "dns",
-    "signature": "role assumption loop",
-    "muted": false
-  },
-  {
-    "alert_id": "d1025",
-    "start_ms": 2010001002300,
-    "end_ms": 2010001002661,
-    "severity": "p2",
-    "env": "DNS ",
-    "signature": "escalation via passrole",
-    "muted": false
-  },
-  {
-    "alert_id": "d1026",
-    "start_ms": 2010001002691,
-    "end_ms": 2010001002791,
-    "severity": "p1",
-    "env": "dns",
-    "signature": "admin role takeover",
-    "muted": false
-  },
-  {
-    "alert_id": "d1027",
-    "start_ms": 2010001003900,
-    "end_ms": 2010001004186,
-    "severity": "p1",
-    "env": "DNS ",
-    "signature": "policy drift on privileged group",
-    "muted": false
-  },
-  {
-    "alert_id": "z1028",
-    "start_ms": 2010001201000,
-    "end_ms": 2010001201295,
-    "severity": "p2",
-    "env": "zone",
-    "signature": "orphaned service principal",
-    "muted": false
-  },
-  {
-    "alert_id": "z1029",
-    "start_ms": 2010001202100,
-    "end_ms": 2010001202422,
-    "severity": "p1",
-    "env": "ZONE ",
-    "signature": "cross-account trust widening",
-    "muted": false
-  },
-  {
-    "alert_id": "z1030",
-    "start_ms": 2010001203300,
-    "end_ms": 2010001203559,
-    "severity": "p2",
-    "env": "zone",
-    "signature": "mfa bypass on break-glass",
-    "muted": false
-  },
-  {
-    "alert_id": "m1031",
-    "start_ms": 2010001401000,
-    "end_ms": 2010001401362,
-    "severity": "p1",
-    "env": "mesh",
-    "signature": "stale access key active",
-    "muted": false
-  },
-  {
-    "alert_id": "m1032",
-    "start_ms": 2010001401392,
-    "end_ms": 2010001401524,
-    "severity": "p2",
-    "env": "MESH ",
-    "signature": "wildcard permission grant",
-    "muted": false
-  },
-  {
-    "alert_id": "m1033",
-    "start_ms": 2010001402400,
-    "end_ms": 2010001402676,
-    "severity": "p2",
-    "env": "mesh",
-    "signature": "role assumption loop",
-    "muted": false
-  },
-  {
-    "alert_id": "m1",
-    "start_ms": 2010000001500,
-    "end_ms": 2010000001800,
-    "severity": "p1",
-    "env": "prod",
-    "signature": "muted noise",
-    "muted": true
-  },
-  {
-    "alert_id": "m2",
-    "start_ms": 2010000200500,
-    "end_ms": 2010000200800,
-    "severity": "p2",
-    "env": "dmz",
-    "signature": "muted noise",
-    "muted": "yes"
-  },
-  {
-    "alert_id": "u1",
-    "start_ms": 2010000400500,
-    "end_ms": 2010000400900,
-    "severity": "sev9",
-    "env": "edge",
-    "signature": "unknown sev",
-    "muted": false
-  },
-  {
-    "alert_id": "u2",
-    "start_ms": 2010000600500,
-    "end_ms": 2010000600900,
-    "severity": "P1",
-    "env": "vault",
-    "signature": "casing sev",
-    "muted": false
-  },
-  {
-    "alert_id": "D1",
-    "start_ms": 2010000800000,
-    "end_ms": 2010000800400,
-    "severity": "p2",
-    "env": "core",
-    "signature": "dup a",
-    "muted": false
-  },
-  {
-    "alert_id": "D1",
-    "start_ms": 2010000800000,
-    "end_ms": 2010000800600,
-    "severity": "p2",
-    "env": "core",
-    "signature": "dup b",
-    "muted": false
-  },
-  {
-    "alert_id": "D2",
-    "start_ms": 2010000810000,
-    "end_ms": 2010000810500,
-    "severity": "p2",
-    "env": "dns",
-    "signature": "dup c",
-    "muted": false
-  },
-  {
-    "alert_id": "D2",
-    "start_ms": 2010000810000,
-    "end_ms": 2010000810500,
-    "severity": "p1",
-    "env": "dns",
-    "signature": "dup d",
-    "muted": false
-  },
-  {
-    "alert_id": "x9001",
-    "start_ms": 2010000804088,
-    "end_ms": 2010000804388,
-    "severity": "p1",
-    "env": "core",
-    "signature": "stale access key",
-    "muted": false
-  },
-  {
-    "alert_id": "x9002",
-    "start_ms": 2010000804538,
-    "end_ms": 2010000804806,
-    "severity": "p2",
-    "env": "core",
-    "signature": "dangling role binding",
-    "muted": false
-  },
-  {
-    "alert_id": "x9003",
-    "start_ms": 2010000804936,
-    "end_ms": 2010000805258,
-    "severity": "p1",
-    "env": "core",
-    "signature": "unrevoked session token",
-    "muted": false
-  },
-  {
-    "alert_id": "x9004",
-    "start_ms": 2010000805418,
-    "end_ms": 2010000805672,
-    "severity": "p2",
-    "env": "core",
-    "signature": "stale access key",
-    "muted": false
-  },
-  {
-    "alert_id": "x9005",
-    "start_ms": 2010000204586,
-    "end_ms": 2010000204886,
-    "severity": "p1",
-    "env": "dmz",
-    "signature": "unrevoked session token",
-    "muted": false
-  },
-  {
-    "alert_id": "x9006",
-    "start_ms": 2010000205036,
-    "end_ms": 2010000205304,
-    "severity": "p2",
-    "env": "dmz",
-    "signature": "stale access key",
-    "muted": false
-  },
-  {
-    "alert_id": "x9007",
-    "start_ms": 2010000205434,
-    "end_ms": 2010000205756,
-    "severity": "p1",
-    "env": "dmz",
-    "signature": "dangling role binding",
-    "muted": false
-  },
-  {
-    "alert_id": "x9008",
-    "start_ms": 2010000205916,
-    "end_ms": 2010000206170,
-    "severity": "p2",
-    "env": "dmz",
-    "signature": "unrevoked session token",
-    "muted": false
-  },
-  {
-    "alert_id": "x9009",
-    "start_ms": 2010001004326,
-    "end_ms": 2010001004626,
-    "severity": "p1",
-    "env": "dns",
-    "signature": "dangling role binding",
-    "muted": false
-  },
-  {
-    "alert_id": "x9010",
-    "start_ms": 2010001004776,
-    "end_ms": 2010001005044,
-    "severity": "p2",
-    "env": "dns",
-    "signature": "unrevoked session token",
-    "muted": false
-  },
-  {
-    "alert_id": "x9011",
-    "start_ms": 2010001005174,
-    "end_ms": 2010001005496,
-    "severity": "p1",
-    "env": "dns",
-    "signature": "stale access key",
-    "muted": false
-  },
-  {
-    "alert_id": "x9012",
-    "start_ms": 2010001005656,
-    "end_ms": 2010001005910,
-    "severity": "p2",
-    "env": "dns",
-    "signature": "dangling role binding",
-    "muted": false
-  },
-  {
-    "alert_id": "x9013",
-    "start_ms": 2010000404010,
-    "end_ms": 2010000404310,
-    "severity": "p1",
-    "env": "edge",
-    "signature": "stale access key",
-    "muted": false
-  },
-  {
-    "alert_id": "x9014",
-    "start_ms": 2010000404460,
-    "end_ms": 2010000404728,
-    "severity": "p2",
-    "env": "edge",
-    "signature": "dangling role binding",
-    "muted": false
-  },
-  {
-    "alert_id": "x9015",
-    "start_ms": 2010000404858,
-    "end_ms": 2010000405180,
-    "severity": "p1",
-    "env": "edge",
-    "signature": "unrevoked session token",
-    "muted": false
-  },
-  {
-    "alert_id": "x9016",
-    "start_ms": 2010000405340,
-    "end_ms": 2010000405594,
-    "severity": "p2",
-    "env": "edge",
-    "signature": "stale access key",
-    "muted": false
-  },
-  {
-    "alert_id": "x9017",
-    "start_ms": 2010001402816,
-    "end_ms": 2010001403116,
-    "severity": "p1",
-    "env": "mesh",
-    "signature": "unrevoked session token",
-    "muted": false
-  },
-  {
-    "alert_id": "x9018",
-    "start_ms": 2010001403266,
-    "end_ms": 2010001403534,
-    "severity": "p2",
-    "env": "mesh",
-    "signature": "stale access key",
-    "muted": false
-  },
-  {
-    "alert_id": "x9019",
-    "start_ms": 2010001403664,
-    "end_ms": 2010001403986,
-    "severity": "p1",
-    "env": "mesh",
-    "signature": "dangling role binding",
-    "muted": false
-  },
-  {
-    "alert_id": "x9020",
-    "start_ms": 2010001404146,
-    "end_ms": 2010001404400,
-    "severity": "p2",
-    "env": "mesh",
-    "signature": "unrevoked session token",
-    "muted": false
-  },
-  {
-    "alert_id": "x9021",
-    "start_ms": 2010000005615,
-    "end_ms": 2010000005915,
-    "severity": "p1",
-    "env": "prod",
-    "signature": "dangling role binding",
-    "muted": false
-  },
-  {
-    "alert_id": "x9022",
-    "start_ms": 2010000006065,
-    "end_ms": 2010000006333,
-    "severity": "p2",
-    "env": "prod",
-    "signature": "unrevoked session token",
-    "muted": false
-  },
-  {
-    "alert_id": "x9023",
-    "start_ms": 2010000006463,
-    "end_ms": 2010000006785,
-    "severity": "p1",
-    "env": "prod",
-    "signature": "stale access key",
-    "muted": false
-  },
-  {
-    "alert_id": "x9024",
-    "start_ms": 2010000006945,
-    "end_ms": 2010000007199,
-    "severity": "p2",
-    "env": "prod",
-    "signature": "dangling role binding",
-    "muted": false
-  },
-  {
-    "alert_id": "x9025",
-    "start_ms": 2010000604258,
-    "end_ms": 2010000604558,
-    "severity": "p1",
-    "env": "vault",
-    "signature": "stale access key",
-    "muted": false
-  },
-  {
-    "alert_id": "x9026",
-    "start_ms": 2010000604708,
-    "end_ms": 2010000604976,
-    "severity": "p2",
-    "env": "vault",
-    "signature": "dangling role binding",
-    "muted": false
-  },
-  {
-    "alert_id": "x9027",
-    "start_ms": 2010000605106,
-    "end_ms": 2010000605428,
-    "severity": "p1",
-    "env": "vault",
-    "signature": "unrevoked session token",
-    "muted": false
-  },
-  {
-    "alert_id": "x9028",
-    "start_ms": 2010000605588,
-    "end_ms": 2010000605842,
-    "severity": "p2",
-    "env": "vault",
-    "signature": "stale access key",
-    "muted": false
-  },
-  {
-    "alert_id": "x9029",
-    "start_ms": 2010001203699,
-    "end_ms": 2010001203999,
-    "severity": "p1",
-    "env": "zone",
-    "signature": "unrevoked session token",
-    "muted": false
-  },
-  {
-    "alert_id": "x9030",
-    "start_ms": 2010001204149,
-    "end_ms": 2010001204417,
-    "severity": "p2",
-    "env": "zone",
-    "signature": "stale access key",
-    "muted": false
-  },
-  {
-    "alert_id": "x9031",
-    "start_ms": 2010001204547,
-    "end_ms": 2010001204869,
-    "severity": "p1",
-    "env": "zone",
-    "signature": "dangling role binding",
-    "muted": false
-  },
-  {
-    "alert_id": "x9032",
-    "start_ms": 2010001205029,
-    "end_ms": 2010001205283,
-    "severity": "p2",
-    "env": "zone",
-    "signature": "unrevoked session token",
-    "muted": false
+    "build_id": "bd-550",
+    "occurred_ms": 8520000006200,
+    "severity": "high",
+    "pipeline": "frontend-ci",
+    "detector": "dependency confusion pull",
+    "dismissed": true
+  },
+  {
+    "build_id": "bd-551",
+    "occurred_ms": 8520000006300,
+    "severity": "critical",
+    "pipeline": "backend-ci",
+    "detector": "secret exfil in log",
+    "dismissed": "yes"
+  },
+  {
+    "build_id": "bd-560",
+    "occurred_ms": 8520000007200,
+    "severity": "high",
+    "pipeline": "data-etl",
+    "detector": "reverse shell in step",
+    "dismissed": false
+  },
+  {
+    "build_id": "bd-561",
+    "occurred_ms": 8520000007350,
+    "severity": "critical",
+    "pipeline": "data-etl",
+    "detector": "reverse shell in step",
+    "dismissed": false
+  },
+  {
+    "build_id": "bd-570",
+    "occurred_ms": 8520000008200,
+    "severity": "high",
+    "pipeline": "infra-deploy",
+    "detector": "dependency confusion pull",
+    "dismissed": false
+  },
+  {
+    "build_id": "bd-571",
+    "occurred_ms": 8520000008500,
+    "severity": "high",
+    "pipeline": "mobile-build",
+    "detector": "brute force token lockout",
+    "dismissed": false
+  },
+  {
+    "build_id": "bd-572",
+    "occurred_ms": 8520000008800,
+    "severity": "critical",
+    "pipeline": "frontend-ci",
+    "detector": "supply chain injection",
+    "dismissed": false
+  },
+  {
+    "build_id": "bd-573",
+    "occurred_ms": 8520000009200,
+    "severity": "high",
+    "pipeline": "backend-ci",
+    "detector": "exfil via build artifact",
+    "dismissed": false
+  },
+  {
+    "build_id": "bd-574",
+    "occurred_ms": 8520000009400,
+    "severity": "critical",
+    "pipeline": "release-prod",
+    "detector": "runner sync anomaly",
+    "dismissed": false
+  },
+  {
+    "build_id": "bd-580",
+    "occurred_ms": 8520000010200,
+    "severity": "high",
+    "pipeline": "infra-deploy",
+    "detector": "credential in build env",
+    "dismissed": false
+  },
+  {
+    "build_id": "bd-581",
+    "occurred_ms": 8520000010290,
+    "severity": "high",
+    "pipeline": "infra-deploy",
+    "detector": "signing key exposure",
+    "dismissed": false
+  },
+  {
+    "build_id": "bd-501",
+    "occurred_ms": 8520000000120,
+    "severity": "high",
+    "pipeline": "frontend-ci",
+    "detector": "dependency confusion pull",
+    "dismissed": false
+  },
+  {
+    "build_id": "bd-540",
+    "occurred_ms": 8520000003900,
+    "severity": "critical",
+    "pipeline": "release-prod",
+    "detector": "unsigned artifact push",
+    "dismissed": false
   }
 ]

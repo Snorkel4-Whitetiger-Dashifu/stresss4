@@ -9,9 +9,9 @@ subcategories = ["long_context"]
 number_of_milestones = 0
 codebase_size = "minimal"
 languages = ["python"]
-tags = ["security-operations", "iam", "firewall-governance", "policy-drift", "containment"]
-expert_time_estimate_min = 240
-junior_time_estimate_min = 480
+tags = ["security", "incident-response", "cli", "python", "data-processing"]
+expert_time_estimate_min = 180
+junior_time_estimate_min = 360
 
 [verifier]
 timeout_sec = 300.0

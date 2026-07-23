@@ -1,128 +1,98 @@
 [
   {
-    "alert_id": "p5001",
-    "start_ms": 2010000001000,
-    "end_ms": 2010000001350,
-    "severity": "p1",
-    "env": "prod",
-    "signature": "wildcard permission grant",
-    "muted": false
+    "build_id": "ay-01",
+    "occurred_ms": 8520000000000,
+    "severity": "critical",
+    "pipeline": "frontend-ci",
+    "detector": "dependency confusion pull",
+    "dismissed": false
   },
   {
-    "alert_id": "p5002",
-    "start_ms": 2010000002100,
-    "end_ms": 2010000002376,
-    "severity": "p2",
-    "env": "PROD",
-    "signature": "role assumption loop",
-    "muted": false
+    "build_id": "ay-02",
+    "occurred_ms": 8520000000350,
+    "severity": "high",
+    "pipeline": "frontend-ci",
+    "detector": "malicious build step",
+    "dismissed": false
   },
   {
-    "alert_id": "p5003",
-    "start_ms": 2010000003300,
-    "end_ms": 2010000003607,
-    "severity": "p1",
-    "env": "prod",
-    "signature": "escalation via passrole",
-    "muted": false
+    "build_id": "ay-03",
+    "occurred_ms": 8520000001600,
+    "severity": "high",
+    "pipeline": "infra-deploy",
+    "detector": "reverse shell in step",
+    "dismissed": false
   },
   {
-    "alert_id": "d5004",
-    "start_ms": 2010000201000,
-    "end_ms": 2010000201285,
-    "severity": "p2",
-    "env": "dmz",
-    "signature": "admin role takeover",
-    "muted": false
+    "build_id": "ay-04",
+    "occurred_ms": 8520000002100,
+    "severity": "critical",
+    "pipeline": "backend-ci",
+    "detector": "dependency confusion pull",
+    "dismissed": false
   },
   {
-    "alert_id": "d5005",
-    "start_ms": 2010000201315,
-    "end_ms": 2010000201439,
-    "severity": "p1",
-    "env": "Dmz ",
-    "signature": "policy drift on privileged group",
-    "muted": false
+    "build_id": "ay-05",
+    "occurred_ms": 8520000002500,
+    "severity": "high",
+    "pipeline": "mobile-build",
+    "detector": "dependency confusion pull",
+    "dismissed": false
   },
   {
-    "alert_id": "d5006",
-    "start_ms": 2010000202400,
-    "end_ms": 2010000202731,
-    "severity": "p1",
-    "env": "dmz",
-    "signature": "orphaned service principal",
-    "muted": false
+    "build_id": "ay-06",
+    "occurred_ms": 8520000003100,
+    "severity": "critical",
+    "pipeline": "release-prod",
+    "detector": "runner sync anomaly",
+    "dismissed": false
   },
   {
-    "alert_id": "c5007",
-    "start_ms": 2010000401000,
-    "end_ms": 2010000401310,
-    "severity": "p1",
-    "env": "core",
-    "signature": "cross-account trust widening",
-    "muted": false
+    "build_id": "ay-07",
+    "occurred_ms": 8520000003700,
+    "severity": "high",
+    "pipeline": "data-etl",
+    "detector": "credential in build env",
+    "dismissed": false
   },
   {
-    "alert_id": "c5008",
-    "start_ms": 2010000401900,
-    "end_ms": 2010000402167,
-    "severity": "p2",
-    "env": "CORE ",
-    "signature": "mfa bypass on break-glass",
-    "muted": false
+    "build_id": "ay-08",
+    "occurred_ms": 8520000004100,
+    "severity": "medium",
+    "pipeline": "frontend-ci",
+    "detector": "privileged scope grant",
+    "dismissed": false
   },
   {
-    "alert_id": "c5009",
-    "start_ms": 2010000402800,
-    "end_ms": 2010000403087,
-    "severity": "p1",
-    "env": "core",
-    "signature": "stale access key active",
-    "muted": false
+    "build_id": "ay-09",
+    "occurred_ms": 8520000004300,
+    "severity": "low",
+    "pipeline": "infra-deploy",
+    "detector": "stale cache reuse",
+    "dismissed": false
   },
   {
-    "alert_id": "v5010",
-    "start_ms": 2010000601000,
-    "end_ms": 2010000601369,
-    "severity": "p1",
-    "env": "vault",
-    "signature": "wildcard permission grant",
-    "muted": false
+    "build_id": "ay-10",
+    "occurred_ms": 8520000004700,
+    "severity": "high",
+    "pipeline": "backend-ci",
+    "detector": "secret exfil in log",
+    "dismissed": true
   },
   {
-    "alert_id": "v5011",
-    "start_ms": 2010000602600,
-    "end_ms": 2010000602854,
-    "severity": "p2",
-    "env": "vault",
-    "signature": "role assumption loop",
-    "muted": false
+    "build_id": "ay-11",
+    "occurred_ms": 8520000005100,
+    "severity": "high",
+    "pipeline": "release-prod",
+    "detector": "unsigned artifact push",
+    "dismissed": false
   },
   {
-    "alert_id": "AM1",
-    "start_ms": 2010000001600,
-    "end_ms": 2010000001900,
-    "severity": "p2",
-    "env": "prod",
-    "signature": "muted",
-    "muted": true
-  },
-  {
-    "alert_id": "AD1",
-    "start_ms": 2010000400200,
-    "end_ms": 2010000400500,
-    "severity": "p2",
-    "env": "vault",
-    "signature": "dup a",
-    "muted": false
-  },
-  {
-    "alert_id": "AD1",
-    "start_ms": 2010000400200,
-    "end_ms": 2010000400700,
-    "severity": "p2",
-    "env": "vault",
-    "signature": "dup b",
-    "muted": false
+    "build_id": "ay-12",
+    "occurred_ms": 8520000005400,
+    "severity": "high",
+    "pipeline": "frontend-ci",
+    "detector": "tampered lockfile",
+    "dismissed": false
   }
 ]

@@ -1,333 +1,807 @@
-"""Verifier tests for firewall drift compiler task."""
+"""Verify Pipewatch audit CLI and repaired signal workflow."""
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
+import os
+import shutil
 import subprocess
-import sys
+import tempfile
 from pathlib import Path
 
 import pytest
 
-WORKFLOW_PATH = Path("/app/workflow/export_report.py")
-ORIGINAL_WORKFLOW_PATH = Path("/app/workflow/.export_report.original")
-DEFAULT_INPUT = Path("/app/data/events.json")
-FREEZE_PATH = Path("/app/data/change_freezes.json")
-REOPEN_PATH = Path("/app/data/reopen_windows.json")
-ROTATION_PATH = Path("/app/data/rotation_windows.json")
-DEFER_PATH = Path("/app/data/defer_windows.json")
-TRUST_EDGES_PATH = Path("/app/data/iam_trust_edges.json")
-SPEC_PATH = Path("/app/docs/report_spec.json")
-EXPECTED_FIXTURE = Path("/tests/fixtures/expected_summary.json")
+OUTPUT_DIR = Path("/app/output")
+DIAGNOSIS_PATH = OUTPUT_DIR / "diagnosis.json"
+SUMMARY_PATH = OUTPUT_DIR / "summary.json"
+MATRIX_PATH = OUTPUT_DIR / "pipeline_matrix.json"
+FLAGGED_PATH = OUTPUT_DIR / "escalated.jsonl"
+REPAIR_AUDIT_PATH = OUTPUT_DIR / "repair_audit.json"
+CLI = Path("/app/build_audit.py")
+PIPELINE = Path("/app/workflow/export_report.py")
+ORIGINAL_PIPELINE = Path("/app/workflow/.export_report.original")
+DOSSIER_PATH = Path("/app/incident/export_dossier.md")
+INPUT_PATH = Path("/app/data/events.json")
+OVERRIDES_PATH = Path("/app/data/dismissal_overrides.json")
+REPORT_SPEC_PATH = Path("/app/docs/report_spec.json")
 ALT_INPUT = Path("/tests/fixtures/alt_events.json")
+BROKEN_PIPELINE_SHA256 = "e9e1d8abbbc0b87383165304471110f8197343fe66f0ae07c24739d65f5bf768"
+SPEC_DATA = json.loads(REPORT_SPEC_PATH.read_text())
+ISSUE_EVIDENCE_TERMS = SPEC_DATA["diagnosis_report"]["issues_found_item"]["evidence"][
+    "required_terms_by_issue"
+]
+REQUIRED_ISSUE_IDS = SPEC_DATA["diagnosis_report"]["issues_found_item"]["allowed_ids"]
+FORBIDDEN_TOKENS = ('event["occurred_at"]', 'severity == "critical"')
+ANOMALY_SEVERITIES = {"high", "critical"}
+SEVERITY_ORDER = ("critical", "high", "medium", "low")
+SEVERITY_RANK = {"low": 1, "medium": 2, "high": 3, "critical": 4}
 
-SEVERITY_ORDER = ["p1", "p2", "p3", "p4"]
-PRIORITY_ORDER = ["critical", "high", "medium"]
-PRIORITY_RANK = {name: len(PRIORITY_ORDER) - idx for idx, name in enumerate(PRIORITY_ORDER)}
 
-FIXTURE = json.loads(EXPECTED_FIXTURE.read_text())
-SPEC = json.loads(SPEC_PATH.read_text())
+def _normalize_ws(text: str) -> str:
+    return " ".join(text.split())
 
 
-def _load_json(path: Path):
-    return json.loads(path.read_text(encoding="utf-8"))
+def _executable_text(src: str) -> str:
+    docstring_lines: set[int] = set()
+    tree = ast.parse(src)
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef)):
+            continue
+        if not node.body:
+            continue
+        first = node.body[0]
+        if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant):
+            if isinstance(first.value.value, str):
+                end = getattr(first, "end_lineno", first.lineno)
+                docstring_lines.update(range(first.lineno, end + 1))
+
+    lines: list[str] = []
+    for line_number, line in enumerate(src.splitlines(), start=1):
+        if line_number in docstring_lines:
+            continue
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            continue
+        if "#" in line:
+            line = line.split("#", 1)[0]
+        lines.append(line)
+    return "\n".join(lines)
 
 
-def _load_jsonl(path: Path):
+def _load_events(path: Path) -> list[dict]:
+    return json.loads(path.read_text())
+
+
+def _normalize_severity(value: object) -> str:
+    return str(value if value is not None else "").strip().lower()
+
+
+def _normalize_pipeline(value: object) -> str:
+    return str(value if value is not None else "").strip().lower()
+
+
+def _normalize_occurred_ms(value: object) -> int:
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, str):
+        text = value.strip()
+        try:
+            return int(text)
+        except ValueError:
+            return 0
+    return 0
+
+
+def _normalize_detector(value: object) -> str:
+    return " ".join(str(value if value is not None else "").split())
+
+
+def _normalize_override_scope(value: object) -> str:
+    normalized = str(value if value is not None else "").strip().lower()
+    return normalized if normalized in {"all", "high", "critical"} else ""
+
+
+def _normalize_dismissed(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"true", "1", "yes"}
+    return bool(value)
+
+
+def _severity_rank(severity: str) -> int:
+    return SEVERITY_RANK.get(severity, 0)
+
+
+def _canonicalize_events(events: list[dict]) -> list[dict]:
+    deduped: dict[str, dict] = {}
+    for event in events:
+        normalized = dict(event)
+        normalized["occurred_ms"] = _normalize_occurred_ms(normalized.get("occurred_ms", 0))
+        normalized["severity"] = _normalize_severity(normalized.get("severity", ""))
+        normalized["pipeline"] = _normalize_pipeline(normalized.get("pipeline", ""))
+        normalized["dismissed"] = _normalize_dismissed(normalized.get("dismissed", False))
+        normalized["detector"] = _normalize_detector(normalized.get("detector", ""))
+        build_id = str(normalized["build_id"])
+        current = deduped.get(build_id)
+        if current is None:
+            deduped[build_id] = normalized
+            continue
+        replace = False
+        if normalized["occurred_ms"] > current["occurred_ms"]:
+            replace = True
+        elif normalized["occurred_ms"] == current["occurred_ms"]:
+            if _severity_rank(normalized["severity"]) > _severity_rank(current["severity"]):
+                replace = True
+            elif _severity_rank(normalized["severity"]) == _severity_rank(current["severity"]):
+                if int(_normalize_dismissed(normalized.get("dismissed", False))) < int(
+                    _normalize_dismissed(current.get("dismissed", False))
+                ):
+                    replace = True
+                elif int(_normalize_dismissed(normalized.get("dismissed", False))) == int(
+                    _normalize_dismissed(current.get("dismissed", False))
+                ):
+                    if _normalize_detector(normalized.get("detector", "")) > _normalize_detector(
+                        current.get("detector", "")
+                    ):
+                        replace = True
+                    elif _normalize_detector(normalized.get("detector", "")) == _normalize_detector(
+                        current.get("detector", "")
+                    ):
+                        if _normalize_pipeline(
+                            normalized.get("pipeline", "")
+                        ) > _normalize_pipeline(current.get("pipeline", "")):
+                            replace = True
+        if replace:
+            deduped[build_id] = normalized
+    return sorted(deduped.values(), key=lambda row: row["occurred_ms"])
+
+
+def _is_signal(event: dict) -> bool:
+    if _normalize_dismissed(event.get("dismissed", False)):
+        return False
+    return _normalize_severity(event.get("severity", "")) in ANOMALY_SEVERITIES
+
+
+def _build_pipeline_matrix(events: list[dict]) -> dict[str, dict[str, int]]:
+    matrix: dict[str, dict[str, int]] = {}
+    for event in events:
+        pipeline = _normalize_pipeline(event.get("pipeline", ""))
+        severity = _normalize_severity(event.get("severity", ""))
+        matrix.setdefault(pipeline, {name: 0 for name in SEVERITY_ORDER})
+        if severity in matrix[pipeline]:
+            matrix[pipeline][severity] += 1
+    return {pipeline: matrix[pipeline] for pipeline in sorted(matrix)}
+
+
+def _compact_overrides(
+    rows: list[dict],
+) -> dict[tuple[str, str], list[tuple[int, int]]]:
+    by_key: dict[tuple[str, str], list[tuple[int, int]]] = {}
+    for row in rows:
+        pipeline = _normalize_pipeline(row.get("pipeline", ""))
+        scope = _normalize_override_scope(row.get("severity_scope", ""))
+        if not scope:
+            continue
+        start = _normalize_occurred_ms(row.get("start_ms", 0))
+        end = _normalize_occurred_ms(row.get("end_ms", 0))
+        if end <= start:
+            continue
+        by_key.setdefault((pipeline, scope), []).append((start, end))
+
+    compacted: dict[tuple[str, str], list[tuple[int, int]]] = {}
+    for key, intervals in by_key.items():
+        merged: list[list[int]] = []
+        for start, end in sorted(intervals):
+            if not merged or start > merged[-1][1]:
+                merged.append([start, end])
+            else:
+                merged[-1][1] = max(merged[-1][1], end)
+        compacted[key] = [(start, end) for start, end in merged]
+    return compacted
+
+
+def _is_override_suppressed(
+    event: dict,
+    compacted_overrides: dict[tuple[str, str], list[tuple[int, int]]],
+) -> bool:
+    pipeline = _normalize_pipeline(event.get("pipeline", ""))
+    severity = _normalize_severity(event.get("severity", ""))
+    occurred_ms = _normalize_occurred_ms(event.get("occurred_ms", 0))
+    for scope in ("all", severity):
+        for start, end in compacted_overrides.get((pipeline, scope), []):
+            if start <= occurred_ms < end:
+                return True
+    return False
+
+
+def _override_compaction_checksum(
+    compacted_overrides: dict[tuple[str, str], list[tuple[int, int]]]
+) -> str:
+    return hashlib.sha256(
+        "\n".join(
+            f"{pipeline}|{scope}|{start}|{end}"
+            for pipeline, scope in sorted(compacted_overrides)
+            for start, end in compacted_overrides[(pipeline, scope)]
+        ).encode("utf-8")
+    ).hexdigest()
+
+
+def _probe_overlap_ms(occurred_ms: int, spans: list[tuple[int, int]], lookback_ms: int = 120) -> int:
+    probe_start = occurred_ms - lookback_ms
+    probe_end = occurred_ms + 1
+    total = 0
+    for start, end in spans:
+        overlap_start = max(probe_start, start)
+        overlap_end = min(probe_end, end)
+        if overlap_end > overlap_start:
+            total += overlap_end - overlap_start
+    return total
+
+
+def _annotate_chains(rows: list[dict]) -> None:
+    parent = list(range(len(rows)))
+
+    def find(index: int) -> int:
+        while parent[index] != index:
+            parent[index] = parent[parent[index]]
+            index = parent[index]
+        return index
+
+    def union(left: int, right: int) -> None:
+        left_root, right_root = find(left), find(right)
+        if left_root != right_root:
+            parent[max(left_root, right_root)] = min(left_root, right_root)
+
+    tokens = [set(str(row["detector"]).lower().split()) for row in rows]
+    for left in range(len(rows)):
+        for right in range(left + 1, len(rows)):
+            if abs(rows[left]["occurred_ms"] - rows[right]["occurred_ms"]) > 600:
+                continue
+            if (
+                rows[left]["pipeline"] == rows[right]["pipeline"]
+                or len(tokens[left] & tokens[right]) >= 2
+            ):
+                union(left, right)
+
+    components: dict[int, list[int]] = {}
+    for index in range(len(rows)):
+        components.setdefault(find(index), []).append(index)
+    for indexes in components.values():
+        build_ids = sorted(str(rows[index]["build_id"]) for index in indexes)
+        observed = [rows[index]["occurred_ms"] for index in indexes]
+        assets = {rows[index]["pipeline"] for index in indexes}
+        span_ms = max(observed) - min(observed)
+        risk_score = (
+            sum(_severity_rank(rows[index]["severity"]) for index in indexes)
+            + (len(assets) * 2)
+            + (span_ms // 60)
+        )
+        chain_id = hashlib.sha1(",".join(build_ids).encode("utf-8")).hexdigest()[:10]
+        chain_digest = hashlib.sha256(
+            (
+                f"{chain_id}|{len(indexes)}|{span_ms}|{risk_score}|"
+                f"{','.join(build_ids)}"
+            ).encode("utf-8")
+        ).hexdigest()[:12]
+        for index in indexes:
+            rows[index]["chain_id"] = chain_id
+            rows[index]["chain_size"] = len(indexes)
+            rows[index]["chain_span_ms"] = span_ms
+            rows[index]["chain_risk_score"] = risk_score
+            rows[index]["chain_digest"] = chain_digest
+
+
+def _annotate_chain_reach(rows: list[dict]) -> None:
+    chains: dict[str, dict] = {}
+    for index, row in enumerate(rows):
+        chain = chains.setdefault(
+            row["chain_id"],
+            {
+                "indexes": [],
+                "start_ms": row["occurred_ms"],
+                "end_ms": row["occurred_ms"],
+                "assets": set(),
+                "tokens": set(),
+                "risk_score": row["chain_risk_score"],
+            },
+        )
+        chain["indexes"].append(index)
+        chain["start_ms"] = min(chain["start_ms"], row["occurred_ms"])
+        chain["end_ms"] = max(chain["end_ms"], row["occurred_ms"])
+        chain["assets"].add(row["pipeline"])
+        chain["tokens"].update(str(row["detector"]).lower().split())
+
+    finalized: list[tuple[str, dict]] = []
+    for chain_id, chain in sorted(
+        chains.items(),
+        key=lambda item: (item[1]["start_ms"], item[1]["end_ms"], item[0]),
+    ):
+        best_score = chain["risk_score"]
+        best_path = (chain_id,)
+        for predecessor_id, predecessor in finalized:
+            gap_ms = chain["start_ms"] - predecessor["end_ms"]
+            if gap_ms <= 0 or gap_ms > 3000:
+                continue
+            shared_assets = len(chain["assets"] & predecessor["assets"])
+            shared_tokens = len(chain["tokens"] & predecessor["tokens"])
+            if shared_assets == 0 and shared_tokens == 0:
+                continue
+            edge_weight = (
+                1
+                + (2 * shared_assets)
+                + shared_tokens
+                + max(0, 3 - (gap_ms // 1000))
+            )
+            candidate_score = (
+                predecessor["reach_score"] + edge_weight + chain["risk_score"]
+            )
+            candidate_path = predecessor["reach_path"] + (chain_id,)
+            if candidate_score > best_score or (
+                candidate_score == best_score and candidate_path < best_path
+            ):
+                best_score = candidate_score
+                best_path = candidate_path
+        chain["reach_score"] = best_score
+        chain["reach_path"] = best_path
+        chain["reach_depth"] = len(best_path) - 1
+        chain["reach_digest"] = hashlib.sha256(
+            (
+                f"{chain_id}|{best_score}|{chain['reach_depth']}|"
+                f"{','.join(best_path)}"
+            ).encode("utf-8")
+        ).hexdigest()[:12]
+        finalized.append((chain_id, chain))
+
+    for _, chain in finalized:
+        for index in chain["indexes"]:
+            rows[index]["chain_reach_score"] = chain["reach_score"]
+            rows[index]["chain_reach_depth"] = chain["reach_depth"]
+            rows[index]["chain_reach_path"] = list(chain["reach_path"])
+            rows[index]["chain_reach_digest"] = chain["reach_digest"]
+
+
+def _compute_summary(events: list[dict], override_rows: list[dict] | None = None) -> dict:
+    canonical = _canonicalize_events(events)
+    severity_counts = {severity: 0 for severity in SEVERITY_ORDER}
+    pipelines: set[str] = set()
+    override_rows = (
+        json.loads(OVERRIDES_PATH.read_text()) if override_rows is None else override_rows
+    )
+    compacted_overrides = _compact_overrides(override_rows)
+    signals = _compute_escalated(events, override_rows=override_rows)
+    for event in canonical:
+        severity = _normalize_severity(event.get("severity", ""))
+        if severity in severity_counts:
+            severity_counts[severity] += 1
+        pipelines.add(_normalize_pipeline(event.get("pipeline", "")))
+    return {
+        "schema_version": "identity-triage-v2",
+        "raw_build_count": len(events),
+        "unique_build_ids": len({str(event["build_id"]) for event in events}),
+        "total_builds": len(canonical),
+        "severity_counts": severity_counts,
+        "pipelines": sorted(pipelines),
+        "escalated_count": len(signals),
+        "dismissed_excluded_count": sum(
+            1
+            for event in canonical
+            if _normalize_dismissed(event.get("dismissed", False))
+            and _normalize_severity(event.get("severity", "")) in ANOMALY_SEVERITIES
+        ),
+        "override_excluded_count": sum(
+            1
+            for event in canonical
+            if _normalize_severity(event.get("severity", "")) in ANOMALY_SEVERITIES
+            and not _normalize_dismissed(event.get("dismissed", False))
+            and _is_override_suppressed(event, compacted_overrides)
+        ),
+        "override_compaction_checksum": _override_compaction_checksum(compacted_overrides),
+        "max_wide_pressure_score": max(
+            (row["wide_pressure_score"] for row in signals),
+            default=0,
+        ),
+        "max_pressure_index": max(
+            (row["pressure_index"] for row in signals),
+            default=0,
+        ),
+        "max_override_pressure_score": max(
+            (row["override_pressure_score"] for row in signals),
+            default=0,
+        ),
+        "chain_count": len({row["chain_id"] for row in signals}),
+        "max_chain_risk_score": max(
+            (row["chain_risk_score"] for row in signals),
+            default=0,
+        ),
+        "chain_digest_checksum": hashlib.sha256(
+            "|".join(row["chain_digest"] for row in signals).encode("utf-8")
+        ).hexdigest(),
+        "max_chain_reach_score": max(
+            (row["chain_reach_score"] for row in signals),
+            default=0,
+        ),
+        "chain_reach_digest_checksum": hashlib.sha256(
+            "|".join(
+                row["chain_reach_digest"] for row in signals
+            ).encode("utf-8")
+        ).hexdigest(),
+        "signal_digest_checksum": hashlib.sha256(
+            "|".join(row["signal_digest"] for row in signals).encode("utf-8")
+        ).hexdigest(),
+        **_escalation_ledger(signals),
+    }
+
+
+def _escalation_ledger(signals: list[dict]) -> dict:
+    """Sequential escalation-pressure ledger per #CI-5122/5123.
+
+    Carry propagates between consecutive rows in export order; the carry credit
+    is ceilinged while the gap decay and chain-size debit are floored.
+    """
+    previous_occurred_ms = None
+    previous_carry_out = 0
+    critical_ids: list[str] = []
+    max_pressure = 0
+    rows: list[str] = []
+    for signal in signals:
+        gap_ms = (
+            0
+            if previous_occurred_ms is None
+            else max(previous_occurred_ms - signal["occurred_ms"], 0)
+        )
+        carry_in = max(previous_carry_out - (gap_ms // 150), 0)
+        pressure = signal["chain_risk_score"] + (-(-carry_in // 3))
+        carry_out = min(
+            carry_in + signal["chain_risk_score"] - (signal["chain_size"] // 2), 70
+        )
+        flag = 1 if pressure >= 14 else 0
+        if flag:
+            critical_ids.append(str(signal["build_id"]))
+        max_pressure = max(max_pressure, pressure)
+        rows.append(f"{signal['build_id']}|{pressure}|{flag}|{carry_out}")
+        previous_occurred_ms = signal["occurred_ms"]
+        previous_carry_out = carry_out
+    return {
+        "critical_escalation_ids": sorted(critical_ids),
+        "critical_escalation_count": len(critical_ids),
+        "max_escalation_pressure": max_pressure,
+        "escalation_ledger_checksum": hashlib.sha256(
+            "\n".join(rows).encode("utf-8")
+        ).hexdigest(),
+    }
+
+
+def _compute_escalated(events: list[dict], override_rows: list[dict] | None = None) -> list[dict]:
+    override_rows = (
+        json.loads(OVERRIDES_PATH.read_text()) if override_rows is None else override_rows
+    )
+    compacted_overrides = _compact_overrides(override_rows)
     rows = []
-    for raw in path.read_text(encoding="utf-8").splitlines():
-        raw = raw.strip()
-        if raw:
-            rows.append(json.loads(raw))
+    for event in _canonicalize_events(events):
+        if not _is_signal(event):
+            continue
+        if _is_override_suppressed(event, compacted_overrides):
+            continue
+        pipeline = _normalize_pipeline(event.get("pipeline", ""))
+        severity = _normalize_severity(event.get("severity", ""))
+        occurred_ms = _normalize_occurred_ms(event.get("occurred_ms", 0))
+        all_overlap_ms = _probe_overlap_ms(
+            occurred_ms, compacted_overrides.get((pipeline, "all"), [])
+        )
+        severity_overlap_ms = _probe_overlap_ms(
+            occurred_ms, compacted_overrides.get((pipeline, severity), [])
+        )
+        wide_all_overlap_ms = _probe_overlap_ms(
+            occurred_ms,
+            compacted_overrides.get((pipeline, "all"), []),
+            lookback_ms=300,
+        )
+        wide_severity_overlap_ms = _probe_overlap_ms(
+            occurred_ms,
+            compacted_overrides.get((pipeline, severity), []),
+            lookback_ms=300,
+        )
+        override_pressure_score = (all_overlap_ms // 34) + (-(-severity_overlap_ms // 23))
+        wide_pressure_score = (
+            (-(-wide_all_overlap_ms // 48)) + (wide_severity_overlap_ms // 31)
+        )
+        pressure_index = override_pressure_score + wide_pressure_score
+        rows.append(
+            {
+                "build_id": event["build_id"],
+                "occurred_ms": occurred_ms,
+                "severity": severity,
+                "pipeline": pipeline,
+                "detector": _normalize_detector(event["detector"]),
+                "override_pressure_score": override_pressure_score,
+                "wide_pressure_score": wide_pressure_score,
+                "pressure_index": pressure_index,
+            }
+        )
+    _annotate_chains(rows)
+    _annotate_chain_reach(rows)
+    for row in rows:
+        row["signal_digest"] = hashlib.sha1(
+            (
+                f"{row['build_id']}|{row['occurred_ms']}|{row['severity']}|"
+                f"{row['pipeline']}|{row['detector']}|{row['override_pressure_score']}|"
+                f"{row['pressure_index']}|"
+                f"{row['chain_id']}|{row['chain_size']}|{row['chain_span_ms']}|"
+                f"{row['chain_risk_score']}|{row['chain_digest']}|"
+                f"{row['chain_reach_score']}|{row['chain_reach_depth']}|"
+                f"{','.join(row['chain_reach_path'])}|"
+                f"{row['chain_reach_digest']}"
+            ).encode("utf-8")
+        ).hexdigest()[:12]
+    rows.sort(
+        key=lambda row: (
+            -row["occurred_ms"],
+            -_severity_rank(row["severity"]),
+            -row["chain_risk_score"],
+            -row["chain_reach_score"],
+            -row["override_pressure_score"],
+            str(row["build_id"]),
+        )
+    )
     return rows
 
 
-def _write_json(path: Path, value: object) -> None:
-    path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
-
-
-def test_checksum_serialization_contract_vectors():
-    """The checksum serialization rules reproduce the contract's worked test vectors byte for byte."""
-    vectors = SPEC["summary_json"]["checksum_test_vectors"]
-    for prefix in ("canonical_alert", "freeze", "scoped", "ledger", "trust_edge"):
-        payload = vectors[f"{prefix}_payload"].encode("utf-8")
-        assert hashlib.sha256(payload).hexdigest() == vectors[f"{prefix}_sha256"]
-
-
-def _run_pipeline(tmp_path: Path, script_path: Path = WORKFLOW_PATH, input_path: Path = DEFAULT_INPUT):
-    out_dir = tmp_path / "output"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    result = subprocess.run(
-        [sys.executable, str(script_path), "--input", str(input_path), "--output-dir", str(out_dir)],
-        check=True,
+def _run_pipeline(
+    pipeline: Path = PIPELINE,
+    input_path: Path = INPUT_PATH,
+    output_dir: Path = OUTPUT_DIR,
+) -> subprocess.CompletedProcess[str]:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    return subprocess.run(
+        [
+            "python3",
+            str(pipeline),
+            "--input",
+            str(input_path),
+            "--output-dir",
+            str(output_dir),
+        ],
         capture_output=True,
         text=True,
+        timeout=30,
     )
-    assert result.returncode == 0
-    summary = _load_json(out_dir / "summary.json")
-    windows = _load_json(out_dir / "drift_windows.json")
-    queue = _load_jsonl(out_dir / "response_queue.jsonl")
-    return out_dir, summary, windows, queue
 
 
-@pytest.fixture(scope="session")
-def primary_outputs(tmp_path_factory):
-    tmp = tmp_path_factory.mktemp("primary")
-    return _run_pipeline(tmp)
+def _escalated_rows(path: Path = FLAGGED_PATH) -> list[dict]:
+    rows = []
+    for line in path.read_text().splitlines():
+        if line.strip():
+            rows.append(json.loads(line))
+    return rows
+
+
+@pytest.fixture(scope="module")
+def expected() -> dict:
+    """Compute every expected value independently from the operational inputs.
+
+    Nothing here is hardcoded output: summaries, matrices, escalated rows and
+    checksums are all derived from /app/data at test time, for both the primary
+    and the alternate input.
+    """
+    events = _load_events(INPUT_PATH)
+    summary = _compute_summary(events)
+    escalated = _compute_escalated(events)
+    alternate_events = _load_events(ALT_INPUT)
+    alternate_summary = _compute_summary(alternate_events)
+    alternate_escalated = _compute_escalated(alternate_events)
+    return {
+        **summary,
+        "build_count": len(events),
+        "unique_ids": len({str(event["build_id"]) for event in events}),
+        "expected_pipeline_matrix": _build_pipeline_matrix(_canonicalize_events(events)),
+        "expected_escalated_ids_desc": [row["build_id"] for row in escalated],
+        "expected_escalated_ms_desc": [row["occurred_ms"] for row in escalated],
+        "broken_pipeline_sha256": BROKEN_PIPELINE_SHA256,
+        "alternate_input": str(ALT_INPUT),
+        "alternate_expected": {
+            **alternate_summary,
+            "escalated_ids_desc": [row["build_id"] for row in alternate_escalated],
+        },
+    }
+
+
+@pytest.fixture(scope="module")
+def dossier_text() -> str:
+    return _normalize_ws(DOSSIER_PATH.read_text())
+
+
+@pytest.fixture(scope="module")
+def diagnosis() -> dict:
+    assert DIAGNOSIS_PATH.exists(), (
+        f"Missing {DIAGNOSIS_PATH}. Run: python3 {CLI} repair --output-dir /app/output"
+    )
+    return json.loads(DIAGNOSIS_PATH.read_text())
+
+
+@pytest.fixture(scope="module")
+def summary(diagnosis: dict) -> dict:
+    assert SUMMARY_PATH.exists(), "missing summary.json"
+    data = json.loads(SUMMARY_PATH.read_text())
+    assert data == diagnosis["verified_summary"]
+    return data
+
+
+@pytest.fixture(scope="module")
+def escalated_rows() -> list[dict]:
+    assert FLAGGED_PATH.exists(), "missing escalated.jsonl"
+    return _escalated_rows()
+
+
+def test_override_checksum_contract_and_touching_merge():
+    """Verify touching-window compaction and checksum serialization."""
+    contract = SPEC_DATA["outputs"]["summary_json"]["override_checksum_serialization"]
+    assert hashlib.sha256(
+        contract["test_vector_payload"].encode("utf-8")
+    ).hexdigest() == contract["test_vector_sha256"]
+    compacted = _compact_overrides(
+        [
+            {
+                "pipeline": "edge",
+                "severity_scope": "high",
+                "start_ms": 100,
+                "end_ms": 160,
+            },
+            {
+                "pipeline": "edge",
+                "severity_scope": "high",
+                "start_ms": 160,
+                "end_ms": 220,
+            },
+        ]
+    )
+    assert compacted[("edge", "high")] == [(100, 220)]
 
 
 def test_cli_exists():
-    """The reconciler exists at its operational path and runs successfully."""
-    assert WORKFLOW_PATH.exists()
+    assert CLI.exists(), f"CLI not found at {CLI}"
 
 
-def test_output_dir_contains_exactly_three_files(primary_outputs):
-    """A run writes exactly the three contracted output files and nothing else."""
-    out_dir, _, _, _ = primary_outputs
-    names = sorted(path.name for path in out_dir.iterdir() if path.is_file())
-    assert names == ["drift_windows.json", "response_queue.jsonl", "summary.json"]
+def test_dossier_has_context():
+    minimum = SPEC_DATA["context"]["minimum_line_count"]
+    assert len(DOSSIER_PATH.read_text().splitlines()) >= minimum
 
 
-def test_primary_summary_matches_fixture(primary_outputs):
-    """summary.json from the primary event stream matches the expected fixture exactly."""
-    _, summary, _, _ = primary_outputs
-    assert summary == FIXTURE["primary"]["summary"]
+def test_repair_produces_required_outputs():
+    for path in (SUMMARY_PATH, MATRIX_PATH, FLAGGED_PATH, REPAIR_AUDIT_PATH):
+        assert path.exists(), f"missing required output: {path}"
 
 
-def test_primary_windows_matches_fixture(primary_outputs):
-    """drift_windows.json from the primary event stream matches the expected fixture exactly."""
-    _, _, windows, _ = primary_outputs
-    assert windows == FIXTURE["primary"]["windows"]
+def test_diagnosis_schema_repaired(diagnosis: dict):
+    for key in ("pipeline_status", "issues_found", "input_stats", "verified_summary", "output_paths"):
+        assert key in diagnosis
+    assert diagnosis["pipeline_status"] == "repaired"
 
 
-def test_primary_queue_matches_fixture(primary_outputs):
-    """response_queue.jsonl from the primary event stream matches the expected fixture exactly."""
-    _, _, _, queue = primary_outputs
-    assert queue == FIXTURE["primary"]["queue_rows"]
+def test_output_paths_exact(diagnosis: dict):
+    paths = diagnosis["output_paths"]
+    assert paths["summary_json"] == str(SUMMARY_PATH)
+    assert paths["escalated_jsonl"] == str(FLAGGED_PATH)
+    assert paths["pipeline_matrix_json"] == str(MATRIX_PATH)
 
 
-def test_summary_schema(primary_outputs):
-    """summary.json carries exactly the contracted key set with correctly typed values."""
-    _, summary, _, _ = primary_outputs
-    assert set(summary) == {
+def test_issues_found_exactly_six_allowed_ids(diagnosis: dict):
+    assert len(diagnosis["issues_found"]) == 6
+    assert {item["id"] for item in diagnosis["issues_found"]} == set(REQUIRED_ISSUE_IDS)
+
+
+def test_issue_item_required_fields(diagnosis: dict):
+    for issue in diagnosis["issues_found"]:
+        for key in ("id", "severity", "description", "resolution", "evidence"):
+            assert key in issue
+
+
+def test_issue_evidence(diagnosis: dict):
+    original_pipeline = ORIGINAL_PIPELINE.read_text()
+    issues = {item["id"]: item for item in diagnosis["issues_found"]}
+    for issue_id, terms in ISSUE_EVIDENCE_TERMS.items():
+        evidence = issues[issue_id]["evidence"]
+        for key in ("dossier_quote", "pipeline_evidence", "repair_action"):
+            assert key in evidence
+            assert len(evidence[key]) >= 10
+        assert len(evidence["dossier_quote"]) >= 30
+        for term in terms["dossier_quote"]:
+            assert term in evidence["dossier_quote"]
+        for term in terms["pipeline_evidence"]:
+            assert term in evidence["pipeline_evidence"]
+        assert evidence["pipeline_evidence"] in original_pipeline
+        for term in terms["repair_action"]:
+            assert term in evidence["repair_action"]
+
+
+def test_dossier_quotes_are_verbatim(diagnosis: dict, dossier_text: str):
+    for issue in diagnosis["issues_found"]:
+        quote = _normalize_ws(issue["evidence"]["dossier_quote"])
+        assert quote in dossier_text
+
+
+def test_input_stats(diagnosis: dict, expected: dict):
+    stats = diagnosis["input_stats"]
+    assert stats["build_count"] == expected["build_count"]
+    assert stats["unique_build_ids"] == expected["unique_ids"]
+    assert stats["pipelines"] == expected["pipelines"]
+
+
+def test_verified_summary_matches_independent_computation(diagnosis: dict, expected: dict):
+    verified = diagnosis["verified_summary"]
+    for key in (
         "schema_version",
-        "raw_alert_count",
-        "unique_alert_ids",
-        "canonical_alert_count",
-        "env_count",
+        "raw_build_count",
+        "unique_build_ids",
+        "total_builds",
         "severity_counts",
-        "total_unmuted_duration_ms",
-        "total_freeze_overlap_ms",
-        "total_freeze_segment_count",
-        "total_effective_duration_ms",
-        "total_reopen_overlap_ms",
-        "total_reopen_segment_count",
-        "total_risk_adjusted_duration_ms",
-        "total_rotation_overlap_ms",
-        "total_rotation_segment_count",
-        "total_dispatchable_duration_ms",
-        "total_defer_overlap_ms",
-        "total_defer_segment_count",
-        "total_actionable_duration_ms",
-        "total_ledger_adjusted_actionable_ms",
-        "longest_window_ms",
-        "queued_window_count",
-        "muted_excluded_count",
-        "max_stability_pressure_score",
-        "max_volatility_index",
-        "max_defer_pressure_score",
-        "max_ledger_pressure_score",
-        "max_trust_exposure_score",
-        "max_carry_out_ms",
-        "max_stability_index",
-        "canonical_alert_checksum",
-        "queue_hash_checksum",
-        "freeze_compaction_checksum",
-        "reopen_compaction_checksum",
-        "rotation_compaction_checksum",
-        "defer_compaction_checksum",
-        "trust_edge_checksum",
-        "window_digest_checksum",
-        "ledger_checksum",
-        "trust_path_digest_checksum",
-    }
-    assert summary["schema_version"] == "firewall-drift-v1"
-    assert list(summary["severity_counts"]) == SEVERITY_ORDER
-    assert len(summary["canonical_alert_checksum"]) == 64
-    assert len(summary["queue_hash_checksum"]) == 64
-    assert len(summary["freeze_compaction_checksum"]) == 64
-    assert len(summary["reopen_compaction_checksum"]) == 64
-    assert len(summary["rotation_compaction_checksum"]) == 64
-    assert len(summary["defer_compaction_checksum"]) == 64
-    assert len(summary["trust_edge_checksum"]) == 64
-    assert len(summary["window_digest_checksum"]) == 64
-    assert len(summary["ledger_checksum"]) == 64
-    assert len(summary["trust_path_digest_checksum"]) == 64
+        "pipelines",
+        "escalated_count",
+        "dismissed_excluded_count",
+        "override_excluded_count",
+        "override_compaction_checksum",
+        "max_override_pressure_score",
+        "chain_count",
+        "max_chain_risk_score",
+        "chain_digest_checksum",
+        "max_chain_reach_score",
+        "chain_reach_digest_checksum",
+        "signal_digest_checksum",
+        "critical_escalation_ids",
+        "critical_escalation_count",
+        "max_escalation_pressure",
+        "escalation_ledger_checksum",
+    ):
+        assert verified[key] == expected[key]
+    assert list(verified["severity_counts"].keys()) == list(SEVERITY_ORDER)
+    assert len(verified["chain_digest_checksum"]) == 64
+    assert len(verified["chain_reach_digest_checksum"]) == 64
+    assert len(verified["signal_digest_checksum"]) == 64
 
 
-def test_windows_schema_and_sorting(primary_outputs):
-    """drift_windows.json rows carry the contracted keys and are sorted as the contract specifies."""
-    _, _, windows, _ = primary_outputs
-    expected_keys = {
-        "start_ms",
-        "end_ms",
-        "duration_ms",
-        "freeze_overlap_ms",
-        "freeze_segment_count",
-        "effective_duration_ms",
-        "reopen_overlap_ms",
-        "reopen_segment_count",
-        "risk_adjusted_duration_ms",
-        "rotation_overlap_ms",
-        "rotation_segment_count",
-        "dispatchable_duration_ms",
-        "defer_overlap_ms",
-        "defer_segment_count",
-        "actionable_duration_ms",
-        "idle_gap_ms",
-        "carry_in_ms",
-        "carry_out_ms",
-        "ledger_adjusted_actionable_ms",
-        "trust_reachable_envs",
-        "trust_exposure_score",
-        "trust_strongest_path",
-        "trust_path_digest",
-        "alert_count",
-        "source_alert_ids",
-        "max_severity",
-    }
-    assert list(windows) == sorted(windows)
-    for env_windows in windows.values():
-        starts = [row["start_ms"] for row in env_windows]
-        assert starts == sorted(starts)
-        for row in env_windows:
-            assert set(row) == expected_keys
-            assert row["duration_ms"] == max(row["end_ms"] - row["start_ms"], 0)
-            assert row["effective_duration_ms"] == max(
-                row["duration_ms"] - row["freeze_overlap_ms"], 0
-            )
-            assert row["risk_adjusted_duration_ms"] == max(
-                row["effective_duration_ms"] - (-(-row["reopen_overlap_ms"] // 2)), 0
-            )
-            assert row["dispatchable_duration_ms"] == max(
-                row["risk_adjusted_duration_ms"] - (-(-row["rotation_overlap_ms"] // 3)), 0
-            )
-            assert row["actionable_duration_ms"] == max(
-                row["dispatchable_duration_ms"] - (-(-row["defer_overlap_ms"] // 4)), 0
-            )
-            assert row["ledger_adjusted_actionable_ms"] == (
-                row["actionable_duration_ms"] + min(-(-row["carry_in_ms"] // 4), 120)
-            )
-            assert row["source_alert_ids"] == sorted(row["source_alert_ids"])
-            assert row["trust_reachable_envs"] == sorted(row["trust_reachable_envs"])
-            assert len(row["trust_path_digest"]) == 12
+def test_summary_computed_from_events(summary: dict):
+    assert summary == _compute_summary(_load_events(INPUT_PATH))
 
 
-def test_queue_required_fields(primary_outputs):
-    """Every queue row carries the required fields with contract-conformant shapes."""
-    _, _, _, queue = primary_outputs
-    expected_keys = {
-        "ticket_id",
-        "env",
-        "start_ms",
-        "end_ms",
-        "duration_ms",
-        "freeze_overlap_ms",
-        "freeze_segment_count",
-        "effective_duration_ms",
-        "reopen_overlap_ms",
-        "reopen_segment_count",
-        "risk_adjusted_duration_ms",
-        "rotation_overlap_ms",
-        "rotation_segment_count",
-        "dispatchable_duration_ms",
-        "defer_overlap_ms",
-        "defer_segment_count",
-        "actionable_duration_ms",
-        "idle_gap_ms",
-        "carry_in_ms",
-        "carry_out_ms",
-        "ledger_adjusted_actionable_ms",
-        "trust_reachable_envs",
-        "trust_exposure_score",
-        "trust_strongest_path",
-        "trust_path_digest",
-        "alert_count",
-        "source_alert_ids",
-        "max_severity",
-        "stability_pressure_score",
-        "volatility_index",
-        "defer_pressure_score",
-        "ledger_pressure_score",
-        "stability_index",
-        "priority",
-        "queue_hash",
-        "window_digest",
-    }
-    for row in queue:
-        assert set(row) == expected_keys
-        assert row["priority"] in PRIORITY_RANK
-        assert len(row["queue_hash"]) == 12
-        assert len(row["window_digest"]) == 10
+def test_pipeline_matrix_matches_independent_computation(expected: dict):
+    matrix = json.loads(MATRIX_PATH.read_text())
+    assert matrix == expected["expected_pipeline_matrix"]
+    assert matrix == _build_pipeline_matrix(_canonicalize_events(_load_events(INPUT_PATH)))
 
 
-def test_priority_rules(primary_outputs):
-    """Queue rows receive priority tiers according to the decided admission thresholds."""
-    _, _, _, queue = primary_outputs
-    for row in queue:
-        if (
-            row["max_severity"] == "p1"
-            and row["ledger_adjusted_actionable_ms"] >= 454
-        ) or (
-            row["ledger_adjusted_actionable_ms"] >= 600
-            or row["stability_index"] >= 40
-            or row["trust_exposure_score"] >= 30
-        ):
-            assert row["priority"] == "critical"
-        elif row["ledger_adjusted_actionable_ms"] >= 236 or (
-            row["alert_count"] >= 2 and row["max_severity"] in {"p1", "p2"}
-        ) or (
-            row["rotation_segment_count"] == 0
-            and row["risk_adjusted_duration_ms"] >= 340
-        ) or (
-            row["defer_pressure_score"] > 0
-            and row["dispatchable_duration_ms"] >= 320
-        ) or (
-            row["reopen_segment_count"] == 0 and row["duration_ms"] >= 420
-        ) or row["trust_exposure_score"] >= 16:
-            assert row["priority"] == "high"
-        else:
-            assert row["priority"] == "medium"
+def test_escalated_computed_from_events(escalated_rows: list[dict]):
+    assert escalated_rows == _compute_escalated(_load_events(INPUT_PATH))
 
 
-def test_queue_sorted(primary_outputs):
-    """The responder queue is emitted in the fully specified tie-broken order."""
-    _, _, _, queue = primary_outputs
-    assert queue == sorted(
-        queue,
-        key=lambda row: (
-            -PRIORITY_RANK[row["priority"]],
-            -row["ledger_adjusted_actionable_ms"],
-            -row["actionable_duration_ms"],
-            -row["stability_index"],
-            -row["trust_exposure_score"],
-            -row["defer_pressure_score"],
-            -row["volatility_index"],
-            -row["dispatchable_duration_ms"],
-            -row["risk_adjusted_duration_ms"],
-            -row["freeze_segment_count"],
-            -row["alert_count"],
-            row["env"],
-            row["start_ms"],
-        ),
-    )
+def test_escalated_sorted_descending(escalated_rows: list[dict], expected: dict):
+    assert [row["build_id"] for row in escalated_rows] == expected["expected_escalated_ids_desc"]
+    assert [row["occurred_ms"] for row in escalated_rows] == expected["expected_escalated_ms_desc"]
 
 
-def test_response_queue_jsonl_compact(primary_outputs):
-    """response_queue.jsonl rows are serialized as compact JSON with no padding whitespace."""
-    out_dir, _, _, _ = primary_outputs
-    for line in (out_dir / "response_queue.jsonl").read_text(encoding="utf-8").splitlines():
+def test_escalated_severities(escalated_rows: list[dict]):
+    for row in escalated_rows:
+        assert row["severity"] in ANOMALY_SEVERITIES
+        assert isinstance(row["override_pressure_score"], int)
+        assert len(row["chain_id"]) == 10
+        assert isinstance(row["chain_size"], int)
+        assert isinstance(row["chain_span_ms"], int)
+        assert isinstance(row["chain_risk_score"], int)
+        assert len(row["chain_digest"]) == 12
+        assert isinstance(row["chain_reach_score"], int)
+        assert isinstance(row["chain_reach_depth"], int)
+        assert isinstance(row["chain_reach_path"], list)
+        assert len(row["chain_reach_digest"]) == 12
+        assert len(row["signal_digest"]) == 12
+
+
+def test_escalated_jsonl_compact_format():
+    for line in FLAGGED_PATH.read_text().splitlines():
         if not line.strip():
             continue
         assert ": " not in line
@@ -335,826 +809,676 @@ def test_response_queue_jsonl_compact(primary_outputs):
         assert json.dumps(parsed, separators=(",", ":")) == line
 
 
-def test_summary_math_consistency(primary_outputs):
-    """Aggregate summary fields are internally consistent with the emitted windows and queue."""
-    _, summary, windows, _ = primary_outputs
-    duration_total = 0
-    overlap_total = 0
-    segment_total = 0
-    effective_total = 0
-    reopen_overlap_total = 0
-    reopen_segment_total = 0
-    risk_adjusted_total = 0
-    rotation_overlap_total = 0
-    rotation_segment_total = 0
-    dispatchable_total = 0
-    defer_overlap_total = 0
-    defer_segment_total = 0
-    actionable_total = 0
-    ledger_adjusted_total = 0
-    longest = 0
-    for env_windows in windows.values():
-        for row in env_windows:
-            duration_total += row["duration_ms"]
-            overlap_total += row["freeze_overlap_ms"]
-            segment_total += row["freeze_segment_count"]
-            effective_total += row["effective_duration_ms"]
-            reopen_overlap_total += row["reopen_overlap_ms"]
-            reopen_segment_total += row["reopen_segment_count"]
-            risk_adjusted_total += row["risk_adjusted_duration_ms"]
-            rotation_overlap_total += row["rotation_overlap_ms"]
-            rotation_segment_total += row["rotation_segment_count"]
-            dispatchable_total += row["dispatchable_duration_ms"]
-            defer_overlap_total += row["defer_overlap_ms"]
-            defer_segment_total += row["defer_segment_count"]
-            actionable_total += row["actionable_duration_ms"]
-            ledger_adjusted_total += row["ledger_adjusted_actionable_ms"]
-            longest = max(longest, row["duration_ms"])
-    assert summary["total_unmuted_duration_ms"] == duration_total
-    assert summary["total_freeze_overlap_ms"] == overlap_total
-    assert summary["total_freeze_segment_count"] == segment_total
-    assert summary["total_effective_duration_ms"] == effective_total
-    assert summary["total_reopen_overlap_ms"] == reopen_overlap_total
-    assert summary["total_reopen_segment_count"] == reopen_segment_total
-    assert summary["total_risk_adjusted_duration_ms"] == risk_adjusted_total
-    assert summary["total_rotation_overlap_ms"] == rotation_overlap_total
-    assert summary["total_rotation_segment_count"] == rotation_segment_total
-    assert summary["total_dispatchable_duration_ms"] == dispatchable_total
-    assert summary["total_defer_overlap_ms"] == defer_overlap_total
-    assert summary["total_defer_segment_count"] == defer_segment_total
-    assert summary["total_actionable_duration_ms"] == actionable_total
-    assert summary["total_ledger_adjusted_actionable_ms"] == ledger_adjusted_total
-    assert summary["longest_window_ms"] == longest
+def test_original_snapshot_preserved(expected: dict):
+    assert ORIGINAL_PIPELINE.exists()
+    digest = hashlib.sha256(ORIGINAL_PIPELINE.read_bytes()).hexdigest()
+    assert digest == expected["broken_pipeline_sha256"]
+    original = ORIGINAL_PIPELINE.read_text()
+    for token in FORBIDDEN_TOKENS:
+        assert token in original
+    assert ".lower(" not in original
 
 
-def test_original_snapshot_preserved():
-    """The frozen incident snapshot remains byte-identical to the shipped original."""
-    assert ORIGINAL_WORKFLOW_PATH.exists()
-    digest = hashlib.sha256(ORIGINAL_WORKFLOW_PATH.read_bytes()).hexdigest()
-    assert digest == FIXTURE["broken_pipeline_sha256"]
+def test_pipeline_output_tracks_its_input(tmp_path_factory):
+    """The repaired pipeline computes from its --input rather than emitting fixed
+    values, so its output changes when the input changes. A solution that hard-coded
+    results or read verifier fixtures instead of the given pipeline would fail this."""
+    base_events = _load_events(INPUT_PATH)
+    assert len(base_events) > 1
+
+    base_dir = tmp_path_factory.mktemp("track_base")
+    assert _run_pipeline(output_dir=base_dir).returncode == 0
+    base_summary = json.loads((base_dir / "summary.json").read_text())
+
+    perturbed = base_events[:-1]
+    perturbed_input = tmp_path_factory.mktemp("track_in") / "events.json"
+    perturbed_input.write_text(json.dumps(perturbed), encoding="utf-8")
+    perturbed_dir = tmp_path_factory.mktemp("track_out")
+    assert _run_pipeline(input_path=perturbed_input, output_dir=perturbed_dir).returncode == 0
+    perturbed_summary = json.loads((perturbed_dir / "summary.json").read_text())
+
+    assert perturbed_summary["raw_build_count"] == len(perturbed)
+    assert perturbed_summary["raw_build_count"] != base_summary["raw_build_count"]
+    assert perturbed_summary != base_summary
 
 
-def test_broken_snapshot_is_wrong(tmp_path: Path):
-    """The frozen snapshot still produces the known-bad output, proving the pipeline was genuinely repaired."""
-    _, broken_summary, _, broken_queue = _run_pipeline(tmp_path, script_path=ORIGINAL_WORKFLOW_PATH)
-    broken_summary_hash = hashlib.sha256(
-        json.dumps(broken_summary, sort_keys=True).encode("utf-8")
-    ).hexdigest()
-    assert broken_summary_hash == FIXTURE["broken_summary_sha256"]
-    assert len(broken_queue) == FIXTURE["broken_queue_count"]
-    assert [row.get("ticket_id") for row in broken_queue] == FIXTURE["broken_queue_ticket_ids"]
-    assert broken_queue != FIXTURE["primary"]["queue_rows"]
-
-
-def test_pipeline_rerun_idempotent(tmp_path: Path):
-    """Two identical runs produce identical outputs."""
-    _, summary_a, windows_a, queue_a = _run_pipeline(tmp_path / "a")
-    _, summary_b, windows_b, queue_b = _run_pipeline(tmp_path / "b")
-    assert summary_a == summary_b
-    assert windows_a == windows_b
-    assert queue_a == queue_b
-
-
-def test_pipeline_supports_alternate_input(tmp_path: Path):
-    """The reconciler generalizes to an alternate event stream it has never seen."""
-    _, summary, windows, queue = _run_pipeline(tmp_path, input_path=ALT_INPUT)
-    assert summary == FIXTURE["alternate"]["summary"]
-    assert windows == FIXTURE["alternate"]["windows"]
-    assert queue == FIXTURE["alternate"]["queue_rows"]
-
-
-def test_pipeline_supports_custom_output_dir(tmp_path: Path):
-    """--output-dir redirects all three artifacts to the requested directory."""
-    custom = tmp_path / "custom-output"
-    subprocess.run(
-        [sys.executable, str(WORKFLOW_PATH), "--input", str(DEFAULT_INPUT), "--output-dir", str(custom)],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    assert (custom / "summary.json").exists()
-    assert (custom / "drift_windows.json").exists()
-    assert (custom / "response_queue.jsonl").exists()
-
-
-def test_cli_defaults_work_and_match_explicit_run(tmp_path: Path):
-    """Default CLI arguments resolve to the documented paths and match an explicit invocation."""
-    explicit_out = tmp_path / "explicit"
-    explicit_out.mkdir(parents=True, exist_ok=True)
-    subprocess.run(
-        [sys.executable, str(WORKFLOW_PATH), "--input", str(DEFAULT_INPUT), "--output-dir", str(explicit_out)],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    explicit_summary = _load_json(explicit_out / "summary.json")
-
-    subprocess.run([sys.executable, str(WORKFLOW_PATH)], check=True, capture_output=True, text=True)
-    default_summary = _load_json(Path("/app/output/summary.json"))
-    assert default_summary == explicit_summary
-
-
-def test_freeze_source_path_affects_output(tmp_path: Path):
-    """Freeze windows are read from their fixed absolute path and influence the output."""
-    original = FREEZE_PATH.read_text(encoding="utf-8")
-    try:
-        _, summary_a, _, _ = _run_pipeline(tmp_path / "a")
-        FREEZE_PATH.write_text("[]\n", encoding="utf-8")
-        _, summary_b, _, _ = _run_pipeline(tmp_path / "b")
-        assert summary_a["total_freeze_overlap_ms"] != summary_b["total_freeze_overlap_ms"]
-        assert summary_a["freeze_compaction_checksum"] != summary_b["freeze_compaction_checksum"]
-        assert (
-            summary_a["total_risk_adjusted_duration_ms"]
-            != summary_b["total_risk_adjusted_duration_ms"]
+def test_repair_runtime_does_not_read_tests_tree():
+    with tempfile.TemporaryDirectory() as tmp:
+        guard = Path(tmp) / "sitecustomize.py"
+        guard.write_text(
+            "\n".join(
+                [
+                    "import builtins",
+                    "from pathlib import Path",
+                    "_open = builtins.open",
+                    "_text = Path.read_text",
+                    "_bytes = Path.read_bytes",
+                    "def _blocked(value):",
+                    "    try: return '/tests' in str(Path(value).resolve())",
+                    "    except Exception: return False",
+                    "def guarded_open(file, *args, **kwargs):",
+                    "    if _blocked(file): raise PermissionError(file)",
+                    "    return _open(file, *args, **kwargs)",
+                    "def guarded_text(self, *args, **kwargs):",
+                    "    if _blocked(self): raise PermissionError(self)",
+                    "    return _text(self, *args, **kwargs)",
+                    "def guarded_bytes(self, *args, **kwargs):",
+                    "    if _blocked(self): raise PermissionError(self)",
+                    "    return _bytes(self, *args, **kwargs)",
+                    "builtins.open = guarded_open",
+                    "Path.read_text = guarded_text",
+                    "Path.read_bytes = guarded_bytes",
+                ]
+            )
+            + "\n"
         )
-    finally:
-        FREEZE_PATH.write_text(original, encoding="utf-8")
-
-
-def test_reopen_source_path_affects_output(tmp_path: Path):
-    """Reopen windows are read from their fixed absolute path and influence the output."""
-    original = REOPEN_PATH.read_text(encoding="utf-8")
-    try:
-        _, summary_a, _, queue_a = _run_pipeline(tmp_path / "a")
-        REOPEN_PATH.write_text("[]\n", encoding="utf-8")
-        _, summary_b, _, queue_b = _run_pipeline(tmp_path / "b")
-        assert summary_a["total_reopen_overlap_ms"] > 0
-        assert summary_b["total_reopen_overlap_ms"] == 0
-        assert summary_a["reopen_compaction_checksum"] != summary_b["reopen_compaction_checksum"]
-        assert summary_a["window_digest_checksum"] != summary_b["window_digest_checksum"]
-        assert queue_a != queue_b
-    finally:
-        REOPEN_PATH.write_text(original, encoding="utf-8")
-
-
-def test_rotation_source_path_affects_output(tmp_path: Path):
-    """Rotation windows are read from their fixed absolute path and influence the output."""
-    original = ROTATION_PATH.read_text(encoding="utf-8")
-    try:
-        _, summary_a, _, queue_a = _run_pipeline(tmp_path / "a")
-        ROTATION_PATH.write_text("[]\n", encoding="utf-8")
-        _, summary_b, _, queue_b = _run_pipeline(tmp_path / "b")
-        assert summary_a["total_rotation_overlap_ms"] > 0
-        assert summary_b["total_rotation_overlap_ms"] == 0
-        assert (
-            summary_a["rotation_compaction_checksum"]
-            != summary_b["rotation_compaction_checksum"]
-        )
-        assert summary_a["window_digest_checksum"] != summary_b["window_digest_checksum"]
-        assert queue_a != queue_b
-    finally:
-        ROTATION_PATH.write_text(original, encoding="utf-8")
-
-
-def test_defer_source_path_affects_output(tmp_path: Path):
-    """Defer windows are read from their fixed absolute path and influence the output."""
-    original = DEFER_PATH.read_text(encoding="utf-8")
-    try:
-        _, summary_a, _, queue_a = _run_pipeline(tmp_path / "a")
-        DEFER_PATH.write_text("[]\n", encoding="utf-8")
-        _, summary_b, _, queue_b = _run_pipeline(tmp_path / "b")
-        assert summary_a["total_defer_overlap_ms"] > 0
-        assert summary_b["total_defer_overlap_ms"] == 0
-        assert (
-            summary_a["defer_compaction_checksum"]
-            != summary_b["defer_compaction_checksum"]
-        )
-        assert summary_a["window_digest_checksum"] != summary_b["window_digest_checksum"]
-        assert queue_a != queue_b
-    finally:
-        DEFER_PATH.write_text(original, encoding="utf-8")
-
-
-def test_trust_edge_source_path_affects_output(tmp_path: Path):
-    """The trust edge graph is read from its fixed absolute path and influences exposure scoring."""
-    original = TRUST_EDGES_PATH.read_text(encoding="utf-8")
-    try:
-        _, summary_a, windows_a, queue_a = _run_pipeline(tmp_path / "a")
-        TRUST_EDGES_PATH.write_text("[]\n", encoding="utf-8")
-        _, summary_b, windows_b, queue_b = _run_pipeline(tmp_path / "b")
-        assert summary_a["trust_edge_checksum"] != summary_b["trust_edge_checksum"]
-        assert summary_a["trust_path_digest_checksum"] != summary_b[
-            "trust_path_digest_checksum"
-        ]
-        assert windows_a != windows_b
-        assert queue_a != queue_b
-    finally:
-        TRUST_EDGES_PATH.write_text(original, encoding="utf-8")
-
-
-def test_fw_5398_trust_contention_owner_is_by_per_target_score(primary_outputs):
-    """#FW-5398: a contended target is charged to the origin with the strongest
-    path TO THAT TARGET -- not to the origin with the highest overall packed score.
-
-    The two rules pick different owners, so this asserts the governing one and
-    checks the alternative genuinely differs; it also fails if no target is
-    contended, which would make the rule dormant.
-    """
-    _, _, windows, _ = primary_outputs
-    edges = json.loads(TRUST_EDGES_PATH.read_text(encoding="utf-8"))
-    graph: dict[str, dict[str, int]] = {}
-    for row in edges:
-        src = str(row.get("source_env", "")).strip().lower() or "unknown"
-        dst = str(row.get("target_env", "")).strip().lower() or "unknown"
-        w = int(row.get("weight", 0))
-        if src == dst or not 0 < w <= 9:
-            continue
-        graph.setdefault(src, {})[dst] = max(graph.setdefault(src, {}).get(dst, 0), w)
-
-    def target_scores(origin):
-        best: dict[str, int] = {}
-
-        def visit(node, score, path):
-            if len(path) - 1 >= 3:
-                return
-            for tgt, w in graph.get(node, {}).items():
-                if tgt in path:
-                    continue
-                nxt = score + w
-                if tgt not in best or nxt > best[tgt]:
-                    best[tgt] = nxt
-                visit(tgt, nxt, path + (tgt,))
-
-        visit(origin, 0, (origin,))
-        return best
-
-    envs = sorted(windows)
-    scores = {e: target_scores(e) for e in envs}
-    reach = {e: set(scores[e]) for e in envs}
-    emitted = {e: windows[e][0]["trust_exposure_score"] for e in envs}
-
-    by_target, by_overall = {}, {}
-    for tgt in sorted({t for e in envs for t in reach[e]}):
-        claimants = [e for e in envs if tgt in reach[e]]
-        if len(claimants) < 2:
-            continue
-        owner = sorted(claimants, key=lambda e: (-scores[e].get(tgt, 0), e))[0]
-        by_target[owner] = by_target.get(owner, 0) + scores[owner][tgt]
-        alt = sorted(claimants, key=lambda e: (-emitted[e], e))[0]
-        by_overall[alt] = by_overall.get(alt, 0) + scores[alt][tgt]
-
-    assert by_target, "no contended target -- #FW-5398 is dormant"
-    assert by_target != by_overall, "both owner rules agree -- test cannot discriminate"
-    for env in envs:
-        assert emitted[env] >= by_target.get(env, 0), (
-            f"{env} scores below its own attributed contention bonus"
-        )
-
-
-def test_trust_exposure_uses_strongest_bounded_simple_paths(tmp_path: Path):
-    """Trust exposure is the node-disjoint packing of bounded simple directed paths.
-
-    On the synthetic graph the per-target sum is 33 while the max-weight packing is 18
-    (lab>a>deep>vault plus lab>b>target, node-disjoint), so an implementation that sums
-    each target's strongest path is separated from the packing by the score alone. The
-    per-target strongest paths still drive the reachable set, strongest path and digest.
-    """
-    original = TRUST_EDGES_PATH.read_text(encoding="utf-8")
-    try:
-        edges = [
-            {"source_env": "lab", "target_env": "a", "weight": 4},
-            {"source_env": "LAB", "target_env": "a", "weight": 2},
-            {"source_env": "lab", "target_env": "b", "weight": 4},
-            {"source_env": "a", "target_env": "target", "weight": 5},
-            {"source_env": "b", "target_env": "target", "weight": 5},
-            {"source_env": "a", "target_env": "deep", "weight": 3},
-            {"source_env": "deep", "target_env": "vault", "weight": 2},
-            {"source_env": "vault", "target_env": "too-far", "weight": 9},
-            {"source_env": "target", "target_env": "lab", "weight": 9},
-            {"source_env": "lab", "target_env": "lab", "weight": 9},
-            {"source_env": "lab", "target_env": "ignored", "weight": 0},
-        ]
-        _write_json(TRUST_EDGES_PATH, edges)
-        rows = [
-            {
-                "alert_id": "trust-1",
-                "start_ms": 100,
-                "end_ms": 700,
-                "severity": "p1",
-                "env": "lab",
-                "signature": "trust traversal",
-                "muted": False,
-            }
-        ]
-        input_path = tmp_path / "trust.json"
-        _write_json(input_path, rows)
-        _, summary, windows, queue = _run_pipeline(
-            tmp_path / "run", input_path=input_path
-        )
-        window = windows["lab"][0]
-        assert window["trust_reachable_envs"] == [
-            "a",
-            "b",
-            "deep",
-            "target",
-            "vault",
-        ]
-        assert window["trust_exposure_score"] == 18
-        assert window["trust_strongest_path"] == ["lab", "a", "deep", "vault"]
-        digest_payload = (
-            "lab|18|a:4:lab>a;b:4:lab>b;deep:7:lab>a>deep;"
-            "target:9:lab>a>target;vault:9:lab>a>deep>vault"
-        )
-        assert window["trust_path_digest"] == hashlib.sha256(
-            digest_payload.encode("utf-8")
-        ).hexdigest()[:12]
-        assert queue[0]["trust_exposure_score"] == 18
-        assert queue[0]["priority"] == "critical"
-        trust_payload = (
-            "a|deep|3\na|target|5\nb|target|5\ndeep|vault|2\n"
-            "lab|a|4\nlab|b|4\ntarget|lab|9\nvault|too-far|9"
-        )
-        assert summary["trust_edge_checksum"] == hashlib.sha256(
-            trust_payload.encode("utf-8")
-        ).hexdigest()
-    finally:
-        TRUST_EDGES_PATH.write_text(original, encoding="utf-8")
-
-
-def test_compacted_freeze_segments_are_used(tmp_path: Path):
-    """Overlapping freeze entries are compacted into segments before overlap is measured."""
-    original = FREEZE_PATH.read_text(encoding="utf-8")
-    try:
-        custom_freezes = [
-            {"env": "lab", "start_ms": 1200, "end_ms": 1300},
-            {"env": "lab", "start_ms": 1250, "end_ms": 1400},
-            {"env": "lab", "start_ms": 1400, "end_ms": 1450},
-            {"env": "lab", "start_ms": 1600, "end_ms": 1650},
-        ]
-        FREEZE_PATH.write_text(json.dumps(custom_freezes), encoding="utf-8")
-        rows = [
-            {
-                "alert_id": "m1",
-                "start_ms": 1100,
-                "end_ms": 1700,
-                "severity": "p2",
-                "env": "lab",
-                "signature": "x",
-                "muted": False,
-            }
-        ]
-        input_path = tmp_path / "edge.json"
-        _write_json(input_path, rows)
-        _, _, windows, queue = _run_pipeline(tmp_path / "run", input_path=input_path)
-        window = windows["lab"][0]
-        assert window["freeze_overlap_ms"] == 300
-        assert window["freeze_segment_count"] == 2
-        assert queue[0]["freeze_segment_count"] == 2
-    finally:
-        FREEZE_PATH.write_text(original, encoding="utf-8")
-
-
-def test_reopen_compaction_and_scope_are_used(tmp_path: Path):
-    """Reopen windows are compacted and applied only within their decided scope."""
-    original_reopen = REOPEN_PATH.read_text(encoding="utf-8")
-    try:
-        reopen_rows = [
-            {"env": "lab", "severity_scope": "all", "start_ms": 150, "end_ms": 200},
-            {"env": "lab", "severity_scope": "all", "start_ms": 200, "end_ms": 240},
-            {"env": "lab", "severity_scope": "p1", "start_ms": 260, "end_ms": 320},
-            {"env": "lab", "severity_scope": "debug", "start_ms": 0, "end_ms": 1},
-        ]
-        REOPEN_PATH.write_text(json.dumps(reopen_rows) + "\n", encoding="utf-8")
-        rows = [
-            {
-                "alert_id": "r1",
-                "start_ms": 100,
-                "end_ms": 400,
-                "severity": "p1",
-                "env": "lab",
-                "signature": "alpha",
-                "muted": False,
-            },
-            {
-                "alert_id": "r2",
-                "start_ms": 521,
-                "end_ms": 821,
-                "severity": "p2",
-                "env": "lab",
-                "signature": "beta",
-                "muted": False,
-            },
-        ]
-        input_path = tmp_path / "reopen_scope.json"
-        _write_json(input_path, rows)
-        _, summary, windows, queue = _run_pipeline(tmp_path / "run", input_path=input_path)
-        first = windows["lab"][0]
-        second = windows["lab"][1]
-        assert first["reopen_overlap_ms"] == 150
-        assert first["reopen_segment_count"] == 2
-        assert first["risk_adjusted_duration_ms"] == 225
-        assert second["reopen_overlap_ms"] == 0
-        assert summary["total_reopen_overlap_ms"] == 150
-        assert summary["total_reopen_segment_count"] == 2
-        assert summary["reopen_compaction_checksum"] == hashlib.sha256(
-            "lab|all|150|240\nlab|p1|260|320".encode("utf-8")
-        ).hexdigest()
-        assert [row["ticket_id"] for row in queue] == ["lab:521-821", "lab:100-400"]
-    finally:
-        REOPEN_PATH.write_text(original_reopen, encoding="utf-8")
-
-
-def test_rotation_compaction_and_scope_are_used(tmp_path: Path):
-    """Rotation windows are compacted and applied only within their decided scope."""
-    original_rotation = ROTATION_PATH.read_text(encoding="utf-8")
-    try:
-        rotation_rows = [
-            {"env": "lab", "severity_scope": "all", "start_ms": 130, "end_ms": 180},
-            {"env": "lab", "severity_scope": "all", "start_ms": 178, "end_ms": 240},
-            {"env": "lab", "severity_scope": "p1", "start_ms": 260, "end_ms": 310},
-            {"env": "lab", "severity_scope": "debug", "start_ms": 0, "end_ms": 1},
-        ]
-        ROTATION_PATH.write_text(json.dumps(rotation_rows) + "\n", encoding="utf-8")
-        rows = [
-            {
-                "alert_id": "z1",
-                "start_ms": 100,
-                "end_ms": 400,
-                "severity": "p1",
-                "env": "lab",
-                "signature": "alpha",
-                "muted": False,
-            },
-            {
-                "alert_id": "z2",
-                "start_ms": 521,
-                "end_ms": 841,
-                "severity": "p2",
-                "env": "lab",
-                "signature": "beta",
-                "muted": False,
-            },
-        ]
-        input_path = tmp_path / "rotation_scope.json"
-        _write_json(input_path, rows)
-        _, summary, windows, queue = _run_pipeline(tmp_path / "run", input_path=input_path)
-        first = windows["lab"][0]
-        second = windows["lab"][1]
-        assert first["rotation_overlap_ms"] == 160
-        assert first["rotation_segment_count"] == 2
-        assert first["dispatchable_duration_ms"] == max(
-            first["risk_adjusted_duration_ms"] - (-(-160 // 3)), 0
-        )
-        assert second["rotation_overlap_ms"] == 0
-        assert summary["total_rotation_overlap_ms"] == 160
-        assert summary["total_rotation_segment_count"] == 2
-        assert summary["rotation_compaction_checksum"] == hashlib.sha256(
-            "lab|all|130|240\nlab|p1|260|310".encode("utf-8")
-        ).hexdigest()
-        assert [row["ticket_id"] for row in queue] == ["lab:521-841", "lab:100-400"]
-    finally:
-        ROTATION_PATH.write_text(original_rotation, encoding="utf-8")
-
-
-def test_defer_compaction_and_scope_are_used(tmp_path: Path):
-    """Defer windows are compacted and applied only within their decided scope."""
-    original_defer = DEFER_PATH.read_text(encoding="utf-8")
-    try:
-        defer_rows = [
-            {"env": "lab", "severity_scope": "all", "start_ms": 110, "end_ms": 200},
-            {"env": "lab", "severity_scope": "all", "start_ms": 200, "end_ms": 250},
-            {"env": "lab", "severity_scope": "p1", "start_ms": 255, "end_ms": 325},
-            {"env": "lab", "severity_scope": "debug", "start_ms": 0, "end_ms": 1},
-        ]
-        DEFER_PATH.write_text(json.dumps(defer_rows) + "\n", encoding="utf-8")
-        rows = [
-            {
-                "alert_id": "q1",
-                "start_ms": 100,
-                "end_ms": 420,
-                "severity": "p1",
-                "env": "lab",
-                "signature": "alpha",
-                "muted": False,
-            },
-            {
-                "alert_id": "q2",
-                "start_ms": 541,
-                "end_ms": 901,
-                "severity": "p2",
-                "env": "lab",
-                "signature": "beta",
-                "muted": False,
-            },
-        ]
-        input_path = tmp_path / "defer_scope.json"
-        _write_json(input_path, rows)
-        _, summary, windows, queue = _run_pipeline(tmp_path / "run", input_path=input_path)
-        first = windows["lab"][0]
-        second = windows["lab"][1]
-        assert first["defer_overlap_ms"] == 210
-        assert first["defer_segment_count"] == 2
-        assert first["actionable_duration_ms"] == max(
-            first["dispatchable_duration_ms"] - (-(-210 // 4)), 0
-        )
-        assert second["defer_overlap_ms"] == 0
-        assert summary["total_defer_overlap_ms"] == 210
-        assert summary["total_defer_segment_count"] == 2
-        assert summary["defer_compaction_checksum"] == hashlib.sha256(
-            "lab|all|110|250\nlab|p1|255|325".encode("utf-8")
-        ).hexdigest()
-        assert [row["ticket_id"] for row in queue] == ["lab:541-901", "lab:100-420"]
-    finally:
-        DEFER_PATH.write_text(original_defer, encoding="utf-8")
-
-
-def test_p2_windows_borrow_p1_scope_when_p2_scope_missing(tmp_path: Path):
-    """P2 windows inherit the p1 scope allowlist when no p2-specific scope is defined."""
-    originals = {
-        REOPEN_PATH: REOPEN_PATH.read_text(encoding="utf-8"),
-        ROTATION_PATH: ROTATION_PATH.read_text(encoding="utf-8"),
-        DEFER_PATH: DEFER_PATH.read_text(encoding="utf-8"),
-        FREEZE_PATH: FREEZE_PATH.read_text(encoding="utf-8"),
-    }
-    try:
-        _write_json(FREEZE_PATH, [])
-        _write_json(
-            REOPEN_PATH,
+        out = Path(tmp) / "out"
+        env = dict(os.environ)
+        env["PYTHONPATH"] = tmp
+        result = subprocess.run(
             [
-                {
-                    "env": "lab",
-                    "severity_scope": "p1",
-                    "start_ms": 150,
-                    "end_ms": 250,
-                }
+                "python3",
+                str(CLI),
+                "repair",
+                "--output-dir",
+                str(out),
             ],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            env=env,
         )
-        _write_json(
-            ROTATION_PATH,
-            [
-                {
-                    "env": "lab",
-                    "severity_scope": "p1",
-                    "start_ms": 200,
-                    "end_ms": 300,
-                }
-            ],
-        )
-        _write_json(
-            DEFER_PATH,
-            [
-                {
-                    "env": "lab",
-                    "severity_scope": "p1",
-                    "start_ms": 150,
-                    "end_ms": 250,
-                }
-            ],
-        )
-        rows = [
-            {
-                "alert_id": "fb1",
-                "start_ms": 100,
-                "end_ms": 400,
-                "severity": "p2",
-                "env": "lab",
-                "signature": "fallback",
-                "muted": False,
-            }
-        ]
-        input_path = tmp_path / "fallback_scope.json"
-        _write_json(input_path, rows)
-        _, summary, windows, queue = _run_pipeline(tmp_path / "run", input_path=input_path)
-        window = windows["lab"][0]
-        assert window["reopen_overlap_ms"] == 100
-        # rotation [200,300) shares 50ms with reopen [150,250); #FW-5354 assigns
-        # that shared time to reopen, so rotation keeps only its own 50ms.
-        assert window["rotation_overlap_ms"] == 50
-        assert window["defer_overlap_ms"] == 100
-        assert window["risk_adjusted_duration_ms"] == 250
-        assert window["dispatchable_duration_ms"] == 233
-        assert window["actionable_duration_ms"] == 208
-        assert summary["queued_window_count"] == 0
-        assert queue == []
-    finally:
-        for path, content in originals.items():
-            path.write_text(content, encoding="utf-8")
+        assert result.returncode == 0, result.stderr
 
 
-def test_tie_break_full_tie_keeps_first_seen(tmp_path: Path):
-    """A full tie across every dedupe key keeps the first-seen record."""
-    rows = [
-        {
-            "alert_id": "t1",
-            "start_ms": 100,
-            "end_ms": 500,
-            "severity": "p2",
-            "env": "prod",
-            "signature": "ab cd",
-            "muted": False,
-        },
-        {
-            "alert_id": "t1",
-            "start_ms": 900,
-            "end_ms": 500,
-            "severity": "p2",
-            "env": "prod",
-            "signature": "ef gh",
-            "muted": True,
-        },
-    ]
-    input_path = tmp_path / "tie.json"
-    _write_json(input_path, rows)
-    _, summary, windows, _ = _run_pipeline(tmp_path / "run", input_path=input_path)
-    assert summary["canonical_alert_count"] == 1
-    assert summary["muted_excluded_count"] == 0
-    assert windows["prod"][0]["start_ms"] == 100
+def test_broken_snapshot_produces_wrong_export(expected: dict):
+    with tempfile.TemporaryDirectory() as tmp:
+        broken = Path(tmp) / "export_report.py"
+        out = Path(tmp) / "out"
+        shutil.copy(ORIGINAL_PIPELINE, broken)
+        result = _run_pipeline(pipeline=broken, output_dir=out)
+        assert result.returncode == 0, result.stderr
+        summary = json.loads((out / "summary.json").read_text())
+        escalated = _escalated_rows(out / "escalated.jsonl")
+        assert summary != _compute_summary(_load_events(INPUT_PATH))
+        assert escalated != _compute_escalated(_load_events(INPUT_PATH))
+        assert all(row["occurred_ms"] == 0 for row in escalated)
 
 
-def test_muted_truthiness_non_string_non_bool(tmp_path: Path):
-    """Muted flags holding non-string, non-boolean values are coerced by the decided truthiness rules."""
-    rows = [
-        {
-            "alert_id": "m1",
-            "start_ms": 100,
-            "end_ms": 500,
-            "severity": "p1",
-            "env": "prod",
-            "signature": "x",
-            "muted": 0,
-        },
-        {
-            "alert_id": "m2",
-            "start_ms": 100,
-            "end_ms": 500,
-            "severity": "p1",
-            "env": "prod",
-            "signature": "y",
-            "muted": 3,
-        },
-    ]
-    input_path = tmp_path / "muted.json"
-    _write_json(input_path, rows)
-    _, summary, windows, _ = _run_pipeline(tmp_path / "run", input_path=input_path)
-    assert summary["muted_excluded_count"] == 1
-    assert sum(w["alert_count"] for env_windows in windows.values() for w in env_windows) == 1
-
-
-def test_ledger_carry_credit_is_ceilinged(tmp_path: Path):
-    """A large accumulated carry only credits the next window up to the decided ceiling."""
-    originals = {
-        FREEZE_PATH: FREEZE_PATH.read_text(encoding="utf-8"),
-        REOPEN_PATH: REOPEN_PATH.read_text(encoding="utf-8"),
-        ROTATION_PATH: ROTATION_PATH.read_text(encoding="utf-8"),
-        DEFER_PATH: DEFER_PATH.read_text(encoding="utf-8"),
-    }
-    try:
-        for path in originals:
-            path.write_text("[]\n", encoding="utf-8")
-        rows = [
-            {
-                "alert_id": "c1",
-                "start_ms": 0,
-                "end_ms": 600,
-                "severity": "p1",
-                "env": "lab",
-                "signature": "long-run",
-                "muted": False,
-            },
-            {
-                "alert_id": "c2",
-                "start_ms": 721,
-                "end_ms": 1071,
-                "severity": "p1",
-                "env": "lab",
-                "signature": "follow-on",
-                "muted": False,
-            },
-        ]
-        input_path = tmp_path / "carry.json"
-        _write_json(input_path, rows)
-        _, summary, windows, queue = _run_pipeline(
-            tmp_path / "run", input_path=input_path
-        )
-        first, second = windows["lab"]
-        assert first["carry_out_ms"] == 600
-        # Gap of 50 clears the +45 stitch, so these stay two windows and the
-        # carry decays to 600 - 50 // 2 == 575. An uncapped credit would add
-        # 575 // 4 == 143; the ceiling holds it to 120.
-        assert second["idle_gap_ms"] == 121
-        assert second["carry_in_ms"] == 539
-        assert second["ledger_adjusted_actionable_ms"] == 470
-    finally:
-        for path, text in originals.items():
-            path.write_text(text, encoding="utf-8")
-
-
-def test_stateful_risk_ledger_propagates_and_decays_between_windows(tmp_path: Path):
-    """The risk ledger carries state between a service's windows with idle-gap decay and the carry-out cap."""
-    originals = {
-        FREEZE_PATH: FREEZE_PATH.read_text(encoding="utf-8"),
-        REOPEN_PATH: REOPEN_PATH.read_text(encoding="utf-8"),
-        ROTATION_PATH: ROTATION_PATH.read_text(encoding="utf-8"),
-        DEFER_PATH: DEFER_PATH.read_text(encoding="utf-8"),
-    }
-    try:
-        for path in originals:
-            path.write_text("[]\n", encoding="utf-8")
-        rows = [
-            {
-                "alert_id": "l1",
-                "start_ms": 100,
-                "end_ms": 400,
-                "severity": "p1",
-                "env": "lab",
-                "signature": "first",
-                "muted": False,
-            },
-            {
-                "alert_id": "l2",
-                "start_ms": 600,
-                "end_ms": 850,
-                "severity": "p2",
-                "env": "lab",
-                "signature": "second",
-                "muted": False,
-            },
-        ]
-        input_path = tmp_path / "ledger.json"
-        _write_json(input_path, rows)
-        _, summary, windows, queue = _run_pipeline(
-            tmp_path / "run", input_path=input_path
-        )
-        first, second = windows["lab"]
-        assert first["idle_gap_ms"] == 0
-        assert first["carry_in_ms"] == 0
-        assert first["carry_out_ms"] == 300
-        assert second["idle_gap_ms"] == 200
-        assert second["carry_in_ms"] == 200
-        assert second["ledger_adjusted_actionable_ms"] == 300
-        assert second["carry_out_ms"] == 450
-        assert summary["max_carry_out_ms"] == 450
-        assert len(summary["ledger_checksum"]) == 64
-        second_queue = next(row for row in queue if row["ticket_id"] == "lab:600-850")
-        assert second_queue["ledger_pressure_score"] == (-(-450 // 80)) + (-(-200 // 120))
-    finally:
-        for path, content in originals.items():
-            path.write_text(content, encoding="utf-8")
-
-
-def test_pipeline_does_not_reference_test_artifacts():
-    """The reconciler source never references the verifier's /tests or /solution trees."""
-    code = WORKFLOW_PATH.read_text(encoding="utf-8")
-    for token in ("/tests", "fixtures/alt_events.json", "expected_summary.json"):
+def test_pipeline_patched():
+    ast.parse(PIPELINE.read_text())
+    code = _executable_text(PIPELINE.read_text())
+    for token in FORBIDDEN_TOKENS:
         assert token not in code
 
 
+def test_repair_audit(diagnosis: dict, expected: dict, summary: dict):
+    audit = json.loads(REPAIR_AUDIT_PATH.read_text())
+    code = _executable_text(PIPELINE.read_text())
+    assert audit["patched_workflow"] == str(PIPELINE)
+    assert audit["processing_steps"] == SPEC_DATA["repair_audit"]["processing_steps"]
+    assert audit["removed_tokens"] == {token: token not in code for token in FORBIDDEN_TOKENS}
+    assert all(audit["removed_tokens"].values())
+    assert audit["pre_repair"]["pipeline_source_sha256"] == expected["broken_pipeline_sha256"]
+    assert audit["pre_repair"]["pipeline_tokens_present"] == {token: True for token in FORBIDDEN_TOKENS}
+    assert audit["post_repair"]["escalated_count"] == summary["escalated_count"]
+    assert audit["post_repair"]["rerun_escalated_count"] == summary["escalated_count"]
+
+
+def test_pipeline_reruns_idempotently(summary: dict, escalated_rows: list[dict], tmp_path_factory):
+    rerun_dir = tmp_path_factory.mktemp("rerun")
+    result = _run_pipeline(output_dir=rerun_dir)
+    assert result.returncode == 0, result.stderr
+    rerun_summary = json.loads((rerun_dir / "summary.json").read_text())
+    rerun_escalated = _escalated_rows(rerun_dir / "escalated.jsonl")
+    assert rerun_summary == summary
+    assert rerun_escalated == escalated_rows
+
+
+def test_patched_pipeline_supports_alternate_input(expected: dict, tmp_path_factory):
+    alt_dir = tmp_path_factory.mktemp("alt")
+    alt_input = Path(expected["alternate_input"])
+    result = _run_pipeline(input_path=alt_input, output_dir=alt_dir)
+    assert result.returncode == 0, result.stderr
+    summary = json.loads((alt_dir / "summary.json").read_text())
+    escalated = _escalated_rows(alt_dir / "escalated.jsonl")
+    events = _load_events(alt_input)
+    assert summary == _compute_summary(events)
+    assert escalated == _compute_escalated(events)
+    alt = expected["alternate_expected"]
+    assert summary["raw_build_count"] == alt["raw_build_count"]
+    assert summary["escalated_count"] == alt["escalated_count"]
+    assert summary["dismissed_excluded_count"] == alt["dismissed_excluded_count"]
+    assert summary["override_excluded_count"] == alt["override_excluded_count"]
+    assert summary["override_compaction_checksum"] == alt["override_compaction_checksum"]
+    assert summary["chain_count"] == alt["chain_count"]
+    assert summary["max_chain_risk_score"] == alt["max_chain_risk_score"]
+    assert summary["chain_digest_checksum"] == alt["chain_digest_checksum"]
+    assert summary["max_chain_reach_score"] == alt[
+        "max_chain_reach_score"
+    ]
+    assert summary["chain_reach_digest_checksum"] == alt[
+        "chain_reach_digest_checksum"
+    ]
+    assert summary["signal_digest_checksum"] == alt[
+        "signal_digest_checksum"
+    ]
+    assert [row["build_id"] for row in escalated] == alt["escalated_ids_desc"]
+
+
+def test_cli_diagnose_subcommand(expected: dict, dossier_text: str):
+    report = OUTPUT_DIR / "diagnosis_redundant.json"
+    if report.exists():
+        report.unlink()
+    result = subprocess.run(
+        [
+            "python3",
+            str(CLI),
+            "diagnose",
+            "--dossier",
+            str(DOSSIER_PATH),
+            "--report",
+            str(report),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert report.exists(), f"diagnose failed (rc={result.returncode}): {result.stderr}"
+    data = json.loads(report.read_text())
+    assert data["pipeline_status"] == "diagnosed"
+    assert "input_stats" in data
+    assert data["input_stats"]["build_count"] == expected["build_count"]
+    assert data["input_stats"]["unique_build_ids"] == expected["unique_ids"]
+    assert data["input_stats"]["pipelines"] == expected["pipelines"]
+    for key in ("verified_summary", "output_paths"):
+        assert key not in data
+    assert {item["id"] for item in data["issues_found"]} == set(REQUIRED_ISSUE_IDS)
+    for issue in data["issues_found"]:
+        for key in ("id", "severity", "description", "resolution", "evidence"):
+            assert key in issue
+        for key in ("dossier_quote", "pipeline_evidence", "repair_action"):
+            assert key in issue["evidence"]
+            assert len(issue["evidence"][key]) >= 10
+        quote = _normalize_ws(issue["evidence"]["dossier_quote"])
+        assert quote in dossier_text
+
+
+def test_diagnose_rejects_stray_input_flag(tmp_path_factory):
+    """diagnose is stateless: it accepts only --dossier/--report and rejects a stray --input."""
+    report = tmp_path_factory.mktemp("diag_reject") / "diagnosis.json"
+    result = subprocess.run(
+        [
+            "python3", str(CLI), "diagnose",
+            "--dossier", str(DOSSIER_PATH),
+            "--report", str(report),
+            "--input", str(DOSSIER_PATH),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert result.returncode != 0, "diagnose must reject a stray --input flag"
+    assert not report.exists(), "diagnose must not write a report when given an unknown flag"
+
+
+def test_repair_repatches_reset_workflow_with_custom_output_dir(
+    tmp_path_factory, expected: dict
+):
+    custom_dir = tmp_path_factory.mktemp("custom_output")
+    current = PIPELINE.read_text()
+    try:
+        shutil.copy(ORIGINAL_PIPELINE, PIPELINE)
+        result = subprocess.run(
+            ["python3", str(CLI), "repair", "--output-dir", str(custom_dir)],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        assert result.returncode == 0, result.stderr
+        repaired_source = PIPELINE.read_text()
+        assert 'event["occurred_at"]' not in repaired_source
+        summary = json.loads((custom_dir / "summary.json").read_text())
+        escalated = _escalated_rows(custom_dir / "escalated.jsonl")
+        diagnosis = json.loads((custom_dir / "diagnosis.json").read_text())
+        assert summary == _compute_summary(_load_events(INPUT_PATH))
+        assert escalated == _compute_escalated(_load_events(INPUT_PATH))
+        assert diagnosis["output_paths"]["summary_json"] == str(custom_dir / "summary.json")
+        assert diagnosis["output_paths"]["escalated_jsonl"] == str(custom_dir / "escalated.jsonl")
+        assert diagnosis["output_paths"]["pipeline_matrix_json"] == str(custom_dir / "pipeline_matrix.json")
+        assert summary["escalated_count"] == expected["escalated_count"]
+    finally:
+        PIPELINE.write_text(current)
+
+
+def test_dedupe_tie_break_severity_and_detector():
+    events = [
+        {
+            "build_id": "x1",
+            "occurred_ms": 100,
+            "severity": "medium",
+            "pipeline": "edge",
+            "detector": "aaa",
+            "dismissed": False,
+        },
+        {
+            "build_id": "x1",
+            "occurred_ms": 100,
+            "severity": "HIGH",
+            "pipeline": "edge",
+            "detector": "bbb",
+            "dismissed": False,
+        },
+        {
+            "build_id": "x1",
+            "occurred_ms": 100,
+            "severity": "high",
+            "pipeline": "edge",
+            "detector": "zzz",
+            "dismissed": False,
+        },
+    ]
+    canonical = _canonicalize_events(events)
+    assert len(canonical) == 1
+    assert canonical[0]["severity"] == "high"
+    assert canonical[0]["detector"] == "zzz"
+
+
+def test_dismissed_string_normalization_excludes_signal():
+    events = [
+        {
+            "build_id": "m1",
+            "occurred_ms": 100,
+            "severity": "critical",
+            "pipeline": "beta",
+            "detector": "x",
+            "dismissed": "true",
+        },
+        {
+            "build_id": "m2",
+            "occurred_ms": 110,
+            "severity": "high",
+            "pipeline": "beta",
+            "detector": "y",
+            "dismissed": "1",
+        },
+        {
+            "build_id": "m3",
+            "occurred_ms": 120,
+            "severity": "critical",
+            "pipeline": "beta",
+            "detector": "z",
+            "dismissed": False,
+        },
+    ]
+    escalated = _compute_escalated(events)
+    assert [row["build_id"] for row in escalated] == ["m3"]
+
+
+def test_escalated_sort_tie_breaks_by_severity_then_build_id():
+    events = [
+        {
+            "build_id": "c2",
+            "occurred_ms": 500,
+            "severity": "critical",
+            "pipeline": "m",
+            "detector": "c2",
+            "dismissed": False,
+        },
+        {
+            "build_id": "h1",
+            "occurred_ms": 500,
+            "severity": "high",
+            "pipeline": "m",
+            "detector": "h1",
+            "dismissed": False,
+        },
+        {
+            "build_id": "c1",
+            "occurred_ms": 500,
+            "severity": "critical",
+            "pipeline": "m",
+            "detector": "c1",
+            "dismissed": False,
+        },
+    ]
+    escalated = _compute_escalated(events)
+    assert [row["build_id"] for row in escalated] == ["c1", "c2", "h1"]
+
+
+def test_pipeline_coerces_occurred_ms_and_normalizes_outputs(tmp_path_factory):
+    events = [
+        {
+            "build_id": "p1",
+            "occurred_ms": " 200 ",
+            "severity": " CRITICAL ",
+            "pipeline": " Core ",
+            "detector": " first   detector ",
+            "dismissed": "no",
+        },
+        {
+            "build_id": "p2",
+            "occurred_ms": "not-a-number",
+            "severity": "high",
+            "pipeline": "core",
+            "detector": "second",
+            "dismissed": False,
+        },
+        {
+            "build_id": "p3",
+            "occurred_ms": 150,
+            "severity": "high",
+            "pipeline": "core",
+            "detector": "dismissed row",
+            "dismissed": "yes",
+        },
+    ]
+    input_path = tmp_path_factory.mktemp("coerce") / "events.json"
+    input_path.write_text(json.dumps(events))
+    out_dir = tmp_path_factory.mktemp("coerce_out")
+    result = _run_pipeline(input_path=input_path, output_dir=out_dir)
+    assert result.returncode == 0, result.stderr
+
+    summary = json.loads((out_dir / "summary.json").read_text())
+    escalated = _escalated_rows(out_dir / "escalated.jsonl")
+    matrix = json.loads((out_dir / "pipeline_matrix.json").read_text())
+
+    assert summary["pipelines"] == ["core"]
+    assert summary["escalated_count"] == 2
+    assert summary["dismissed_excluded_count"] == 1
+    assert [row["build_id"] for row in escalated] == ["p1", "p2"]
+    assert [row["occurred_ms"] for row in escalated] == [200, 0]
+    assert escalated[0]["detector"] == "first detector"
+    assert matrix == {"core": {"critical": 1, "high": 2, "medium": 0, "low": 0}}
+
+
+def test_pipeline_dedupe_tie_break_prefers_non_dismissed_then_detector(tmp_path_factory):
+    events = [
+        {
+            "build_id": "d1",
+            "occurred_ms": 100,
+            "severity": "high",
+            "pipeline": "m",
+            "detector": "zzz",
+            "dismissed": "yes",
+        },
+        {
+            "build_id": "d1",
+            "occurred_ms": 100,
+            "severity": "high",
+            "pipeline": "m",
+            "detector": "aaa",
+            "dismissed": False,
+        },
+        {
+            "build_id": "d1",
+            "occurred_ms": 100,
+            "severity": "high",
+            "pipeline": "m",
+            "detector": "bbb",
+            "dismissed": "0",
+        },
+    ]
+    input_path = tmp_path_factory.mktemp("dedupe") / "events.json"
+    input_path.write_text(json.dumps(events))
+    out_dir = tmp_path_factory.mktemp("dedupe_out")
+    result = _run_pipeline(input_path=input_path, output_dir=out_dir)
+    assert result.returncode == 0, result.stderr
+
+    escalated = _escalated_rows(out_dir / "escalated.jsonl")
+    summary = json.loads((out_dir / "summary.json").read_text())
+
+    assert summary["total_builds"] == 1
+    assert summary["dismissed_excluded_count"] == 0
+    assert [row["build_id"] for row in escalated] == ["d1"]
+    assert escalated[0]["detector"] == "bbb"
+
+
+def test_override_source_path_affects_output(tmp_path_factory):
+    original_overrides = OVERRIDES_PATH.read_text()
+    try:
+        base_dir = tmp_path_factory.mktemp("base_override")
+        base_result = _run_pipeline(output_dir=base_dir)
+        assert base_result.returncode == 0, base_result.stderr
+        base_summary = json.loads((base_dir / "summary.json").read_text())
+        base_escalated = _escalated_rows(base_dir / "escalated.jsonl")
+
+        OVERRIDES_PATH.write_text("[]\n")
+        no_override_dir = tmp_path_factory.mktemp("no_override")
+        no_override_result = _run_pipeline(output_dir=no_override_dir)
+        assert no_override_result.returncode == 0, no_override_result.stderr
+        no_override_summary = json.loads((no_override_dir / "summary.json").read_text())
+        no_override_escalated = _escalated_rows(no_override_dir / "escalated.jsonl")
+
+        assert base_summary["override_excluded_count"] > 0
+        assert no_override_summary["override_excluded_count"] == 0
+        assert (
+            base_summary["override_compaction_checksum"]
+            != no_override_summary["override_compaction_checksum"]
+        )
+        assert len(no_override_escalated) > len(base_escalated)
+    finally:
+        OVERRIDES_PATH.write_text(original_overrides)
+
+
+def test_override_compaction_and_scope_exercised(tmp_path_factory):
+    original_overrides = OVERRIDES_PATH.read_text()
+    try:
+        override_rows = [
+            {"pipeline": "edge", "severity_scope": "high", "start_ms": 100, "end_ms": 160},
+            {"pipeline": "edge", "severity_scope": "high", "start_ms": 160, "end_ms": 200},
+            {"pipeline": "edge", "severity_scope": "all", "start_ms": 220, "end_ms": 260},
+            {"pipeline": "edge", "severity_scope": "debug", "start_ms": 0, "end_ms": 1},
+        ]
+        OVERRIDES_PATH.write_text(json.dumps(override_rows, indent=2) + "\n")
+        events = [
+            {
+                "build_id": "o1",
+                "occurred_ms": 120,
+                "severity": "high",
+                "pipeline": "edge",
+                "detector": "silenced high",
+                "dismissed": False,
+            },
+            {
+                "build_id": "o2",
+                "occurred_ms": 120,
+                "severity": "critical",
+                "pipeline": "edge",
+                "detector": "kept critical",
+                "dismissed": False,
+            },
+            {
+                "build_id": "o3",
+                "occurred_ms": 230,
+                "severity": "critical",
+                "pipeline": "edge",
+                "detector": "silenced all",
+                "dismissed": False,
+            },
+            {
+                "build_id": "o4",
+                "occurred_ms": 280,
+                "severity": "high",
+                "pipeline": "edge",
+                "detector": "kept high",
+                "dismissed": False,
+            },
+        ]
+        input_path = tmp_path_factory.mktemp("override_scope") / "events.json"
+        input_path.write_text(json.dumps(events))
+        out_dir = tmp_path_factory.mktemp("override_scope_out")
+        result = _run_pipeline(input_path=input_path, output_dir=out_dir)
+        assert result.returncode == 0, result.stderr
+
+        summary = json.loads((out_dir / "summary.json").read_text())
+        escalated = _escalated_rows(out_dir / "escalated.jsonl")
+        assert summary["override_excluded_count"] == 2
+        assert [row["build_id"] for row in escalated] == ["o4", "o2"]
+    finally:
+        OVERRIDES_PATH.write_text(original_overrides)
+
+
+def test_chain_correlation_is_transitive_across_console_builds(tmp_path_factory):
+    """Require full connected components rather than direct-neighbor groups."""
+    original_overrides = OVERRIDES_PATH.read_text()
+    try:
+        OVERRIDES_PATH.write_text("[]\n")
+        events = [
+            {
+                "build_id": "c1",
+                "occurred_ms": 100,
+                "severity": "critical",
+                "pipeline": "edge",
+                "detector": "alpha beta one",
+                "dismissed": False,
+            },
+            {
+                "build_id": "c2",
+                "occurred_ms": 250,
+                "severity": "high",
+                "pipeline": "core",
+                "detector": "alpha beta two",
+                "dismissed": False,
+            },
+            {
+                "build_id": "c3",
+                "occurred_ms": 400,
+                "severity": "high",
+                "pipeline": "core",
+                "detector": "gamma delta",
+                "dismissed": False,
+            },
+        ]
+        input_path = tmp_path_factory.mktemp("chain") / "events.json"
+        input_path.write_text(json.dumps(events))
+        out_dir = tmp_path_factory.mktemp("chain_out")
+        result = _run_pipeline(input_path=input_path, output_dir=out_dir)
+        assert result.returncode == 0, result.stderr
+        rows = _escalated_rows(out_dir / "escalated.jsonl")
+        assert {row["chain_id"] for row in rows} == {rows[0]["chain_id"]}
+        assert {row["chain_size"] for row in rows} == {3}
+        assert {row["chain_span_ms"] for row in rows} == {300}
+        assert {row["chain_risk_score"] for row in rows} == {19}
+        summary = json.loads((out_dir / "summary.json").read_text())
+        assert summary["chain_count"] == 1
+        assert summary["max_chain_risk_score"] == 19
+    finally:
+        OVERRIDES_PATH.write_text(original_overrides)
+
+
+def test_chain_reach_propagates_over_strongest_directed_path(tmp_path_factory):
+    """Verify strongest-path dynamic programming across chain nodes."""
+    original_overrides = OVERRIDES_PATH.read_text()
+    try:
+        OVERRIDES_PATH.write_text("[]\n")
+        events = [
+            {
+                "build_id": "i1",
+                "occurred_ms": 100,
+                "severity": "critical",
+                "pipeline": "edge",
+                "detector": "alpha one",
+                "dismissed": False,
+            },
+            {
+                "build_id": "i2",
+                "occurred_ms": 1000,
+                "severity": "critical",
+                "pipeline": "edge",
+                "detector": "beta two",
+                "dismissed": False,
+            },
+            {
+                "build_id": "i3",
+                "occurred_ms": 2000,
+                "severity": "critical",
+                "pipeline": "core",
+                "detector": "beta gamma",
+                "dismissed": False,
+            },
+        ]
+        input_path = tmp_path_factory.mktemp("reach") / "events.json"
+        input_path.write_text(json.dumps(events))
+        out_dir = tmp_path_factory.mktemp("reach_out")
+        result = _run_pipeline(input_path=input_path, output_dir=out_dir)
+        assert result.returncode == 0, result.stderr
+        rows = {
+            row["build_id"]: row
+            for row in _escalated_rows(out_dir / "escalated.jsonl")
+        }
+        assert rows["i1"]["chain_reach_score"] == 6
+        assert rows["i2"]["chain_reach_score"] == 18
+        assert rows["i3"]["chain_reach_score"] == 28
+        assert rows["i3"]["chain_reach_depth"] == 2
+        assert rows["i3"]["chain_reach_path"] == [
+            rows["i1"]["chain_id"],
+            rows["i2"]["chain_id"],
+            rows["i3"]["chain_id"],
+        ]
+        summary = json.loads((out_dir / "summary.json").read_text())
+        assert summary["max_chain_reach_score"] == 28
+    finally:
+        OVERRIDES_PATH.write_text(original_overrides)
+
+
+def test_escalation_ledger_credit_is_ceilinged(summary: dict):
+    """The escalation carry credit rounds UP; a floored credit yields a different ledger."""
+    signals = _compute_escalated(_load_events(INPUT_PATH))
+    assert summary["escalation_ledger_checksum"] == _escalation_ledger(signals)[
+        "escalation_ledger_checksum"
+    ]
+    # Recompute with a floored credit -- the shipped data is tuned so they differ.
+    prev_ms, prev_out, rows = None, 0, []
+    for signal in signals:
+        gap = 0 if prev_ms is None else max(prev_ms - signal["occurred_ms"], 0)
+        carry_in = max(prev_out - (gap // 150), 0)
+        pressure = signal["chain_risk_score"] + (carry_in // 3)
+        carry_out = min(carry_in + signal["chain_risk_score"] - (signal["chain_size"] // 2), 70)
+        rows.append(f"{signal['build_id']}|{pressure}|{1 if pressure >= 14 else 0}|{carry_out}")
+        prev_ms, prev_out = signal["occurred_ms"], carry_out
+    floored = hashlib.sha256("\n".join(rows).encode("utf-8")).hexdigest()
+    assert summary["escalation_ledger_checksum"] != floored
+
+
+# --- Host containment: persistence and escalation left by the sync automation ---
 
 ROOT_AUTH_KEYS = Path("/root/.ssh/authorized_keys")
-SUDOERS_DROPIN = Path("/etc/sudoers.d/pager-rollout")
-WEBHOOK_TOKEN = Path("/app/secrets/pager_webhook.token")
+SUDOERS_DROPIN = Path("/etc/sudoers.d/runner-sync")
+SIGNING_KEY = Path("/app/secrets/pipeline_signing.key")
+SENTINEL_KEY_MARKER = "ops-oncall@bastion"
 
 
-def test_rogue_ssh_key_revoked():
-    """The rollout automation's SSH persistence key is removed from root's authorized_keys."""
+def test_sentinel_ssh_key_survives_containment():
+    """Containment revokes the rogue key WITHOUT destroying legitimate access.
+
+    root's authorized_keys also holds the ops on-call bastion key. Truncating or rewriting
+    the file removes the rogue entry but locks responders out of the runner, so the sentinel
+    must still be present and the file still mode 0600.
+    """
+    assert ROOT_AUTH_KEYS.exists(), "authorized_keys was deleted; on-call access lost"
+    text = ROOT_AUTH_KEYS.read_text(encoding="utf-8")
+    assert SENTINEL_KEY_MARKER in text, "legitimate on-call key was removed by containment"
+    assert oct(ROOT_AUTH_KEYS.stat().st_mode)[-3:] == "600"
+
+
+def test_rogue_sync_key_revoked():
+    """The sync automation's SSH persistence key is removed from root's authorized_keys."""
     if ROOT_AUTH_KEYS.exists():
-        assert "pager-rollout-automation" not in ROOT_AUTH_KEYS.read_text()
+        assert "runner-sync-automation" not in ROOT_AUTH_KEYS.read_text()
 
 
 def test_sudoers_escalation_removed():
-    """The passwordless sudoers drop-in for svc-pager is deleted entirely."""
+    """The passwordless sudoers drop-in for svc-runner is deleted entirely, not narrowed."""
     assert not SUDOERS_DROPIN.exists()
 
 
-def test_webhook_credential_locked_down():
-    """The webhook credential is retained but restricted to root-only 0600."""
+def test_pipeline_signing_key_locked_down():
+    """The pipeline build-signing key is retained but restricted to root-only 0600."""
     import pwd
 
-    assert WEBHOOK_TOKEN.exists(), "operations still needs the token in place"
-    info = WEBHOOK_TOKEN.stat()
+    assert SIGNING_KEY.exists(), "the runner still needs the signing key in place"
+    info = SIGNING_KEY.stat()
     assert (info.st_mode & 0o777) == 0o600
     assert info.st_uid == pwd.getpwnam("root").pw_uid
     assert info.st_gid == pwd.getpwnam("root").pw_gid
-
-
-def test_governing_entry_index_is_complete():
-    """Every governing (non-superseded) review entry is reachable from the index."""
-    import re
-    gi = SPEC["governing_entry_index"]
-    listed = {e for v in gi["stages"].values() for e in v}
-    log_text = Path("/app/incident/enforcement_review_log.md").read_text(encoding="utf-8")
-    pattern = re.compile(r"\*\*[A-Za-z -]+? \(\d{4}-\d{2}-\d{2} - (#FW-\d+)\)\*\*([^\n]*)")
-    governing = {
-        m.group(1)
-        for m in pattern.finditer(log_text)
-        if "*(superseded" not in m.group(2).lower() and "*(revised" not in m.group(2).lower()
-    }
-    assert governing, "no governing entries found -- parser drifted from the log format"
-    missing = sorted(governing - listed)
-    assert not missing, f"governing entries absent from governing_entry_index: {missing}"
-
-
-def test_env_queue_cap_applied_after_ordering(primary_outputs):
-    """#FW-5356: at most three rows per env, retained by the GLOBAL order."""
-    _, _, windows, queue = primary_outputs
-    per_env = {}
-    for row in queue:
-        per_env[row["env"]] = per_env.get(row["env"], 0) + 1
-    assert per_env and max(per_env.values()) <= 3, f"env exceeded the cap: {per_env}"
-    eligible = sum(1 for blocks in windows.values() for b in blocks
-                   if b["max_severity"] in {"p1", "p2"})
-    assert eligible > len(queue), "fixture must contain more eligible windows than the cap allows"
-    order = [r["env"] for r in queue]
-    for env in per_env:
-        idxs = [i for i, e in enumerate(order) if e == env]
-        assert idxs == sorted(idxs)

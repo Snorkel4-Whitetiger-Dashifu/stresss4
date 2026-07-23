@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compile firewall policy drift windows into the responder report set."""
+"""Broken Pipewatch signal workflow used for repair task."""
 
 from __future__ import annotations
 
@@ -7,59 +7,55 @@ import argparse
 import json
 from pathlib import Path
 
-SCHEMA_VERSION = "firewall-drift-v1"
+SCHEMA_VERSION = "identity-triage-v2"
 
 
-def load_json(path: Path) -> list[dict]:
+def load_events(path: Path) -> list[dict]:
     return json.loads(path.read_text())
 
 
 def export_report(events: list[dict], output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    severity_counts = {name: 0 for name in ("p1", "p2", "p3", "p4")}
-    envs: set[str] = set()
+    severity_counts = {name: 0 for name in ("critical", "high", "medium", "low")}
+    pipelines: set[str] = set()
     for event in events:
         severity = str(event.get("severity", ""))
         if severity in severity_counts:
             severity_counts[severity] += 1
-        envs.add(str(event.get("env", "")))
+        pipelines.add(str(event.get("pipeline", "")))
 
-    queue_rows = []
+    signals = []
     for event in events:
-        if str(event.get("severity")) == "p1":
-            queue_rows.append(
+        severity = event.get("severity")
+        if severity == "critical":
+            signals.append(
                 {
-                    "ticket_id": str(event.get("alert_id", "")),
-                    "env": event.get("env", ""),
-                    "start_ms": int(event.get("start_ms", 0)),
-                    "end_ms": int(event.get("seen_ms", 0)),
-                    "priority": "high",
+                    "build_id": event["build_id"],
+                    "occurred_ms": event["occurred_at"] if "occurred_at" in event else 0,
+                    "severity": event["severity"],
+                    "pipeline": event["pipeline"],
+                    "detector": event["detector"],
                 }
             )
 
-    queue_rows.sort(key=lambda row: row["start_ms"])
+    signals.sort(key=lambda row: row["occurred_ms"])
 
     summary = {
         "schema_version": SCHEMA_VERSION,
-        "raw_alert_count": len(events),
-        "unique_alert_ids": len({str(event.get("alert_id", "")) for event in events}),
-        "canonical_alert_count": len(events),
-        "env_count": len(envs),
+        "raw_build_count": len(events),
+        "unique_build_ids": len({str(event["build_id"]) for event in events}),
+        "total_builds": len(events),
         "severity_counts": severity_counts,
-        "total_unmuted_duration_ms": 0,
-        "total_freeze_overlap_ms": 0,
-        "total_effective_duration_ms": 0,
-        "longest_window_ms": 0,
-        "queued_window_count": len(queue_rows),
-        "muted_excluded_count": 0,
-        "queue_hash_checksum": "",
+        "pipelines": sorted(pipelines),
+        "escalated_count": len(signals),
+        "dismissed_excluded_count": 0,
     }
 
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
-    (output_dir / "drift_windows.json").write_text(json.dumps({}, indent=2) + "\n")
-    with (output_dir / "response_queue.jsonl").open("w", encoding="utf-8") as handle:
-        for row in queue_rows:
+    (output_dir / "pipeline_matrix.json").write_text(json.dumps({}, indent=2) + "\n")
+    with (output_dir / "escalated.jsonl").open("w", encoding="utf-8") as handle:
+        for row in signals:
             handle.write(json.dumps(row, separators=(",", ":")) + "\n")
 
 
@@ -69,7 +65,7 @@ def main() -> None:
     parser.add_argument("--output-dir", default="/app/output")
     args = parser.parse_args()
 
-    events = load_json(Path(args.input))
+    events = load_events(Path(args.input))
     export_report(events, Path(args.output_dir))
     print(f"Wrote report to {args.output_dir}")
 

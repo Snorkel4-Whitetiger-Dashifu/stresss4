@@ -1,0 +1,74 @@
+[
+  {
+    "pipeline": "data-etl",
+    "severity_scope": "all",
+    "start_ms": 8520000007150,
+    "end_ms": 8520000007400
+  },
+  {
+    "pipeline": "frontend-ci",
+    "severity_scope": "critical",
+    "start_ms": 8520000008750,
+    "end_ms": 8520000008850
+  },
+  {
+    "pipeline": "mobile-build",
+    "severity_scope": "high",
+    "start_ms": 8520000008450,
+    "end_ms": 8520000008480
+  },
+  {
+    "pipeline": "backend-ci",
+    "severity_scope": "high",
+    "start_ms": 8520000001000,
+    "end_ms": 8520000001200
+  },
+  {
+    "pipeline": "frontend-ci",
+    "severity_scope": "all",
+    "start_ms": 8520000000200,
+    "end_ms": 8520000000300
+  },
+  {
+    "pipeline": "frontend-ci",
+    "severity_scope": "all",
+    "start_ms": 8520000000300,
+    "end_ms": 8520000000360
+  },
+  {
+    "pipeline": "infra-deploy",
+    "severity_scope": "all",
+    "start_ms": 8520000001800,
+    "end_ms": 8520000001847
+  },
+  {
+    "pipeline": "release-prod",
+    "severity_scope": "all",
+    "start_ms": 8520000003700,
+    "end_ms": 8520000003761
+  },
+  {
+    "pipeline": "infra-deploy",
+    "severity_scope": "all",
+    "start_ms": 8520000008000,
+    "end_ms": 8520000008071
+  },
+  {
+    "pipeline": "mobile-build",
+    "severity_scope": "all",
+    "start_ms": 8520000008300,
+    "end_ms": 8520000008391
+  },
+  {
+    "pipeline": "backend-ci",
+    "severity_scope": "all",
+    "start_ms": 8520000009000,
+    "end_ms": 8520000009047
+  },
+  {
+    "pipeline": "infra-deploy",
+    "severity_scope": "all",
+    "start_ms": 8520000010000,
+    "end_ms": 8520000010061
+  }
+]

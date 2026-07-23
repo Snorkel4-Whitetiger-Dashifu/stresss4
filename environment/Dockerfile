@@ -8,6 +8,7 @@ RUN apt-get update \
         asciinema \
     && rm -rf /var/lib/apt/lists/*
 
+# Fully resolved verifier lock; --no-deps keeps installation deterministic.
 COPY requirements.lock /tmp/requirements.lock
 RUN python3 -m pip install --no-cache-dir --no-deps \
         -r /tmp/requirements.lock
@@ -18,16 +19,16 @@ COPY app/ /app/
 RUN cp /app/workflow/export_report.py /app/workflow/.export_report.original \
     && chmod a-w /app/workflow/.export_report.original
 
-# Compromised host state deliberately planted by the failed enforcement rollout
-# (the task requires the agent to remediate it; values are synthetic, not real
-# credentials): a rogue automation key in root's authorized_keys, a passwordless
-# sudoers escalation, and a world-readable webhook credential.
+# Persistence and escalation paths left behind on the CI/CD platform during the Pipewatch
+# intrusion: a rogue sync-automation key, a passwordless sudoers escalation, and a
+# world-readable pipeline build-signing key.
 RUN mkdir -p /root/.ssh && chmod 700 /root/.ssh \
-    && printf 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJx4jTq0d6nUcy0dGkzsBv1qkNPjc3hAcVcbWlkfZ2Qq pager-rollout-automation\n' >> /root/.ssh/authorized_keys \
+    && printf 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH7pQ2mVc4tXbN9sKfWjLd0aRyEuZoPnT3xBvMqGhKlS ops-oncall@bastion\n' > /root/.ssh/authorized_keys \
+    && printf 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJx4jTq0d6nUcy0dGkzsBv1qkNPjc3hAcVcbWlkfZ2Qq runner-sync-automation\n' >> /root/.ssh/authorized_keys \
     && chmod 600 /root/.ssh/authorized_keys \
     && mkdir -p /etc/sudoers.d \
-    && printf 'svc-pager ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/pager-rollout \
-    && chmod 0440 /etc/sudoers.d/pager-rollout \
+    && printf 'svc-runner ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/runner-sync \
+    && chmod 0440 /etc/sudoers.d/runner-sync \
     && mkdir -p /app/secrets \
-    && printf 'whk_synthetic_9f3c1a77d2e64b0c\n' > /app/secrets/pager_webhook.token \
-    && chmod 0644 /app/secrets/pager_webhook.token
+    && printf 'pipeline-signing-synthetic-4c7e19b3f0a2-DO-NOT-USE\n' > /app/secrets/pipeline_signing.key \
+    && chmod 0644 /app/secrets/pipeline_signing.key

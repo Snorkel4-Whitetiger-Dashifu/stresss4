@@ -1,354 +1,538 @@
 {
-  "title": "IAM Firewall Policy Drift Incident-Response Runbook",
-  "runbook_version": "2.0",
-  "task_scope": "security operations / IAM firewall drift containment",
-  "operational_purpose": "reconcile firewall-policy drift evidence, approved attenuation windows, and stateful environment risk into a deterministic containment queue",
+  "title": "Pipewatch Signal Rollup \u2014 Audit & Export Spec",
+  "version": "5.0",
+  "human_implementation_guide": "/app/docs/output_contract.md",
+  "quick_contract_index": {
+    "required_issue_ids": [
+      "wrong_source_field",
+      "risk_threshold_filter",
+      "recency_order",
+      "risk_class_normalization",
+      "dedupe_event",
+      "benign_filter"
+    ],
+    "diagnose_is_stateless": "every explicit diagnose invocation writes pipeline_status=diagnosed and omits verified_summary/output_paths, regardless of existing repaired files or active workflow contents",
+    "issue_item_shape": {
+      "top_level": [
+        "id",
+        "severity",
+        "description",
+        "resolution",
+        "evidence"
+      ],
+      "nested_evidence": [
+        "dossier_quote",
+        "pipeline_evidence",
+        "repair_action"
+      ],
+      "minimum_lengths": [
+        30,
+        10,
+        10
+      ],
+      "required_term_case": "case-sensitive for all three evidence strings, including agent-composed repair_action"
+    },
+    "repair_post_repair_exact_fields": [
+      "escalated_count",
+      "rerun_escalated_count"
+    ],
+    "forbidden_executable_tokens": [
+      "event[\"occurred_at\"]",
+      "severity == \"critical\""
+    ],
+    "repair_output_path_keys": [
+      "summary_json",
+      "escalated_jsonl",
+      "pipeline_matrix_json"
+    ],
+    "final_default_state": "/app/output/diagnosis.json must be the repaired-mode report",
+    "read_in_full": "This file is the authoritative schema reference; every key set and payload it lists applies in full.",
+    "input_stats_exact_keys": [
+      "build_count",
+      "unique_build_ids",
+      "pipelines"
+    ],
+    "verified_summary_required_fields": [
+      "schema_version",
+      "raw_build_count",
+      "unique_build_ids",
+      "total_builds",
+      "severity_counts",
+      "pipelines",
+      "escalated_count",
+      "dismissed_excluded_count",
+      "override_excluded_count",
+      "override_compaction_checksum",
+      "max_override_pressure_score",
+      "max_pressure_index",
+      "max_wide_pressure_score",
+      "chain_count",
+      "max_chain_risk_score",
+      "chain_digest_checksum",
+      "max_chain_reach_score",
+      "chain_reach_digest_checksum",
+      "signal_digest_checksum",
+      "critical_escalation_ids",
+      "critical_escalation_count",
+      "max_escalation_pressure",
+      "escalation_ledger_checksum"
+    ]
+  },
+  "cli": {
+    "path": "/app/build_audit.py",
+    "subcommands": {
+      "diagnose": {
+        "usage": "python3 /app/build_audit.py diagnose --dossier PATH --report PATH",
+        "defaults": {
+          "dossier": "/app/incident/export_dossier.md",
+          "report": "/app/output/diagnosis.json"
+        },
+        "must_include_all_allowed_ids": true,
+        "state_contract": "diagnose is stateless: always set pipeline_status to diagnosed and omit verified_summary/output_paths even when repair artifacts already exist or the active workflow is repaired",
+        "must_not_include_repaired_keys": [
+          "verified_summary",
+          "output_paths"
+        ],
+        "input_events_path": "/app/data/events.json"
+      },
+      "repair": {
+        "usage": "python3 /app/build_audit.py repair --output-dir PATH",
+        "defaults": {
+          "output_dir": "/app/output"
+        },
+        "output_dir_contract": "must write all repair outputs under the provided --output-dir path; do not hardcode /app/output when a custom path is supplied",
+        "required_output_files": [
+          "summary.json",
+          "pipeline_matrix.json",
+          "escalated.jsonl",
+          "diagnosis.json",
+          "repair_audit.json"
+        ]
+      }
+    }
+  },
+  "diagnosis_report": {
+    "required_keys_diagnosed": [
+      "pipeline_status",
+      "issues_found",
+      "input_stats"
+    ],
+    "required_keys_repaired": [
+      "pipeline_status",
+      "issues_found",
+      "input_stats",
+      "verified_summary",
+      "output_paths"
+    ],
+    "pipeline_status_diagnosed": "diagnosed",
+    "pipeline_status_repaired": "repaired",
+    "issues_found_item": {
+      "required_fields": [
+        "id",
+        "severity",
+        "description",
+        "resolution",
+        "evidence"
+      ],
+      "allowed_ids": [
+        "wrong_source_field",
+        "risk_threshold_filter",
+        "recency_order",
+        "risk_class_normalization",
+        "dedupe_event",
+        "benign_filter"
+      ],
+      "evidence": {
+        "required_fields": [
+          "dossier_quote",
+          "pipeline_evidence",
+          "repair_action"
+        ],
+        "pipeline_evidence_source": "/app/workflow/.export_report.original",
+        "pipeline_evidence_format": "literal substring excerpt from frozen original workflow source",
+        "dossier_quote_format": "verbatim excerpt from /app/incident/export_dossier.md (whitespace-normalized match)",
+        "minimum_lengths": {
+          "dossier_quote": 30,
+          "pipeline_evidence": 10,
+          "repair_action": 10
+        },
+        "term_matching": "case-sensitive substring match for every required_terms_by_issue entry in dossier_quote, pipeline_evidence, and repair_action; repair_action is agent-composed but its required terms still match case-sensitively",
+        "required_terms_by_issue": {
+          "wrong_source_field": {
+            "dossier_quote": [
+              "timestamp",
+              "mismatch"
+            ],
+            "pipeline_evidence": [
+              "event[\"occurred_at\"]"
+            ],
+            "repair_action": [
+              "timestamp source"
+            ]
+          },
+          "risk_threshold_filter": {
+            "dossier_quote": [
+              "queue",
+              "missing"
+            ],
+            "pipeline_evidence": [
+              "severity == \"critical\""
+            ],
+            "repair_action": [
+              "severity coverage"
+            ]
+          },
+          "recency_order": {
+            "dossier_quote": [
+              "ordering",
+              "inconsistent"
+            ],
+            "pipeline_evidence": [
+              "sort",
+              "occurred_ms"
+            ],
+            "repair_action": [
+              "recency ordering"
+            ]
+          },
+          "risk_class_normalization": {
+            "dossier_quote": [
+              "mixed-case",
+              "diverged"
+            ],
+            "pipeline_evidence": [
+              "severity"
+            ],
+            "repair_action": [
+              "normalize severity"
+            ]
+          },
+          "dedupe_event": {
+            "dossier_quote": [
+              "duplicate",
+              "competing"
+            ],
+            "pipeline_evidence": [
+              "for event in events"
+            ],
+            "repair_action": [
+              "deterministic collapse"
+            ]
+          },
+          "benign_filter": {
+            "dossier_quote": [
+              "dismissed",
+              "leaked"
+            ],
+            "pipeline_evidence": [
+              "signals.append"
+            ],
+            "repair_action": [
+              "exclude dismissed"
+            ]
+          }
+        }
+      }
+    },
+    "input_stats": {
+      "required_fields": [
+        "build_count",
+        "unique_build_ids",
+        "pipelines"
+      ],
+      "exact_key_names": "input_stats keys must be exactly build_count, unique_build_ids, pipelines",
+      "pipelines_sort": "ascending alphabetical",
+      "source_events_path": "/app/data/events.json"
+    },
+    "verified_summary": {
+      "required_fields": [
+        "schema_version",
+        "raw_build_count",
+        "unique_build_ids",
+        "total_builds",
+        "severity_counts",
+        "pipelines",
+        "escalated_count",
+        "dismissed_excluded_count",
+        "override_excluded_count",
+        "override_compaction_checksum",
+        "max_override_pressure_score",
+        "max_pressure_index",
+        "max_wide_pressure_score",
+        "chain_count",
+        "max_chain_risk_score",
+        "chain_digest_checksum",
+        "max_chain_reach_score",
+        "chain_reach_digest_checksum",
+        "signal_digest_checksum",
+        "critical_escalation_ids",
+        "critical_escalation_count",
+        "max_escalation_pressure",
+        "escalation_ledger_checksum"
+      ]
+    },
+    "output_paths": {
+      "summary_json": "<output-dir>/summary.json",
+      "escalated_jsonl": "<output-dir>/escalated.jsonl",
+      "pipeline_matrix_json": "<output-dir>/pipeline_matrix.json",
+      "key_naming_contract": "keys are semantic snake_case names, not filenames"
+    }
+  },
+  "repair_audit": {
+    "required_keys": [
+      "patched_workflow",
+      "processing_steps",
+      "removed_tokens",
+      "pre_repair",
+      "post_repair"
+    ],
+    "processing_steps": [
+      "normalize_occurred_ms",
+      "normalize_severity",
+      "dedupe_build_id",
+      "load_dismissal_overrides",
+      "apply_override_suppression",
+      "filter_dismissed",
+      "correlate_chains",
+      "score_chains",
+      "propagate_chain_reach",
+      "build_signals"
+    ],
+    "patched_workflow": "/app/workflow/export_report.py",
+    "forbidden_executable_tokens": [
+      "event[\"occurred_at\"]",
+      "severity == \"critical\""
+    ],
+    "removed_tokens_schema": {
+      "description": "Map each forbidden_executable_tokens literal string to a boolean that indicates it was removed from executable behavior.",
+      "required_key_source": "keys must be the exact literal strings from forbidden_executable_tokens (no semantic aliases)",
+      "required_keys_exact": [
+        "event[\"occurred_at\"]",
+        "severity == \"critical\""
+      ],
+      "example_valid": {
+        "event[\"occurred_at\"]": true,
+        "severity == \"critical\"": false
+      },
+      "example_invalid": {
+        "reads_occurred_at": true,
+        "critical_only_filter": false
+      }
+    },
+    "pre_repair": {
+      "required_fields": [
+        "pipeline_source_sha256",
+        "pipeline_tokens_present"
+      ],
+      "capture_order": "before any write to export_report.py",
+      "capture_source": "/app/workflow/.export_report.original",
+      "capture_rule": "pipeline_source_sha256 is hashlib.sha256(Path('/app/workflow/.export_report.original').read_bytes()).hexdigest(); pipeline_tokens_present is computed from that frozen original before applying any patch",
+      "pipeline_tokens_present_schema": {
+        "description": "Map each forbidden_executable_tokens literal string to a boolean that indicates it was present before repair.",
+        "required_key_source": "keys must be the exact literal strings from forbidden_executable_tokens (no semantic aliases)",
+        "required_keys_exact": [
+          "event[\"occurred_at\"]",
+          "severity == \"critical\""
+        ]
+      }
+    },
+    "post_repair": {
+      "required_fields": [
+        "escalated_count",
+        "rerun_escalated_count"
+      ]
+    }
+  },
   "workflow_repair": {
     "path": "/app/workflow/export_report.py",
     "cli_usage": "python3 /app/workflow/export_report.py --input PATH --output-dir PATH",
     "defaults": {
       "input": "/app/data/events.json",
       "output_dir": "/app/output",
-      "change_freezes": "/app/data/change_freezes.json",
-      "reopen_windows": "/app/data/reopen_windows.json",
-      "rotation_windows": "/app/data/rotation_windows.json",
-      "defer_windows": "/app/data/defer_windows.json",
-      "iam_trust_edges": "/app/data/iam_trust_edges.json"
+      "dismissal_overrides": "/app/data/dismissal_overrides.json"
     },
-    "forbidden_executable_tokens": [
-      "event[\"seen_ms\"]",
-      "severity == \"p1\""
-    ],
-    "required_executable_tokens": [
-      "int(",
-      ".lower(",
-      ".strip(",
-      "reverse=True",
-      "\"yes\"",
-      "REOPEN_PATH",
-      "ROTATION_PATH",
-      "DEFER_PATH",
-      "IAM_TRUST_EDGES_PATH",
-      "reopen_compaction_checksum",
-      "rotation_compaction_checksum",
-      "defer_compaction_checksum",
-      "stability_pressure_score",
-      "volatility_index",
-      "defer_pressure_score",
-      "ledger_pressure_score",
-      "ledger_adjusted_actionable_ms",
-      "ledger_checksum",
-      "trust_edge_checksum",
-      "trust_exposure_score",
-      "trust_path_digest",
-      "stability_index",
-      "window_digest"
-    ],
-    "token_check_scope": "executable code only (exclude comments and docstrings)"
+    "implementation_freedom": "helper names, constant names, normalization syntax, graph representation, and sorting syntax are implementation details; generated behavior is contractual",
+    "acceptance_contract": "The repaired workflow must satisfy canonicalization and outputs without relying on test or solution artifacts.",
+    "repair_state_contract": {
+      "self_contained": "every build_audit.py repair invocation must write a correct repaired implementation to /app/workflow/export_report.py before running it",
+      "starting_state": "verification may copy /app/workflow/.export_report.original over the active workflow immediately before repair, including with a custom --output-dir; never assume solve.sh or an earlier command already patched it",
+      "sequence": [
+        "capture pre-repair hash and token evidence from the frozen original",
+        "install the corrected active workflow",
+        "run it with the requested output directory",
+        "run it again to verify idempotency"
+      ],
+      "frozen_original": "never write to /app/workflow/.export_report.original"
+    }
   },
-  "digest_payloads": {
-    "trust_path_digest": "first 12 lowercase hex chars of sha256(origin|trust_exposure_score|semicolon_joined_target_rows), where each target row in trust_reachable_envs order is target:score:path_nodes_joined_by_>"
-  },
-  "field_types": {
-    "_note": "Declares the literal vocabulary and JSON container type of fields whose spelling or shape the verifier matches exactly. These are output-format facts only; the governing rules that decide which value a given window receives live in the governance review log.",
-    "priority": {
-      "type": "string",
-      "enum": [
+  "outputs": {
+    "summary_json": {
+      "schema_version": "identity-triage-v2",
+      "severity_counts_key_order": [
         "critical",
         "high",
-        "medium"
+        "medium",
+        "low"
       ],
-      "note": "Exactly these three lowercase labels. Alternative schemes (P0/P1/P2, sev tiers, numeric ranks) are rejected. Which tier a queued window earns is governed by the log's priority decision."
+      "override_excluded_count": "count of signal candidates excluded by canonicalized override windows",
+      "override_compaction_checksum": "SHA-256 of the exact payload defined by override_checksum_serialization",
+      "override_checksum_serialization": {
+        "row_format": "pipeline|severity_scope|start_ms|end_ms",
+        "row_order": "sort by (pipeline,severity_scope) ascending, then compacted interval (start_ms,end_ms) ascending",
+        "row_delimiter": "one LF character (\\n)",
+        "trailing_delimiter": "none; do not append LF or | after the final row",
+        "encoding": "UTF-8",
+        "empty_input": "hash the empty byte string",
+        "digest": "lowercase hashlib.sha256(payload.encode('utf-8')).hexdigest()",
+        "test_vector_payload": "edge|critical|300|360\nedge|high|100|220",
+        "test_vector_sha256": "03185b505ae526bc703c4e14bd088572497a9f801a18fba4fc50d2fdab082522"
+      },
+      "max_override_pressure_score": "maximum override_pressure_score across final signal rows (0 when none)",
+      "max_wide_pressure_score": "maximum wide_pressure_score across final signal rows (0 when none)",
+      "max_pressure_index": "maximum pressure_index (override_pressure_score + wide_pressure_score) across final signal rows (0 when none)",
+      "chain_count": "number of distinct chain_id values across final signal rows",
+      "max_chain_risk_score": "maximum chain_risk_score across final signal rows (0 when none)",
+      "chain_digest_checksum": "sha256('|'.join(chain_digest values in final signal order)) lowercase 64 hex chars",
+      "max_chain_reach_score": "maximum chain_reach_score across final signal rows (0 when none)",
+      "chain_reach_digest_checksum": "sha256('|'.join(chain_reach_digest values in final signal order)) lowercase 64 hex chars",
+      "signal_digest_checksum": "sha256('|'.join(signal_digest values in final signal order)) lowercase 64 hex chars"
     },
-    "trust_reachable_envs": {
+    "pipeline_matrix_json": {
+      "description": "Flat map of pipeline -> per-severity counts from canonical deduped builds.",
+      "shape": {
+        "<pipeline>": {
+          "critical": 0,
+          "high": 0,
+          "medium": 0,
+          "low": 0
+        }
+      },
+      "pipeline_sort": "ascending alphabetical",
+      "severity_key_order": [
+        "critical",
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "escalated_jsonl": {
+      "required_fields": [
+        "build_id",
+        "occurred_ms",
+        "severity",
+        "pipeline",
+        "detector",
+        "override_pressure_score",
+        "pressure_index",
+        "wide_pressure_score",
+        "chain_id",
+        "chain_size",
+        "chain_span_ms",
+        "chain_risk_score",
+        "chain_digest",
+        "chain_reach_score",
+        "chain_reach_depth",
+        "chain_reach_path",
+        "chain_reach_digest",
+        "signal_digest"
+      ],
+      "sort": "occurred_ms desc, severity rank desc, chain_risk_score desc, chain_reach_score desc, override_pressure_score desc, build_id asc",
+      "severities_included": [
+        "high",
+        "critical"
+      ],
+      "exclude_dismissed": true,
+      "json_format": "compact (no space after colon)",
+      "field_types": {
+        "chain_reach_path": "JSON array (list) of chain_id strings naming the strongest reach path in order. Emit the array itself, not a joined string. The 'comma_joined_chain_reach_path' token used inside chain_reach_digest and signal_digest is a DIGEST-ONLY derivation (','.join of this array) and does not change the emitted field type, which is the array.",
+        "chain_reach_score": "integer",
+        "chain_reach_depth": "integer",
+        "override_pressure_score": "integer"
+      }
+    }
+  },
+  "guardrails": {
+    "frozen_original": "/app/workflow/.export_report.original must remain byte-identical",
+    "test_artifacts": "The repaired source must derive every value from the operational inputs and the governing decisions, and must not read external grading resources.",
+    "generalization": "derive outputs from --input and fixed operational data sources rather than fixture values"
+  },
+  "context": {
+    "dossier_path": "/app/incident/export_dossier.md",
+    "minimum_line_count": 350
+  },
+  "dismissal_overrides": {
+    "source_path": "/app/data/dismissal_overrides.json",
+    "row_fields": [
+      "pipeline",
+      "severity_scope",
+      "start_ms",
+      "end_ms"
+    ]
+  },
+  "digest_payloads": {
+    "chain_digest": "first 12 lowercase SHA256 hex chars of chain_id|chain_size|chain_span_ms|chain_risk_score|comma_joined_chain_build_ids",
+    "chain_id": "first 10 lowercase SHA1 hex chars of comma_joined_chain_build_ids",
+    "chain_reach_digest": "first 12 lowercase SHA256 hex chars of chain_id|chain_reach_score|chain_reach_depth|comma_joined_chain_reach_path",
+    "signal_digest": "first 12 lowercase SHA1 hex chars of build_id|occurred_ms|severity|pipeline|detector|override_pressure_score|pressure_index|chain_id|chain_size|chain_span_ms|chain_risk_score|chain_digest|chain_reach_score|chain_reach_depth|comma_joined_chain_reach_path|chain_reach_digest",
+    "escalation_ledger_checksum": "SHA-256 over one line per signal row in escalated.jsonl export order, `build_id|escalation_pressure|c|carry_out` with c=1 for an escalation-critical row else 0, joined by a single newline, no trailing newline, hashed over UTF-8. The values themselves are governed by the dossier."
+  },
+  "semantics_source": {
+    "notes": "This document is the output contract only: CLI shapes, report schemas, exact key sets, checksum serialization and digest payload encodings. It does NOT define how values are derived.",
+    "authority": "Normalization, dedupe tie-breaks, override windows/matching/pressure, chain correlation and the directed reach propagation were settled during the Pipewatch review; the authoritative build is the #CI-ticketed decision notes inside /app/incident/export_dossier.md. Where an early triage proposal conflicts with a later decision, the later decision wins."
+  },
+  "field_types": {
+    "critical_escalation_ids": {
+      "type": "array",
+      "items": "string",
+      "order": "sorted lexicographically ascending",
+      "note": "build_id values as strings, sorted -- not in export order."
+    },
+    "_note": "Declares the exact key name, JSON type and container shape of every field are matched literally. These are output-format facts only; how each value is derived is governed by the dossier's ticketed decisions.",
+    "pipeline_status": {
+      "type": "string",
+      "enum": [
+        "diagnosed",
+        "repaired"
+      ],
+      "note": "The key is named exactly `pipeline_status`. `diagnosis`, `status` and `state` are not accepted. A diagnose run reports `diagnosed`; a repair run reports `repaired`."
+    },
+    "input_stats": {
+      "type": "object",
+      "keys": [
+        "build_count",
+        "unique_build_ids",
+        "pipelines"
+      ],
+      "note": "Exactly these three keys, no aliases and no extras."
+    },
+    "pipelines": {
       "type": "array",
       "items": "string",
       "order": "sorted ascending",
-      "note": "A JSON array of environment-name strings, never an object/mapping keyed by env. Which envs are reachable, and the path retention behind them, are governed by the log's trust decisions."
+      "note": "A JSON array of the distinct asset-group names, sorted. It is NOT a count -- returning an integer here fails, even when the integer equals the array length."
     },
-    "trust_strongest_path": {
-      "type": "array",
-      "items": "string",
-      "note": "A JSON array of environment names giving the full node sequence, origin first."
+    "build_count": {
+      "type": "integer",
+      "note": "Number of build builds read from the input, counted BEFORE deduplication."
     },
-    "muted": {
-      "type": "boolean after canonicalization",
-      "coercion": "booleans unchanged; strings true/1/yes (after str(...).strip().lower()) -> true, all other strings -> false; any non-string non-boolean value -> Python bool(value)"
+    "unique_build_ids": {
+      "type": "integer",
+      "note": "Number of distinct build_id values in the input. This is the deduplicated count; build_count is not."
     },
-    "severity_counts": {
+    "raw_build_count": {
+      "type": "integer",
+      "note": "verified_summary field. Raw input build count BEFORE deduplication -- do not substitute the deduplicated count here."
+    },
+    "issues_found_item": {
       "type": "object",
       "keys": [
-        "p1",
-        "p2",
-        "p3",
-        "p4"
+        "id",
+        "severity",
+        "description",
+        "resolution",
+        "evidence"
       ],
-      "note": "Always enumerates all four levels in this order, emitting 0 for levels with no canonical alerts."
-    },
-    "source_alert_ids": {
-      "type": "array of strings",
-      "order": "sorted ascending by alert id",
-      "note": "Every window row and every queue row carries the ids of the alerts merged into that window, SORTED ASCENDING. The queue_hash payload joins them in this same sorted order as csv_source_alert_ids, so an unsorted list changes the digest even when the membership is right."
+      "note": "Every finding carries all five keys; `evidence` is itself an object with exactly `dossier_quote`, `pipeline_evidence` and `repair_action`. Omitting severity, description or resolution fails the schema check."
     }
-  },
-  "response_queue": {
-    "output_path": "response_queue.jsonl",
-    "ticket_id_format": "{env}:{start_ms}-{end_ms}",
-    "queue_hash": "sha1('{env}|{start_ms}|{end_ms}|{csv_source_alert_ids}|{max_severity}|{freeze_segment_count}|{reopen_segment_count}|{rotation_segment_count}|{defer_segment_count}|{carry_in_ms}|{carry_out_ms}|{ledger_adjusted_actionable_ms}|{stability_pressure_score}|{volatility_index}|{defer_pressure_score}|{ledger_pressure_score}|{trust_exposure_score}|{trust_path_digest}') first 12 lowercase hex chars",
-    "window_digest": "sha1('{ticket_id}|{priority}|{actionable_duration_ms}|{ledger_adjusted_actionable_ms}|{stability_index}|{defer_pressure_score}|{volatility_index}|{ledger_pressure_score}|{trust_exposure_score}|{trust_path_digest}') first 10 lowercase hex chars",
-    "required_fields": [
-      "ticket_id",
-      "env",
-      "start_ms",
-      "end_ms",
-      "duration_ms",
-      "freeze_overlap_ms",
-      "freeze_segment_count",
-      "effective_duration_ms",
-      "reopen_overlap_ms",
-      "reopen_segment_count",
-      "risk_adjusted_duration_ms",
-      "rotation_overlap_ms",
-      "rotation_segment_count",
-      "dispatchable_duration_ms",
-      "defer_overlap_ms",
-      "defer_segment_count",
-      "actionable_duration_ms",
-      "idle_gap_ms",
-      "carry_in_ms",
-      "carry_out_ms",
-      "ledger_adjusted_actionable_ms",
-      "trust_reachable_envs",
-      "trust_exposure_score",
-      "trust_strongest_path",
-      "trust_path_digest",
-      "alert_count",
-      "source_alert_ids",
-      "max_severity",
-      "stability_pressure_score",
-      "volatility_index",
-      "defer_pressure_score",
-      "ledger_pressure_score",
-      "stability_index",
-      "priority",
-      "queue_hash",
-      "window_digest"
-    ],
-    "json_format": "compact JSON lines via json.dumps(..., separators=(',', ':'))"
-  },
-  "summary_json": {
-    "schema_version": "firewall-drift-v1",
-    "schema_version_field_note": "The summary.json `schema_version` field must be the exact literal string \"firewall-drift-v1\" shown immediately above. It is the output schema tag and is unrelated to `runbook_version` at the top of this document \u2014 do not emit the runbook_version value here.",
-    "required_fields": [
-      "schema_version",
-      "raw_alert_count",
-      "unique_alert_ids",
-      "canonical_alert_count",
-      "env_count",
-      "severity_counts",
-      "total_unmuted_duration_ms",
-      "total_freeze_overlap_ms",
-      "total_freeze_segment_count",
-      "total_effective_duration_ms",
-      "total_reopen_overlap_ms",
-      "total_reopen_segment_count",
-      "total_risk_adjusted_duration_ms",
-      "total_rotation_overlap_ms",
-      "total_rotation_segment_count",
-      "total_dispatchable_duration_ms",
-      "total_defer_overlap_ms",
-      "total_defer_segment_count",
-      "total_actionable_duration_ms",
-      "total_ledger_adjusted_actionable_ms",
-      "longest_window_ms",
-      "queued_window_count",
-      "muted_excluded_count",
-      "max_stability_pressure_score",
-      "max_volatility_index",
-      "max_defer_pressure_score",
-      "max_ledger_pressure_score",
-      "max_trust_exposure_score",
-      "max_carry_out_ms",
-      "max_stability_index",
-      "canonical_alert_checksum",
-      "queue_hash_checksum",
-      "freeze_compaction_checksum",
-      "reopen_compaction_checksum",
-      "rotation_compaction_checksum",
-      "defer_compaction_checksum",
-      "trust_edge_checksum",
-      "window_digest_checksum",
-      "ledger_checksum",
-      "trust_path_digest_checksum"
-    ],
-    "severity_counts_key_order": [
-      "p1",
-      "p2",
-      "p3",
-      "p4"
-    ],
-    "total_unmuted_duration_ms_contract": "sum of merged window duration_ms values from drift_windows.json (not raw alert durations)",
-    "total_ledger_adjusted_actionable_ms_contract": "sum ledger_adjusted_actionable_ms over all drift windows, including windows not admitted to the response queue",
-    "maximum_aggregation_domains": {
-      "queue_only": "max_stability_pressure_score, max_volatility_index, max_defer_pressure_score, max_ledger_pressure_score, max_trust_exposure_score, and max_stability_index are maxima over final admitted response_queue rows only; use 0 when the queue is empty",
-      "all_drift_windows": "max_carry_out_ms is the maximum over every drift window, including windows not admitted to the response queue; use 0 when there are no windows"
-    },
-    "checksum_serialization_contract": {
-      "text_encoding": "UTF-8",
-      "field_delimiter": "|",
-      "row_delimiter": "one LF character (\\n)",
-      "trailing_delimiter": "none: do not append a newline or pipe after the final row",
-      "empty_input": "hash the empty byte string",
-      "muted_encoding": "integer text 1 when normalized muted is true, otherwise integer text 0; never serialize JSON true/false",
-      "canonical_alert_rows": "one alert_id|env|start_ms|end_ms|severity|muted_int|signature row for each canonical deduplicated alert, sorted by (env ascending, start_ms ascending, alert_id ascending)",
-      "freeze_rows": "one env|start_ms|end_ms row for each compacted interval, sorted by env ascending and then interval (start_ms,end_ms) ascending",
-      "scoped_rows": "one env|severity_scope|start_ms|end_ms row for reopen/rotation/defer using only compacted rows whose severity_scope is in that source's scope_values allowlist; sort by (env,severity_scope) ascending and then interval (start_ms,end_ms) ascending",
-      "trust_edge_rows": "one source_env|target_env|weight row per canonical deduplicated directed edge, sorted by source_env then target_env ascending",
-      "ledger_rows": "one env|start_ms|idle_gap_ms|carry_in_ms|carry_out_ms|ledger_adjusted_actionable_ms row for every drift window, sorted by env ascending and start_ms ascending",
-      "sha256_step": "compute lowercase hashlib.sha256(payload.encode('utf-8')).hexdigest()"
-    },
-    "checksum_test_vectors": {
-      "canonical_alert_payload": "a1|prod|100|200|p1|0|rule one\na2|prod|220|300|p2|1|rule two",
-      "canonical_alert_sha256": "ca27c1943da70a32a11c9462e36ffa198a8ff2310c778b5be57fd2312f919dc0",
-      "freeze_payload": "prod|100|200\nprod|250|300",
-      "freeze_sha256": "dfc434623d0aedd92600e13abbe7d09915248f923c246adb8bc04a4fec1fcc24",
-      "scoped_payload": "prod|all|100|200\nprod|p1|250|300",
-      "scoped_sha256": "d79f6726cb232c4b53940a311d2ce84f71d5c7f8ef241240efa24b039c8303b0",
-      "ledger_payload": "prod|100|0|0|100|125\nprod|300|100|50|200|225",
-      "ledger_sha256": "cd8fe19fe12c68d4456a0b4b574e31456974e6f5c2b87998af6f94fb2b0bf6ff",
-      "trust_edge_payload": "dmz|edge|6\ndmz|vault|7\nprod|dmz|5",
-      "trust_edge_sha256": "84f65928e0230952cdeb5a1bad88f4aaa96ee08190579cf2e11ab15fa6ea262f"
-    },
-    "canonical_alert_checksum": "SHA-256 of checksum_serialization_contract canonical_alert_rows",
-    "freeze_compaction_checksum": "SHA-256 of checksum_serialization_contract freeze_rows",
-    "reopen_compaction_checksum": "SHA-256 of checksum_serialization_contract scoped_rows built from compacted reopen intervals",
-    "rotation_compaction_checksum": "SHA-256 of checksum_serialization_contract scoped_rows built from compacted rotation intervals",
-    "defer_compaction_checksum": "SHA-256 of checksum_serialization_contract scoped_rows built from compacted defer intervals",
-    "trust_edge_checksum": "SHA-256 of checksum_serialization_contract trust_edge_rows",
-    "queue_hash_checksum": "sha256('|'.join(queue_hash values in final queue order)) lowercase 64 hex chars",
-    "window_digest_checksum": "sha256('|'.join(window_digest values in final queue order)) lowercase 64 hex chars",
-    "ledger_checksum": "SHA-256 of checksum_serialization_contract ledger_rows",
-    "trust_path_digest_checksum": "sha256('|'.join(trust_path_digest values in final queue order)) lowercase 64 hex chars"
-  },
-  "drift_windows_json": {
-    "shape": "flat map {env: [window, ...]}",
-    "env_sort": "ascending",
-    "window_sort": "start_ms ascending",
-    "required_fields": [
-      "start_ms",
-      "end_ms",
-      "duration_ms",
-      "freeze_overlap_ms",
-      "freeze_segment_count",
-      "effective_duration_ms",
-      "reopen_overlap_ms",
-      "reopen_segment_count",
-      "risk_adjusted_duration_ms",
-      "rotation_overlap_ms",
-      "rotation_segment_count",
-      "dispatchable_duration_ms",
-      "defer_overlap_ms",
-      "defer_segment_count",
-      "actionable_duration_ms",
-      "idle_gap_ms",
-      "carry_in_ms",
-      "carry_out_ms",
-      "ledger_adjusted_actionable_ms",
-      "trust_reachable_envs",
-      "trust_exposure_score",
-      "trust_strongest_path",
-      "trust_path_digest",
-      "alert_count",
-      "source_alert_ids",
-      "max_severity"
-    ],
-    "field_policy": "Each window row carries EXACTLY the required_fields keys \u2014 no extras and no omissions. Queue-level fields (ticket_id, priority, queue_hash, window_digest, stability_pressure_score, volatility_index, defer_pressure_score, ledger_pressure_score, stability_index) belong only to response_queue.jsonl rows. env is the top-level map key, not a row field."
-  },
-  "semantics_source": {
-    "notes": "This document is the output contract only: file paths, schemas, required fields, repair tokens, digest payloads and checksum serialization. It does NOT define how values are derived.",
-    "authority": "Canonicalization, dedupe tie-breaks, window merging, the freeze/reopen/rotation/defer attenuation layers and their scope rules, probe scoring, the risk ledger, IAM trust traversal, queue admission, priority rules and queue ordering were settled by the firewall governance board; the authoritative record is /app/incident/enforcement_review_log.md. Where an early draft proposal conflicts with a later governance decision, the later decision wins."
-  },
-  "governing_entry_index": {
-    "_note": "Navigation aid only. It records WHICH review entries carry the governing rule for each stage; it does not restate any rule, value, divisor, threshold or rounding direction.",
-    "stages": {
-      "canonicalization": [
-        "#FW-5301"
-      ],
-      "deduplication": [
-        "#FW-5302",
-        "#FW-5366"
-      ],
-      "window_construction": [
-        "#FW-5304",
-        "#FW-5370"
-      ],
-      "freeze_layer": [
-        "#FW-5305"
-      ],
-      "reopen_layer": [
-        "#FW-5307"
-      ],
-      "rotation_layer": [
-        "#FW-5308",
-        "#FW-5354",
-        "#FW-5374",
-        "#FW-5396"
-      ],
-      "defer_layer": [
-        "#FW-5310"
-      ],
-      "layer_interaction": [
-        "#FW-5354",
-        "#FW-5396"
-      ],
-      "probe_scoring": [
-        "#FW-5311",
-        "#FW-5376",
-        "#FW-5382",
-        "#FW-5388"
-      ],
-      "risk_ledger": [
-        "#FW-5313",
-        "#FW-5314",
-        "#FW-5327",
-        "#FW-5368",
-        "#FW-5378",
-        "#FW-5380",
-        "#FW-5390"
-      ],
-      "trust_graph": [
-        "#FW-5316",
-        "#FW-5317",
-        "#FW-5319",
-        "#FW-5320",
-        "#FW-5394",
-        "#FW-5398"
-      ],
-      "queue_admission": [
-        "#FW-5322"
-      ],
-      "priority_assignment": [
-        "#FW-5323",
-        "#FW-5372",
-        "#FW-5394"
-      ],
-      "queue_ordering": [
-        "#FW-5325"
-      ],
-      "queue_capacity": [
-        "#FW-5356"
-      ],
-      "other_governing": [
-        "#FW-5331",
-        "#FW-5330",
-        "#FW-5333",
-        "#FW-5336",
-        "#FW-5339"
-      ]
-    },
-    "rounding_warning": "Rounding direction is not uniform across the pipeline and is not inferable from any neighbouring divisor, including between siblings in the same family. Each divisor's direction is fixed by its own entry, and several directions were FLIPPED by later dated rulings that revise an earlier entry on that point only - see supersession_convention above. Take each direction from the latest dated ruling that names that divisor, not from the first entry you find it in.",
-    "reversal_warning": "At least one stage has had the DIRECTION of a comparison reversed by a later entry.",
-    "interaction_warning": "The scoped attenuation layers are NOT independent. One layer pair has a precedence rule assigning their shared time to a single layer; a third layer is excluded. That rule is #FW-5354, listed under layer_interaction.",
-    "supersession_convention": "HOW TO RESOLVE AN APPARENT CONFLICT. A later dated ruling always wins over an earlier one on the specific point it names, and it says so in its own text. Two different forms appear in the review log: an entry replaced in full carries an inline marker such as '(Revised - see the 2026-05 governance review.)', while an entry revised on only ONE point carries no marker at all, because it continues to govern every other point in its stage. The absence of a marker therefore does NOT mean an entry is current in every respect. Never take a formula, divisor or rounding direction from an entry without first checking whether a later dated entry names that same point - several do, including rounding directions that a later ruling flips. Read every entry listed for a stage and apply the latest dated ruling on each individual point."
   }
 }
