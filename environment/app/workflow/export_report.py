@@ -1,4 +1,4 @@
-"""Broken Pipewatch signal workflow used for repair task."""
+"""Pipewatch build-triage rollup for CI/CD signal telemetry."""
 
 from __future__ import annotations
 

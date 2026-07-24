@@ -1,9 +1,9 @@
-# Pipewatch Identity Runner Containment Runbook
+# Pipewatch Build Runner Restoration Runbook
 
-Required hardened state for any CI/CD platform touched by the Pipewatch intrusion. The sync
-automation provisioned itself with persistence and escalation paths that must be removed while
-the runner is contained; the build triage rollup is not restored until the host matches this
-runbook.
+Required known-good configuration for any CI/CD runner left misconfigured by the Pipewatch
+provisioning automation. The automation provisioned itself with stray access and escalation
+paths that must be cleared while the runner is restored; the build-triage rollup is not
+rebuilt until the host matches this runbook.
 
 ## SSH persistence
 

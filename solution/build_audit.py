@@ -155,10 +155,10 @@ def build_issues_from_sources(dossier_text: str, original_pipeline: str, spec: d
 
 
 WORKFLOW_DOCSTRING_BROKEN = (
-    '"""Broken Pipewatch signal workflow used for repair task."""'
+    '"""Pipewatch build-triage rollup for CI/CD signal telemetry."""'
 )
 WORKFLOW_DOCSTRING_REPAIRED = (
-    '"""Export corrected Pipewatch summary and signal rows."""'
+    '"""Pipewatch build-triage rollup: emit summary, pipeline matrix, and escalation queue."""'
 )
 
 # Corrected processing core spliced into the frozen workflow head during repair.
