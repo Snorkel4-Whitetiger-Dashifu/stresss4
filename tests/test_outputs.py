@@ -53,8 +53,726 @@ ANOMALY_SEVERITIES = {"high", "critical"}
 SEVERITY_ORDER = ("critical", "high", "medium", "low")
 SEVERITY_RANK = {"low": 1, "medium": 2, "high": 3, "critical": 4}
 
-EXPECTED_FIXTURE = Path("/tests/fixtures/expected_summary.json")
-FIXTURE = json.loads(EXPECTED_FIXTURE.read_text())
+FIXTURE = json.loads(
+    """
+{
+ "primary": {
+  "summary": {
+   "schema_version": "identity-triage-v2",
+   "raw_build_count": 28,
+   "unique_build_ids": 26,
+   "total_builds": 26,
+   "severity_counts": {
+    "critical": 9,
+    "high": 14,
+    "medium": 2,
+    "low": 1
+   },
+   "pipelines": [
+    "backend-ci",
+    "data-etl",
+    "frontend-ci",
+    "infra-deploy",
+    "mobile-build",
+    "release-prod"
+   ],
+   "escalated_count": 16,
+   "dismissed_excluded_count": 2,
+   "override_excluded_count": 5,
+   "override_compaction_checksum": "b6bc1458fe7aa501c2d7475502564a24acbf42c7bfc4913cebf96328067ff54d",
+   "max_wide_pressure_score": 2,
+   "max_pressure_index": 4,
+   "max_override_pressure_score": 2,
+   "chain_count": 13,
+   "max_chain_risk_score": 17,
+   "chain_digest_checksum": "c255df69cccefcb87d872bd7dc120027e9c12d02949e46bd6c69ea7608f8bd9e",
+   "max_chain_reach_score": 40,
+   "chain_reach_digest_checksum": "dd0e0d523288c42c67dada06666e511517326ba4b67d30cacfd205423cfbc927",
+   "signal_digest_checksum": "7000c3df3fc5b34e653b9898cc83be418df26a7445473643ee3fb85d365d46df",
+   "critical_escalation_ids": [
+    "bd-501",
+    "bd-503",
+    "bd-504",
+    "bd-505",
+    "bd-511",
+    "bd-520",
+    "bd-530",
+    "bd-531"
+   ],
+   "critical_escalation_count": 8,
+   "max_escalation_pressure": 26,
+   "escalation_ledger_checksum": "68383ca0cb3a96866a830f03ee4ef94f7b06682c1246306977f1b05e015e20fb"
+  },
+  "pipeline_matrix": {
+   "backend-ci": {
+    "critical": 1,
+    "high": 3,
+    "medium": 1,
+    "low": 0
+   },
+   "data-etl": {
+    "critical": 2,
+    "high": 1,
+    "medium": 0,
+    "low": 0
+   },
+   "frontend-ci": {
+    "critical": 3,
+    "high": 5,
+    "medium": 0,
+    "low": 0
+   },
+   "infra-deploy": {
+    "critical": 0,
+    "high": 4,
+    "medium": 0,
+    "low": 1
+   },
+   "mobile-build": {
+    "critical": 1,
+    "high": 1,
+    "medium": 0,
+    "low": 0
+   },
+   "release-prod": {
+    "critical": 2,
+    "high": 0,
+    "medium": 1,
+    "low": 0
+   }
+  },
+  "escalated": [
+   {
+    "build_id": "bd-581",
+    "occurred_ms": 8520000010290,
+    "severity": "high",
+    "pipeline": "infra-deploy",
+    "detector": "signing key exposure",
+    "override_pressure_score": 0,
+    "wide_pressure_score": 2,
+    "pressure_index": 2,
+    "chain_id": "2613df2103",
+    "chain_size": 2,
+    "chain_span_ms": 90,
+    "chain_risk_score": 9,
+    "chain_digest": "770eabd4b3b1",
+    "chain_reach_score": 18,
+    "chain_reach_depth": 1,
+    "chain_reach_path": [
+     "00217e1254",
+     "2613df2103"
+    ],
+    "chain_reach_digest": "9bf2f1127952",
+    "signal_digest": "c9ba2a7d8530"
+   },
+   {
+    "build_id": "bd-580",
+    "occurred_ms": 8520000010200,
+    "severity": "high",
+    "pipeline": "infra-deploy",
+    "detector": "credential in build env",
+    "override_pressure_score": 0,
+    "wide_pressure_score": 2,
+    "pressure_index": 2,
+    "chain_id": "2613df2103",
+    "chain_size": 2,
+    "chain_span_ms": 90,
+    "chain_risk_score": 9,
+    "chain_digest": "770eabd4b3b1",
+    "chain_reach_score": 18,
+    "chain_reach_depth": 1,
+    "chain_reach_path": [
+     "00217e1254",
+     "2613df2103"
+    ],
+    "chain_reach_digest": "9bf2f1127952",
+    "signal_digest": "b6e4cc8e2d1f"
+   },
+   {
+    "build_id": "bd-574",
+    "occurred_ms": 8520000009400,
+    "severity": "critical",
+    "pipeline": "release-prod",
+    "detector": "runner sync anomaly",
+    "override_pressure_score": 0,
+    "wide_pressure_score": 0,
+    "pressure_index": 0,
+    "chain_id": "f6671a6cdd",
+    "chain_size": 1,
+    "chain_span_ms": 0,
+    "chain_risk_score": 6,
+    "chain_digest": "fe16fdc84913",
+    "chain_reach_score": 6,
+    "chain_reach_depth": 0,
+    "chain_reach_path": [
+     "f6671a6cdd"
+    ],
+    "chain_reach_digest": "f4b1c9ac0335",
+    "signal_digest": "b55fbc8d0ec5"
+   },
+   {
+    "build_id": "bd-573",
+    "occurred_ms": 8520000009200,
+    "severity": "high",
+    "pipeline": "backend-ci",
+    "detector": "exfil via build artifact",
+    "override_pressure_score": 0,
+    "wide_pressure_score": 1,
+    "pressure_index": 1,
+    "chain_id": "03ed36ebe1",
+    "chain_size": 1,
+    "chain_span_ms": 0,
+    "chain_risk_score": 5,
+    "chain_digest": "d8a0c809a7fb",
+    "chain_reach_score": 5,
+    "chain_reach_depth": 0,
+    "chain_reach_path": [
+     "03ed36ebe1"
+    ],
+    "chain_reach_digest": "b3f911f0a714",
+    "signal_digest": "caa351f43314"
+   },
+   {
+    "build_id": "bd-571",
+    "occurred_ms": 8520000008500,
+    "severity": "high",
+    "pipeline": "mobile-build",
+    "detector": "brute force token lockout",
+    "override_pressure_score": 2,
+    "wide_pressure_score": 2,
+    "pressure_index": 4,
+    "chain_id": "1bf4a889c3",
+    "chain_size": 1,
+    "chain_span_ms": 0,
+    "chain_risk_score": 5,
+    "chain_digest": "fd1dce9fde64",
+    "chain_reach_score": 5,
+    "chain_reach_depth": 0,
+    "chain_reach_path": [
+     "1bf4a889c3"
+    ],
+    "chain_reach_digest": "7d16916a6f5f",
+    "signal_digest": "240883f20c32"
+   },
+   {
+    "build_id": "bd-570",
+    "occurred_ms": 8520000008200,
+    "severity": "high",
+    "pipeline": "infra-deploy",
+    "detector": "dependency confusion pull",
+    "override_pressure_score": 0,
+    "wide_pressure_score": 2,
+    "pressure_index": 2,
+    "chain_id": "00217e1254",
+    "chain_size": 1,
+    "chain_span_ms": 0,
+    "chain_risk_score": 5,
+    "chain_digest": "fb4de5430b8f",
+    "chain_reach_score": 5,
+    "chain_reach_depth": 0,
+    "chain_reach_path": [
+     "00217e1254"
+    ],
+    "chain_reach_digest": "e984970adb16",
+    "signal_digest": "cd820609dba7"
+   },
+   {
+    "build_id": "bd-541",
+    "occurred_ms": 8520000005200,
+    "severity": "high",
+    "pipeline": "frontend-ci",
+    "detector": "privileged scope grant",
+    "override_pressure_score": 0,
+    "wide_pressure_score": 0,
+    "pressure_index": 0,
+    "chain_id": "75a6f1f7b2",
+    "chain_size": 1,
+    "chain_span_ms": 0,
+    "chain_risk_score": 5,
+    "chain_digest": "c12f92477cf4",
+    "chain_reach_score": 40,
+    "chain_reach_depth": 3,
+    "chain_reach_path": [
+     "6e4fd0a021",
+     "c1b2ae54d2",
+     "f541e2dd76",
+     "75a6f1f7b2"
+    ],
+    "chain_reach_digest": "8402a8943ec1",
+    "signal_digest": "f0ab884b82a8"
+   },
+   {
+    "build_id": "bd-540",
+    "occurred_ms": 8520000003900,
+    "severity": "critical",
+    "pipeline": "release-prod",
+    "detector": "unsigned artifact push",
+    "override_pressure_score": 0,
+    "wide_pressure_score": 2,
+    "pressure_index": 2,
+    "chain_id": "44b4d35fc9",
+    "chain_size": 1,
+    "chain_span_ms": 0,
+    "chain_risk_score": 6,
+    "chain_digest": "e263474fb79e",
+    "chain_reach_score": 6,
+    "chain_reach_depth": 0,
+    "chain_reach_path": [
+     "44b4d35fc9"
+    ],
+    "chain_reach_digest": "b52997b250f2",
+    "signal_digest": "d887510c802f"
+   },
+   {
+    "build_id": "bd-531",
+    "occurred_ms": 8520000003700,
+    "severity": "critical",
+    "pipeline": "data-etl",
+    "detector": "dependency confusion pull",
+    "override_pressure_score": 0,
+    "wide_pressure_score": 0,
+    "pressure_index": 0,
+    "chain_id": "aabdbc0773",
+    "chain_size": 2,
+    "chain_span_ms": 300,
+    "chain_risk_score": 17,
+    "chain_digest": "993f765dbc30",
+    "chain_reach_score": 17,
+    "chain_reach_depth": 0,
+    "chain_reach_path": [
+     "aabdbc0773"
+    ],
+    "chain_reach_digest": "ec9a920300a2",
+    "signal_digest": "ca87d1142c18"
+   },
+   {
+    "build_id": "bd-530",
+    "occurred_ms": 8520000003400,
+    "severity": "critical",
+    "pipeline": "mobile-build",
+    "detector": "dependency confusion pull",
+    "override_pressure_score": 0,
+    "wide_pressure_score": 0,
+    "pressure_index": 0,
+    "chain_id": "aabdbc0773",
+    "chain_size": 2,
+    "chain_span_ms": 300,
+    "chain_risk_score": 17,
+    "chain_digest": "993f765dbc30",
+    "chain_reach_score": 17,
+    "chain_reach_depth": 0,
+    "chain_reach_path": [
+     "aabdbc0773"
+    ],
+    "chain_reach_digest": "ec9a920300a2",
+    "signal_digest": "08dc24860aac"
+   },
+   {
+    "build_id": "bd-505",
+    "occurred_ms": 8520000003150,
+    "severity": "critical",
+    "pipeline": "frontend-ci",
+    "detector": "runner credential theft",
+    "override_pressure_score": 0,
+    "wide_pressure_score": 0,
+    "pressure_index": 0,
+    "chain_id": "f541e2dd76",
+    "chain_size": 2,
+    "chain_span_ms": 150,
+    "chain_risk_score": 11,
+    "chain_digest": "3f448f60cbfd",
+    "chain_reach_score": 31,
+    "chain_reach_depth": 2,
+    "chain_reach_path": [
+     "6e4fd0a021",
+     "c1b2ae54d2",
+     "f541e2dd76"
+    ],
+    "chain_reach_digest": "bb14944890d6",
+    "signal_digest": "30342d4556a0"
+   },
+   {
+    "build_id": "bd-504",
+    "occurred_ms": 8520000003000,
+    "severity": "high",
+    "pipeline": "frontend-ci",
+    "detector": "cache poisoning attack",
+    "override_pressure_score": 0,
+    "wide_pressure_score": 0,
+    "pressure_index": 0,
+    "chain_id": "f541e2dd76",
+    "chain_size": 2,
+    "chain_span_ms": 150,
+    "chain_risk_score": 11,
+    "chain_digest": "3f448f60cbfd",
+    "chain_reach_score": 31,
+    "chain_reach_depth": 2,
+    "chain_reach_path": [
+     "6e4fd0a021",
+     "c1b2ae54d2",
+     "f541e2dd76"
+    ],
+    "chain_reach_digest": "bb14944890d6",
+    "signal_digest": "6c7f030c17d3"
+   },
+   {
+    "build_id": "bd-520",
+    "occurred_ms": 8520000002000,
+    "severity": "high",
+    "pipeline": "infra-deploy",
+    "detector": "privileged job escalation",
+    "override_pressure_score": 0,
+    "wide_pressure_score": 1,
+    "pressure_index": 1,
+    "chain_id": "3de7da1e40",
+    "chain_size": 1,
+    "chain_span_ms": 0,
+    "chain_risk_score": 5,
+    "chain_digest": "9fd099f006a4",
+    "chain_reach_score": 5,
+    "chain_reach_depth": 0,
+    "chain_reach_path": [
+     "3de7da1e40"
+    ],
+    "chain_reach_digest": "406d33ca9a57",
+    "signal_digest": "b49a22c2b7ed"
+   },
+   {
+    "build_id": "bd-511",
+    "occurred_ms": 8520000001500,
+    "severity": "high",
+    "pipeline": "backend-ci",
+    "detector": "reverse shell in step",
+    "override_pressure_score": 0,
+    "wide_pressure_score": 0,
+    "pressure_index": 0,
+    "chain_id": "a818ba0067",
+    "chain_size": 1,
+    "chain_span_ms": 0,
+    "chain_risk_score": 5,
+    "chain_digest": "7ec5ebc2d21d",
+    "chain_reach_score": 5,
+    "chain_reach_depth": 0,
+    "chain_reach_path": [
+     "a818ba0067"
+    ],
+    "chain_reach_digest": "d920be9c2c2a",
+    "signal_digest": "e83b17f21c94"
+   },
+   {
+    "build_id": "bd-503",
+    "occurred_ms": 8520000000800,
+    "severity": "high",
+    "pipeline": "frontend-ci",
+    "detector": "tampered lockfile",
+    "override_pressure_score": 0,
+    "wide_pressure_score": 0,
+    "pressure_index": 0,
+    "chain_id": "c1b2ae54d2",
+    "chain_size": 1,
+    "chain_span_ms": 0,
+    "chain_risk_score": 5,
+    "chain_digest": "a58681cc22cc",
+    "chain_reach_score": 16,
+    "chain_reach_depth": 1,
+    "chain_reach_path": [
+     "6e4fd0a021",
+     "c1b2ae54d2"
+    ],
+    "chain_reach_digest": "9ee682a4dd2e",
+    "signal_digest": "33d21500eadb"
+   },
+   {
+    "build_id": "bd-501",
+    "occurred_ms": 8520000000120,
+    "severity": "high",
+    "pipeline": "frontend-ci",
+    "detector": "dependency confusion pull",
+    "override_pressure_score": 0,
+    "wide_pressure_score": 0,
+    "pressure_index": 0,
+    "chain_id": "6e4fd0a021",
+    "chain_size": 1,
+    "chain_span_ms": 0,
+    "chain_risk_score": 5,
+    "chain_digest": "687c9e19bd75",
+    "chain_reach_score": 5,
+    "chain_reach_depth": 0,
+    "chain_reach_path": [
+     "6e4fd0a021"
+    ],
+    "chain_reach_digest": "77a97f247a32",
+    "signal_digest": "4342f6831c80"
+   }
+  ]
+ },
+ "alternate": {
+  "summary": {
+   "schema_version": "identity-triage-v2",
+   "raw_build_count": 12,
+   "unique_build_ids": 12,
+   "total_builds": 12,
+   "severity_counts": {
+    "critical": 3,
+    "high": 7,
+    "medium": 1,
+    "low": 1
+   },
+   "pipelines": [
+    "backend-ci",
+    "data-etl",
+    "frontend-ci",
+    "infra-deploy",
+    "mobile-build",
+    "release-prod"
+   ],
+   "escalated_count": 8,
+   "dismissed_excluded_count": 1,
+   "override_excluded_count": 1,
+   "override_compaction_checksum": "b6bc1458fe7aa501c2d7475502564a24acbf42c7bfc4913cebf96328067ff54d",
+   "max_wide_pressure_score": 0,
+   "max_pressure_index": 0,
+   "max_override_pressure_score": 0,
+   "chain_count": 7,
+   "max_chain_risk_score": 17,
+   "chain_digest_checksum": "6984df6d035dec65e71b9e02facd9d58663b0145c57da8658560e91106d261d6",
+   "max_chain_reach_score": 28,
+   "chain_reach_digest_checksum": "8b361231d6e28ba4d0c7b620364febadd69bd3df50f34f793d2c5afb8b85bc78",
+   "signal_digest_checksum": "773be54bc1cb1ab7a34cc1fa19280176fe607e3ff3d20df18548e690374b4610",
+   "critical_escalation_ids": [
+    "ay-01",
+    "ay-03",
+    "ay-04",
+    "ay-05"
+   ],
+   "critical_escalation_count": 4,
+   "max_escalation_pressure": 23,
+   "escalation_ledger_checksum": "4f2296ff5a83f926410ffe0efc6c55861de2c544a753f1d0e5408599b5dbfa5c"
+  },
+  "pipeline_matrix": {
+   "backend-ci": {
+    "critical": 1,
+    "high": 1,
+    "medium": 0,
+    "low": 0
+   },
+   "data-etl": {
+    "critical": 0,
+    "high": 1,
+    "medium": 0,
+    "low": 0
+   },
+   "frontend-ci": {
+    "critical": 1,
+    "high": 2,
+    "medium": 1,
+    "low": 0
+   },
+   "infra-deploy": {
+    "critical": 0,
+    "high": 1,
+    "medium": 0,
+    "low": 1
+   },
+   "mobile-build": {
+    "critical": 0,
+    "high": 1,
+    "medium": 0,
+    "low": 0
+   },
+   "release-prod": {
+    "critical": 1,
+    "high": 1,
+    "medium": 0,
+    "low": 0
+   }
+  },
+  "escalated": [
+   {
+    "build_id": "ay-12",
+    "occurred_ms": 8520000005400,
+    "severity": "high",
+    "pipeline": "frontend-ci",
+    "detector": "tampered lockfile",
+    "override_pressure_score": 0,
+    "wide_pressure_score": 0,
+    "pressure_index": 0,
+    "chain_id": "4fc95062e5",
+    "chain_size": 1,
+    "chain_span_ms": 0,
+    "chain_risk_score": 5,
+    "chain_digest": "58aeb7a7e276",
+    "chain_reach_score": 5,
+    "chain_reach_depth": 0,
+    "chain_reach_path": [
+     "4fc95062e5"
+    ],
+    "chain_reach_digest": "0b0e76e165a8",
+    "signal_digest": "a899ca9f9991"
+   },
+   {
+    "build_id": "ay-11",
+    "occurred_ms": 8520000005100,
+    "severity": "high",
+    "pipeline": "release-prod",
+    "detector": "unsigned artifact push",
+    "override_pressure_score": 0,
+    "wide_pressure_score": 0,
+    "pressure_index": 0,
+    "chain_id": "8e2f3f35fc",
+    "chain_size": 1,
+    "chain_span_ms": 0,
+    "chain_risk_score": 5,
+    "chain_digest": "a971794dc21a",
+    "chain_reach_score": 15,
+    "chain_reach_depth": 1,
+    "chain_reach_path": [
+     "cb7afd0d90",
+     "8e2f3f35fc"
+    ],
+    "chain_reach_digest": "e5f08499781f",
+    "signal_digest": "6d381f4b9dc1"
+   },
+   {
+    "build_id": "ay-07",
+    "occurred_ms": 8520000003700,
+    "severity": "high",
+    "pipeline": "data-etl",
+    "detector": "credential in build env",
+    "override_pressure_score": 0,
+    "wide_pressure_score": 0,
+    "pressure_index": 0,
+    "chain_id": "08843180c5",
+    "chain_size": 1,
+    "chain_span_ms": 0,
+    "chain_risk_score": 5,
+    "chain_digest": "ad485231ea2d",
+    "chain_reach_score": 13,
+    "chain_reach_depth": 1,
+    "chain_reach_path": [
+     "16d93e1074",
+     "08843180c5"
+    ],
+    "chain_reach_digest": "3a1e91f248fe",
+    "signal_digest": "568e83f2ba6d"
+   },
+   {
+    "build_id": "ay-06",
+    "occurred_ms": 8520000003100,
+    "severity": "critical",
+    "pipeline": "release-prod",
+    "detector": "runner sync anomaly",
+    "override_pressure_score": 0,
+    "wide_pressure_score": 0,
+    "pressure_index": 0,
+    "chain_id": "cb7afd0d90",
+    "chain_size": 1,
+    "chain_span_ms": 0,
+    "chain_risk_score": 6,
+    "chain_digest": "49153ea281dc",
+    "chain_reach_score": 6,
+    "chain_reach_depth": 0,
+    "chain_reach_path": [
+     "cb7afd0d90"
+    ],
+    "chain_reach_digest": "4b9e5c07b470",
+    "signal_digest": "fa4dfdce0e5f"
+   },
+   {
+    "build_id": "ay-05",
+    "occurred_ms": 8520000002500,
+    "severity": "high",
+    "pipeline": "mobile-build",
+    "detector": "dependency confusion pull",
+    "override_pressure_score": 0,
+    "wide_pressure_score": 0,
+    "pressure_index": 0,
+    "chain_id": "3f68d36d66",
+    "chain_size": 2,
+    "chain_span_ms": 400,
+    "chain_risk_score": 17,
+    "chain_digest": "f584c83644fb",
+    "chain_reach_score": 28,
+    "chain_reach_depth": 1,
+    "chain_reach_path": [
+     "e5f4198dc5",
+     "3f68d36d66"
+    ],
+    "chain_reach_digest": "a738279fd490",
+    "signal_digest": "b59b0e12d249"
+   },
+   {
+    "build_id": "ay-04",
+    "occurred_ms": 8520000002100,
+    "severity": "critical",
+    "pipeline": "backend-ci",
+    "detector": "dependency confusion pull",
+    "override_pressure_score": 0,
+    "wide_pressure_score": 0,
+    "pressure_index": 0,
+    "chain_id": "3f68d36d66",
+    "chain_size": 2,
+    "chain_span_ms": 400,
+    "chain_risk_score": 17,
+    "chain_digest": "f584c83644fb",
+    "chain_reach_score": 28,
+    "chain_reach_depth": 1,
+    "chain_reach_path": [
+     "e5f4198dc5",
+     "3f68d36d66"
+    ],
+    "chain_reach_digest": "a738279fd490",
+    "signal_digest": "97e600e5bff4"
+   },
+   {
+    "build_id": "ay-03",
+    "occurred_ms": 8520000001600,
+    "severity": "high",
+    "pipeline": "infra-deploy",
+    "detector": "reverse shell in step",
+    "override_pressure_score": 0,
+    "wide_pressure_score": 0,
+    "pressure_index": 0,
+    "chain_id": "16d93e1074",
+    "chain_size": 1,
+    "chain_span_ms": 0,
+    "chain_risk_score": 5,
+    "chain_digest": "50a5fa5f27d3",
+    "chain_reach_score": 5,
+    "chain_reach_depth": 0,
+    "chain_reach_path": [
+     "16d93e1074"
+    ],
+    "chain_reach_digest": "3e6022b72e88",
+    "signal_digest": "e682c0b74848"
+   },
+   {
+    "build_id": "ay-01",
+    "occurred_ms": 8520000000000,
+    "severity": "critical",
+    "pipeline": "frontend-ci",
+    "detector": "dependency confusion pull",
+    "override_pressure_score": 0,
+    "wide_pressure_score": 0,
+    "pressure_index": 0,
+    "chain_id": "e5f4198dc5",
+    "chain_size": 1,
+    "chain_span_ms": 0,
+    "chain_risk_score": 6,
+    "chain_digest": "7ef2cca9e81a",
+    "chain_reach_score": 6,
+    "chain_reach_depth": 0,
+    "chain_reach_path": [
+     "e5f4198dc5"
+    ],
+    "chain_reach_digest": "759947c181c8",
+    "signal_digest": "7139a789a121"
+   }
+  ]
+ }
+}
+"""
+)
 PRIMARY_SUMMARY = FIXTURE["primary"]["summary"]
 PRIMARY_MATRIX = FIXTURE["primary"]["pipeline_matrix"]
 PRIMARY_ESCALATED = FIXTURE["primary"]["escalated"]
@@ -132,11 +850,11 @@ def _write_json(path: Path, data) -> None:
 
 @pytest.fixture(scope="module")
 def expected() -> dict:
-    """Expected values sourced from the committed reference fixture.
+    """Expected values sourced from the sealed reference data.
 
     Primary and alternate summaries, matrices, escalated rows and checksums are
-    read from tests/fixtures/expected_summary.json -- the ground truth captured
-    from the repaired reference pipeline -- rather than recomputed live.
+    read from the inlined FIXTURE constant -- the ground truth captured from the
+    repaired reference pipeline -- rather than recomputed live in the test suite.
     """
     return {
         **PRIMARY_SUMMARY,
